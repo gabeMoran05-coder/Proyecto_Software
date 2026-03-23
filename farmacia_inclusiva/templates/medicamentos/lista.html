@@ -1,0 +1,97 @@
+{% extends 'base.html' %}
+{% block title %}Medicamentos – Farmacia Gi{% endblock %}
+{% block page_title %}Gestión de Medicamentos{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <div>
+    <span class="badge badge-verde me-1"><span class="dot-verde me-1"></span>Vigente</span>
+    <span class="badge badge-amarillo me-1"><span class="dot-amarillo me-1"></span>Próximo a caducar</span>
+    <span class="badge badge-rojo"><span class="dot-rojo me-1"></span>Caducado</span>
+  </div>
+  {% if user.rol == 'admin' %}
+  <a href="{% url 'medicamentos:crear' %}" class="btn btn-primary btn-sm">
+    <i class="bi bi-plus-lg"></i> Nuevo medicamento
+  </a>
+  {% endif %}
+</div>
+
+<!-- Filtros -->
+<div class="card mb-3">
+  <div class="card-body py-2">
+    <form method="get" class="row g-2 align-items-center">
+      <div class="col-md-6">
+        <input type="text" name="q" value="{{ q }}" class="form-control form-control-sm" placeholder="Buscar por nombre...">
+      </div>
+      <div class="col-md-3">
+        <select name="estado" class="form-select form-select-sm">
+          <option value="">— Todos los estados —</option>
+          <option value="verde"    {% if estado == 'verde' %}selected{% endif %}>Vigente</option>
+          <option value="amarillo" {% if estado == 'amarillo' %}selected{% endif %}>Próximo a caducar</option>
+          <option value="rojo"     {% if estado == 'rojo' %}selected{% endif %}>Caducado</option>
+        </select>
+      </div>
+      <div class="col-auto">
+        <button class="btn btn-sm btn-outline-primary"><i class="bi bi-search"></i> Filtrar</button>
+        <a href="{% url 'medicamentos:lista' %}" class="btn btn-sm btn-outline-secondary">Limpiar</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Estado</th>
+            <th>Nombre</th>
+            <th>Presentación</th>
+            <th>Concentración</th>
+            <th>Receta</th>
+            <th>Lotes activos</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for med in medicamentos %}
+          <tr>
+            <td>
+              <span class="dot-{{ med.estado_colorimetria }}"
+                    title="{{ med.get_estado_colorimetria_display }}"></span>
+            </td>
+            <td class="fw-semibold">{{ med.nombre }}</td>
+            <td>{{ med.presentacion }}</td>
+            <td>{{ med.concentracion }}</td>
+            <td>
+              {% if med.requiere_receta %}
+              <span class="badge bg-warning text-dark">Sí</span>
+              {% else %}
+              <span class="badge bg-light text-muted">No</span>
+              {% endif %}
+            </td>
+            <td>{{ med.lotes.count }}</td>
+            <td>
+              <a href="{% url 'medicamentos:detalle' med.pk %}" class="btn btn-sm btn-outline-primary">
+                <i class="bi bi-eye"></i>
+              </a>
+              {% if user.rol == 'admin' %}
+              <a href="{% url 'medicamentos:editar' med.pk %}" class="btn btn-sm btn-outline-secondary">
+                <i class="bi bi-pencil"></i>
+              </a>
+              {% endif %}
+              <a href="{% url 'medicamentos:generar_qr' med.pk %}" class="btn btn-sm btn-outline-dark">
+                <i class="bi bi-qr-code"></i>
+              </a>
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="7" class="text-center text-muted py-4">Sin medicamentos registrados.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}
