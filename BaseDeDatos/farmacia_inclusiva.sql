@@ -43,7 +43,7 @@ CREATE TABLE Usuario (
     nombre          VARCHAR(80)     NOT NULL,
     ap_pat          VARCHAR(60)     DEFAULT NULL,
     ap_mat          VARCHAR(60)     DEFAULT NULL,
-    telefono        VARCHAR(15)     DEFAULT NULL,      -- VARCHAR porque puede tener +52, etc.
+    telefono        VARCHAR(15)     DEFAULT NULL,      -- VARCHAR porque puede tener +52, etc
     PRIMARY KEY (id_usuario)
 );
 
