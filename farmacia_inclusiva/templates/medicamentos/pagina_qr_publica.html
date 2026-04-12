@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ med.nombre }} – Farmacia Gi</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <style>
+    :root {
+      --verde:    #16a34a;
+      --amarillo: #ca8a04;
+      --rojo:     #dc2626;
+    }
+    body { background: #f8fafc; font-family: 'Segoe UI', sans-serif; }
+    .header-bar { background: #0f4c81; color: #fff; padding: 1rem 1.5rem; }
+    .status-card {
+      border-radius: 16px; padding: 2rem; text-align: center;
+      font-size: 1.3rem; font-weight: 700; color: #fff;
+      margin-bottom: 1rem;
+    }
+    .status-verde    { background: var(--verde); }
+    .status-amarillo { background: var(--amarillo); }
+    .status-rojo     { background: var(--rojo); }
+    .info-row { display: flex; justify-content: space-between; padding: .5rem 0; border-bottom: 1px solid #e2e8f0; }
+    .info-row:last-child { border: none; }
+    .btn-audio {
+      font-size: 1.1rem; padding: .75rem 1.5rem;
+      border-radius: 50px; width: 100%;
+    }
+    .controls { display: flex; gap: .5rem; justify-content: center; margin-top: .5rem; }
+  </style>
+</head>
+<body>
+
+<div class="header-bar d-flex align-items-center gap-2">
+  <i class="bi bi-capsule-pill fs-4"></i>
+  <div>
+    <div class="fw-bold">Farmacia Gi</div>
+    <div class="small opacity-75">Información de tu medicamento</div>
+  </div>
+</div>
+
+<div class="container py-4" style="max-width:480px;">
+
+  <!-- Semáforo de estado -->
+  {% if lote %}
+    {% if dias < 0 %}
+    <div class="status-card status-rojo">
+      <i class="bi bi-x-circle-fill fs-1 d-block mb-2"></i>
+      MEDICAMENTO CADUCADO
+    </div>
+    {% elif dias <= 30 %}
+    <div class="status-card status-amarillo">
+      <i class="bi bi-exclamation-triangle-fill fs-1 d-block mb-2"></i>
+      PRÓXIMO A CADUCAR<br>
+      <span style="font-size:.9rem;font-weight:400;">Caduca en {{ dias }} días</span>
+    </div>
+    {% else %}
+    <div class="status-card status-verde">
+      <i class="bi bi-check-circle-fill fs-1 d-block mb-2"></i>
+      MEDICAMENTO VIGENTE<br>
+      <span style="font-size:.9rem;font-weight:400;">Caduca en {{ dias }} días</span>
+    </div>
+    {% endif %}
+  {% else %}
+  <div class="alert alert-secondary text-center">Sin información de lote disponible.</div>
+  {% endif %}
+
+  <!-- Datos del medicamento -->
+  <div class="card mb-3">
+    <div class="card-header fw-semibold"><i class="bi bi-pill me-2"></i>{{ med.nombre }}</div>
+    <div class="card-body">
+      <div class="info-row"><span class="text-muted">Presentación</span><strong>{{ med.presentacion }}</strong></div>
+      <div class="info-row"><span class="text-muted">Concentración</span><strong>{{ med.concentracion }}</strong></div>
+      {% if lote %}
+      <div class="info-row"><span class="text-muted">Fecha de fabricación</span><strong>{{ lote.fecha_fabricacion|date:"d/m/Y" }}</strong></div>
+      <div class="info-row"><span class="text-muted">Fecha de caducidad</span><strong>{{ lote.fecha_caducidad|date:"d/m/Y" }}</strong></div>
+      <div class="info-row"><span class="text-muted">Número de lote</span><strong>{{ lote.numero_lote }}</strong></div>
+      {% endif %}
+      <div class="info-row"><span class="text-muted">Requiere receta</span>
+        <strong>{% if med.requiere_receta %}Sí{% else %}No{% endif %}</strong>
+      </div>
+    </div>
+  </div>
+
+  <!-- Botón de audio (accesibilidad) -->
+  <div class="card">
+    <div class="card-body text-center">
+      <p class="text-muted small mb-2">
+        <i class="bi bi-universal-access me-1"></i>Asistencia de voz para personas con dificultad visual
+      </p>
+      <button class="btn btn-primary btn-audio" id="btnAudio" onclick="leerInfo()">
+        <i class="bi bi-volume-up-fill me-2"></i>Escuchar información
+      </button>
+      <div class="controls mt-2">
+        <button class="btn btn-sm btn-outline-secondary" onclick="pausarAudio()">
+          <i class="bi bi-pause-fill"></i> Pausar
+        </button>
+        <button class="btn btn-sm btn-outline-secondary" onclick="reanudarAudio()">
+          <i class="bi bi-play-fill"></i> Reanudar
+        </button>
+        <button class="btn btn-sm btn-outline-secondary" onclick="repetirAudio()">
+          <i class="bi bi-arrow-repeat"></i> Repetir
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <p class="text-center text-muted small mt-4">Farmacia Gi – Villa de Álvarez, Colima</p>
+</div>
+
+<script>
+  // ── Texto a leer ──────────────────────────────────────────────────────────
+  const INFO = {
+    nombre:      "{{ med.nombre }}",
+    presentacion:"{{ med.presentacion }}",
+    concentracion:"{{ med.concentracion }}",
+    caducidad:   "{% if lote %}{{ lote.fecha_caducidad|date:'d \\de F \\de Y' }}{% else %}no disponible{% endif %}",
+    dias:        {{ dias|default:"null" }},
+    receta:      {% if med.requiere_receta %}true{% else %}false{% endif %}
+  };
+
+  function textoCompleto() {
+    let estado = '';
+    if (INFO.dias === null)     estado = 'Sin información de caducidad.';
+    else if (INFO.dias < 0)    estado = 'ATENCIÓN: Este medicamento está CADUCADO. No lo consuma.';
+    else if (INFO.dias <= 30)  estado = `ATENCIÓN: Este medicamento caduca en ${INFO.dias} días. Próximo a vencer.`;
+    else                       estado = `Este medicamento está vigente. Caduca en ${INFO.dias} días.`;
+
+    return `Información de tu medicamento de Farmacia Gi.
+      Nombre: ${INFO.nombre}.
+      Presentación: ${INFO.presentacion}.
+      Concentración: ${INFO.concentracion}.
+      Fecha de caducidad: ${INFO.caducidad}.
+      ${estado}
+      ${INFO.receta ? 'Este medicamento requiere receta médica.' : 'Este medicamento no requiere receta médica.'}
+      Gracias por confiar en Farmacia Gi.`;
+  }
+
+  let utterance = null;
+
+  function leerInfo() {
+    window.speechSynthesis.cancel();
+    utterance = new SpeechSynthesisUtterance(textoCompleto());
+    utterance.lang = 'es-MX';
+    utterance.rate = 0.92;
+    utterance.pitch = 1;
+    window.speechSynthesis.speak(utterance);
+  }
+
+  function pausarAudio()  { window.speechSynthesis.pause(); }
+  function reanudarAudio(){ window.speechSynthesis.resume(); }
+  function repetirAudio() { leerInfo(); }
+
+  // Auto-leer al cargar si viene de QR (parámetro ?auto=1)
+  if (new URLSearchParams(location.search).get('auto') === '1') {
+    window.addEventListener('load', () => setTimeout(leerInfo, 800));
+  }
+</script>
+</body>
+</html>
