@@ -1,0 +1,108 @@
+{% extends 'base.html' %}
+
+{% block title %}
+    {% if form.instance.id_metPag %}Editar{% else %}Nuevo{% endif %} Método de Pago — Farmacia Inclusiva
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>
+        <i class="bi bi-credit-card-2-front me-2"></i>
+        {% if form.instance.id_metPag %}
+            Editar Método de Pago
+        {% else %}
+            Nuevo Método de Pago
+        {% endif %}
+    </h2>
+    <p>
+        {% if form.instance.id_metPag %}
+            Modifica la información del método de pago seleccionado.
+        {% else %}
+            Registra un nuevo método de pago en el sistema.
+        {% endif %}
+    </p>
+</div>
+
+<div class="row justify-content-center">
+    <div class="col-md-7 col-lg-6">
+        <div class="card">
+            <div class="card-header bg-white py-3 border-bottom">
+                <h6 class="mb-0 text-muted">
+                    <i class="bi bi-form me-1"></i> Datos del método de pago
+                </h6>
+            </div>
+            <div class="card-body p-4">
+                <form method="post" novalidate>
+                    {% csrf_token %}
+
+                    <!-- Nombre -->
+                    <div class="mb-4">
+                        <label for="{{ form.nombre_metodo.id_for_label }}" class="form-label">
+                            Nombre del método <span class="text-danger">*</span>
+                        </label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="bi bi-tag"></i></span>
+                            {{ form.nombre_metodo }}
+                        </div>
+                        {% if form.nombre_metodo.errors %}
+                            <div class="text-danger small mt-1">
+                                {% for error in form.nombre_metodo.errors %}
+                                    <span>{{ error }}</span>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                        <div class="form-text">Ej: Efectivo, Tarjeta de débito, Transferencia bancaria</div>
+                    </div>
+
+                    <!-- Descripción -->
+                    <div class="mb-4">
+                        <label for="{{ form.descripcion.id_for_label }}" class="form-label">
+                            Descripción
+                        </label>
+                        {{ form.descripcion }}
+                        {% if form.descripcion.errors %}
+                            <div class="text-danger small mt-1">
+                                {% for error in form.descripcion.errors %}
+                                    <span>{{ error }}</span>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                        <div class="form-text">Opcional. Describe brevemente cómo funciona este método.</div>
+                    </div>
+
+                    <!-- Errores generales -->
+                    {% if form.non_field_errors %}
+                        <div class="alert alert-danger">
+                            {% for error in form.non_field_errors %}
+                                <p class="mb-0">{{ error }}</p>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+
+                    <!-- Botones -->
+                    <div class="d-flex gap-2 justify-content-end">
+                        <a href="{% url 'metodo_pago_list' %}" class="btn btn-outline-secondary">
+                            <i class="bi bi-x-circle me-1"></i>Cancelar
+                        </a>
+                        <button type="submit" class="btn btn-primary px-4">
+                            <i class="bi bi-check-circle me-1"></i>
+                            {% if form.instance.id_metPag %}Guardar cambios{% else %}Registrar{% endif %}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Aplicar clases Bootstrap a los inputs del formulario Django
+    document.querySelectorAll('input[type=text], textarea, select').forEach(el => {
+        if (!el.classList.contains('form-control') && !el.classList.contains('form-select')) {
+            el.classList.add(el.tagName === 'SELECT' ? 'form-select' : 'form-control');
+        }
+    });
+</script>
+{% endblock %}
