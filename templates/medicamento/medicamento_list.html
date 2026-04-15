@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+{% block title %}Medicamentos{% endblock %}
+
+{% block content %}
+<div class="card mt-2">
+
+    <div class="page-header">
+        <div>
+            <h1>Medicamentos</h1>
+            <p class="page-subtitle">Catálogo de medicamentos registrados en el sistema</p>
+        </div>
+        <div class="btn-group">
+            <a class="btn btn-primary" href="{% url 'medicamento_create' %}">+ Nuevo medicamento</a>
+            <a class="btn btn-secondary" href="{% url 'lote_list' %}">Ver lotes</a>
+        </div>
+    </div>
+
+    <!-- FILTROS -->
+    <div class="filter-bar">
+        <h4>Filtros</h4>
+        <form method="get">
+            <div class="filter-row">
+                <div class="form-group">
+                    <label for="nombre">Nombre</label>
+                    <input id="nombre" name="nombre" type="text" placeholder="Buscar por nombre..." value="{{ nombre_filter|default:'' }}">
+                </div>
+                <div class="form-group">
+                    <label for="estado">Estado colorimetría</label>
+                    <select id="estado" name="estado">
+                        <option value="">-- Todos --</option>
+                        <option value="verde"     {% if estado_filter == 'verde' %}selected{% endif %}>🟢 Verde (stock OK)</option>
+                        <option value="amarillo"  {% if estado_filter == 'amarillo' %}selected{% endif %}>🟡 Amarillo (stock bajo)</option>
+                        <option value="rojo"      {% if estado_filter == 'rojo' %}selected{% endif %}>🔴 Rojo (crítico)</option>
+                        <option value="sin_stock" {% if estado_filter == 'sin_stock' %}selected{% endif %}>⚫ Sin stock</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="receta">Requiere receta</label>
+                    <select id="receta" name="receta">
+                        <option value="">-- Todos --</option>
+                        <option value="si" {% if receta_filter == 'si' %}selected{% endif %}>Sí</option>
+                        <option value="no" {% if receta_filter == 'no' %}selected{% endif %}>No</option>
+                    </select>
+                </div>
+                <div class="btn-group" style="align-self: flex-end;">
+                    <button type="submit" class="btn btn-primary">Filtrar</button>
+                    <a href="{% url 'medicamento_list' %}" class="btn btn-secondary">Limpiar</a>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <!-- CONTEO -->
+    <p class="text-muted" style="margin-bottom:0.85rem;">
+        Mostrando {{ page_obj.start_index }}–{{ page_obj.end_index }} de {{ paginator.count }} medicamentos
+    </p>
+
+    <!-- TABLA -->
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Nombre</th>
+                    <th>Presentación</th>
+                    <th>Concentración</th>
+                    <th>Lote</th>
+                    <th>Stock</th>
+                    <th>Estado</th>
+                    <th>Receta</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for med in medicamentos %}
+                <tr>
+                    <td class="text-mono">{{ med.id_med }}</td>
+                    <td>
+                        <a class="link" href="{% url 'medicamento_detail' med.id_med %}">{{ med.nombre }}</a>
+                    </td>
+                    <td>{{ med.presentacion|default:"—" }}</td>
+                    <td>{{ med.concentracion|default:"—" }}</td>
+                    <td>
+                        <a class="link" href="{% url 'lote_detail' med.id_lote.id_lote %}">
+                            {{ med.id_lote.numero_lote }}
+                        </a>
+                    </td>
+                    <td class="text-mono fw-600">{{ med.id_lote.stock_actual }}</td>
+                    <td>
+                        <span class="badge badge-colorimetria color-{{ med.estado_colorimetria }}">
+                            {% if med.estado_colorimetria == 'verde' %}🟢 Verde
+                            {% elif med.estado_colorimetria == 'amarillo' %}🟡 Amarillo
+                            {% elif med.estado_colorimetria == 'rojo' %}🔴 Rojo
+                            {% else %}⚫ Sin stock{% endif %}
+                        </span>
+                    </td>
+                    <td>
+                        {% if med.requiere_receta %}
+                            <span class="badge badge-yellow">Sí</span>
+                        {% else %}
+                            <span class="badge badge-gray">No</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div class="btn-group">
+                            <a class="btn btn-secondary btn-sm" href="{% url 'medicamento_detail' med.id_med %}">Ver</a>
+                            <a class="btn btn-secondary btn-sm" href="{% url 'medicamento_update' med.id_med %}">Editar</a>
+                            <a class="btn btn-danger btn-sm" href="{% url 'medicamento_delete' med.id_med %}">Eliminar</a>
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="9">
+                        <div class="empty-state">
+                            <div class="empty-icon">💊</div>
+                            <p>No se encontraron medicamentos con los filtros aplicados.</p>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- PAGINACIÓN -->
+    {% if paginator.num_pages > 1 %}
+    <div class="pagination">
+        {% if page_obj.has_previous %}
+            <a href="?page=1{{ query_params }}" class="btn btn-secondary btn-sm">« Primera</a>
+            <a href="?page={{ page_obj.previous_page_number }}{{ query_params }}" class="btn btn-secondary btn-sm">‹ Anterior</a>
+        {% else %}
+            <button class="btn btn-secondary btn-sm" disabled>« Primera</button>
+            <button class="btn btn-secondary btn-sm" disabled>‹ Anterior</button>
+        {% endif %}
+
+        {% for num in paginator.page_range %}
+            {% if page_obj.number == num %}
+                <button class="btn btn-primary btn-sm">{{ num }}</button>
+            {% elif num >= page_obj.number|add:'-2' and num <= page_obj.number|add:'2' %}
+                <a href="?page={{ num }}{{ query_params }}" class="btn btn-secondary btn-sm">{{ num }}</a>
+            {% endif %}
+        {% endfor %}
+
+        {% if page_obj.has_next %}
+            <a href="?page={{ page_obj.next_page_number }}{{ query_params }}" class="btn btn-secondary btn-sm">Siguiente ›</a>
+            <a href="?page={{ paginator.num_pages }}{{ query_params }}" class="btn btn-secondary btn-sm">Última »</a>
+        {% else %}
+            <button class="btn btn-secondary btn-sm" disabled>Siguiente ›</button>
+            <button class="btn btn-secondary btn-sm" disabled>Última »</button>
+        {% endif %}
+
+        <span class="pagination-info">Página {{ page_obj.number }} de {{ paginator.num_pages }}</span>
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}

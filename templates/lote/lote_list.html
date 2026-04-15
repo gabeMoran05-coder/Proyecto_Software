@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+{% block title %}Lotes{% endblock %}
+
+{% block content %}
+<div class="card mt-2">
+
+    <div class="page-header">
+        <div>
+            <h1>Lotes</h1>
+            <p class="page-subtitle">Gestión de lotes de medicamentos recibidos de proveedores</p>
+        </div>
+        <a class="btn btn-primary" href="{% url 'lote_create' %}">+ Nuevo lote</a>
+    </div>
+
+    <!-- FILTROS -->
+    <div class="filter-bar">
+        <h4>Filtros</h4>
+        <form method="get">
+            <div class="filter-row">
+                <div class="form-group">
+                    <label for="numero">Número de lote</label>
+                    <input id="numero" name="numero" type="text"
+                        placeholder="Buscar..." value="{{ numero_filter|default:'' }}">
+                </div>
+                <div class="form-group">
+                    <label for="activo">Estado</label>
+                    <select id="activo" name="activo">
+                        <option value="">-- Todos --</option>
+                        <option value="si" {% if activo_filter == 'si' %}selected{% endif %}>Activos</option>
+                        <option value="no" {% if activo_filter == 'no' %}selected{% endif %}>Inactivos</option>
+                    </select>
+                </div>
+                <div class="btn-group" style="align-self:flex-end;">
+                    <button type="submit" class="btn btn-primary">Filtrar</button>
+                    <a href="{% url 'lote_list' %}" class="btn btn-secondary">Limpiar</a>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <p class="text-muted" style="margin-bottom:0.85rem;">
+        Mostrando {{ page_obj.start_index }}–{{ page_obj.end_index }} de {{ paginator.count }} lotes
+    </p>
+
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Número de lote</th>
+                    <th>Proveedor</th>
+                    <th>Stock</th>
+                    <th>P. Compra</th>
+                    <th>P. Venta</th>
+                    <th>Caducidad</th>
+                    <th>Activo</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for lote in lotes %}
+                <tr>
+                    <td class="text-mono">{{ lote.id_lote }}</td>
+                    <td>
+                        <a class="link" href="{% url 'lote_detail' lote.id_lote %}">
+                            {{ lote.numero_lote }}
+                        </a>
+                    </td>
+                    <td>
+                        <a class="link" href="{% url 'proveedor_detail' lote.id_prov.id_prov %}">
+                            {{ lote.id_prov.nombre }}
+                        </a>
+                    </td>
+                    <td class="text-mono fw-600">{{ lote.stock_actual }}</td>
+                    <td class="text-mono">${{ lote.precio_compra|floatformat:2|default:"—" }}</td>
+                    <td class="text-mono">${{ lote.precio_venta|floatformat:2|default:"—" }}</td>
+                    <td>{{ lote.fecha_caducidad|date:'d/m/Y'|default:"—" }}</td>
+                    <td>
+                        {% if lote.activo %}
+                            <span class="badge badge-green">Activo</span>
+                        {% else %}
+                            <span class="badge badge-gray">Inactivo</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div class="btn-group">
+                            <a class="btn btn-secondary btn-sm" href="{% url 'lote_detail' lote.id_lote %}">Ver</a>
+                            <a class="btn btn-secondary btn-sm" href="{% url 'lote_update' lote.id_lote %}">Editar</a>
+                            <a class="btn btn-danger btn-sm" href="{% url 'lote_delete' lote.id_lote %}">Eliminar</a>
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="9">
+                        <div class="empty-state">
+                            <div class="empty-icon">📦</div>
+                            <p>No hay lotes registrados.</p>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% if paginator.num_pages > 1 %}
+    <div class="pagination">
+        {% if page_obj.has_previous %}
+            <a href="?page=1{{ query_params }}" class="btn btn-secondary btn-sm">« Primera</a>
+            <a href="?page={{ page_obj.previous_page_number }}{{ query_params }}" class="btn btn-secondary btn-sm">‹</a>
+        {% else %}
+            <button class="btn btn-secondary btn-sm" disabled>« Primera</button>
+            <button class="btn btn-secondary btn-sm" disabled>‹</button>
+        {% endif %}
+        {% for num in paginator.page_range %}
+            {% if page_obj.number == num %}
+                <button class="btn btn-primary btn-sm">{{ num }}</button>
+            {% elif num >= page_obj.number|add:'-2' and num <= page_obj.number|add:'2' %}
+                <a href="?page={{ num }}{{ query_params }}" class="btn btn-secondary btn-sm">{{ num }}</a>
+            {% endif %}
+        {% endfor %}
+        {% if page_obj.has_next %}
+            <a href="?page={{ page_obj.next_page_number }}{{ query_params }}" class="btn btn-secondary btn-sm">›</a>
+            <a href="?page={{ paginator.num_pages }}{{ query_params }}" class="btn btn-secondary btn-sm">Última »</a>
+        {% else %}
+            <button class="btn btn-secondary btn-sm" disabled>›</button>
+            <button class="btn btn-secondary btn-sm" disabled>Última »</button>
+        {% endif %}
+        <span class="pagination-info">Página {{ page_obj.number }} de {{ paginator.num_pages }}</span>
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}

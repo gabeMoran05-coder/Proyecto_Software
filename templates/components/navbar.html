@@ -1,0 +1,15 @@
+<header>
+    <div class="nav-inner">
+        <a href="/" class="nav-brand">
+            🌿 <strong>Farmacia Inclusiva</strong>
+            <span>/ ITCO</span>
+        </a>
+        <nav class="nav-links">
+            <a class="nav-link {% if request.resolver_match.app_name == 'medicamentos' %}active{% endif %}" href="{% url 'medicamento_list' %}">Medicamentos</a>
+            <a class="nav-link {% if request.resolver_match.app_name == 'proveedores' %}active{% endif %}" href="{% url 'proveedor_list' %}">Proveedores</a>
+            <a class="nav-link {% if request.resolver_match.app_name == 'clientes' %}active{% endif %}" href="{% url 'cliente_list' %}">Clientes</a>
+            <a class="nav-link {% if request.resolver_match.app_name == 'usuarios' %}active{% endif %}" href="{% url 'usuario_list' %}">Usuarios</a>
+            <a class="nav-link {% if request.resolver_match.app_name == 'ventas' %}active{% endif %}" href="{% url 'venta_list' %}">Ventas</a>
+        </nav>
+    </div>
+</header>

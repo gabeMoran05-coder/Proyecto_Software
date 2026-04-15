@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+{% block title %}{{ medicamento.nombre }}{% endblock %}
+
+{% block content %}
+<div class="card mt-2">
+
+    <div class="page-header">
+        <div>
+            <h1>{{ medicamento.nombre }}</h1>
+            <p class="page-subtitle">ID #{{ medicamento.id_med }} &mdash; Detalle del medicamento</p>
+        </div>
+        <div class="btn-group">
+            <a class="btn btn-secondary" href="{% url 'medicamento_update' medicamento.id_med %}">Editar</a>
+            <a class="btn btn-danger" href="{% url 'medicamento_delete' medicamento.id_med %}">Eliminar</a>
+            <a class="btn btn-secondary" href="{% url 'medicamento_list' %}">← Volver</a>
+        </div>
+    </div>
+
+    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:1rem;">
+
+        <!-- Información general -->
+        <div class="detail-section">
+            <h3>Información General</h3>
+            <table class="detail-table">
+                <tr><td>ID</td><td class="text-mono">{{ medicamento.id_med }}</td></tr>
+                <tr><td>Nombre</td><td class="fw-600">{{ medicamento.nombre }}</td></tr>
+                <tr><td>Presentación</td><td>{{ medicamento.presentacion|default:"—" }}</td></tr>
+                <tr><td>Concentración</td><td>{{ medicamento.concentracion|default:"—" }}</td></tr>
+                <tr><td>Requiere receta</td><td>
+                    {% if medicamento.requiere_receta %}
+                        <span class="badge badge-yellow">Sí requiere</span>
+                    {% else %}
+                        <span class="badge badge-gray">No requiere</span>
+                    {% endif %}
+                </td></tr>
+                <tr><td>Fecha registro</td><td>{{ medicamento.fecha_registro|date:'d/m/Y'|default:"—" }}</td></tr>
+                <tr><td>Estado colorimetría</td><td>
+                    <span class="badge color-{{ medicamento.estado_colorimetria }}">
+                        {% if medicamento.estado_colorimetria == 'verde' %}🟢 Verde — Stock OK
+                        {% elif medicamento.estado_colorimetria == 'amarillo' %}🟡 Amarillo — Stock bajo
+                        {% elif medicamento.estado_colorimetria == 'rojo' %}🔴 Rojo — Stock crítico
+                        {% else %}⚫ Sin stock{% endif %}
+                    </span>
+                </td></tr>
+            </table>
+        </div>
+
+        <!-- Lote asignado -->
+        <div class="detail-section">
+            <h3>Lote Asignado</h3>
+            <table class="detail-table">
+                <tr><td>Número de lote</td><td class="text-mono fw-600">{{ medicamento.id_lote.numero_lote }}</td></tr>
+                <tr><td>Proveedor</td><td>
+                    <a class="link" href="{% url 'proveedor_detail' medicamento.id_lote.id_prov.id_prov %}">
+                        {{ medicamento.id_lote.id_prov.nombre }}
+                    </a>
+                </td></tr>
+                <tr><td>Stock actual</td><td class="text-mono fw-600" style="font-size:1.1rem; color:var(--primary);">{{ medicamento.id_lote.stock_actual }}</td></tr>
+                <tr><td>Precio compra</td><td class="text-mono">${{ medicamento.id_lote.precio_compra|floatformat:2|default:"—" }}</td></tr>
+                <tr><td>Precio venta</td><td class="text-mono fw-600">${{ medicamento.id_lote.precio_venta|floatformat:2|default:"—" }}</td></tr>
+                <tr><td>Fecha fabricación</td><td>{{ medicamento.id_lote.fecha_fabricacion|date:'d/m/Y'|default:"—" }}</td></tr>
+                <tr><td>Fecha caducidad</td><td>{{ medicamento.id_lote.fecha_caducidad|date:'d/m/Y'|default:"—" }}</td></tr>
+                <tr><td>Fecha ingreso</td><td>{{ medicamento.id_lote.fecha_ingreso|date:'d/m/Y'|default:"—" }}</td></tr>
+                <tr><td>Activo</td><td>
+                    {% if medicamento.id_lote.activo %}
+                        <span class="badge badge-green">Activo</span>
+                    {% else %}
+                        <span class="badge badge-gray">Inactivo</span>
+                    {% endif %}
+                </td></tr>
+            </table>
+        </div>
+    </div>
+
+    <!-- Códigos QR -->
+    <div class="detail-section mt-2">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.85rem;">
+            <h3 style="margin-bottom:0;">Códigos QR</h3>
+            <a class="btn btn-primary btn-sm" href="{% url 'qr_create' medicamento.id_med %}">+ Generar QR</a>
+        </div>
+        {% if qr_codes %}
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Token</th>
+                        <th>URL</th>
+                        <th>Escaneos</th>
+                        <th>Generado</th>
+                        <th>Activo</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for qr in qr_codes %}
+                    <tr>
+                        <td class="text-mono">{{ qr.id_qr }}</td>
+                        <td><span class="qr-token">{{ qr.token|truncatechars:20 }}</span></td>
+                        <td><a class="link" href="{{ qr.url_qr }}" target="_blank">Ver URL ↗</a></td>
+                        <td class="text-mono">{{ qr.contador_escaneos }}</td>
+                        <td>{{ qr.fecha_generacion|date:'d/m/Y'|default:"—" }}</td>
+                        <td>
+                            {% if qr.activo %}
+                                <span class="badge badge-green">Activo</span>
+                            {% else %}
+                                <span class="badge badge-gray">Inactivo</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="btn-group">
+                                <a class="btn btn-secondary btn-sm" href="{% url 'qr_regenerar' qr.id_qr %}">Regenerar</a>
+                                <a class="btn btn-danger btn-sm" href="{% url 'qr_delete' qr.id_qr %}">Eliminar</a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty-state" style="padding:1.5rem;">
+            <div class="empty-icon">📱</div>
+            <p>No hay códigos QR generados para este medicamento.</p>
+        </div>
+        {% endif %}
+    </div>
+
+</div>
+{% endblock %}
