@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% block title %}Clientes{% endblock %}
+
+{% block content %}
+<div class="card mt-2">
+
+    <div class="page-header">
+        <div>
+            <h1>Clientes</h1>
+            <p class="page-subtitle">Registro de clientes de la farmacia</p>
+        </div>
+        <a class="btn btn-primary" href="{% url 'cliente_create' %}">+ Nuevo cliente</a>
+    </div>
+
+    <div class="filter-bar">
+        <h4>Búsqueda</h4>
+        <form method="get">
+            <div class="filter-row">
+                <div class="form-group" style="flex:2;">
+                    <label for="nombre">Nombre del cliente</label>
+                    <input id="nombre" name="nombre" type="text"
+                        placeholder="Buscar por nombre..." value="{{ nombre_filter|default:'' }}">
+                </div>
+                <div class="btn-group" style="align-self:flex-end;">
+                    <button type="submit" class="btn btn-primary">Buscar</button>
+                    <a href="{% url 'cliente_list' %}" class="btn btn-secondary">Limpiar</a>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <p class="text-muted" style="margin-bottom:0.85rem;">
+        Mostrando {{ page_obj.start_index }}–{{ page_obj.end_index }} de {{ paginator.count }} clientes
+    </p>
+
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Nombre completo</th>
+                    <th>Teléfono</th>
+                    <th>Fecha registro</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for cliente in clientes %}
+                <tr>
+                    <td class="text-mono">{{ cliente.id_cliente }}</td>
+                    <td>
+                        <a class="link" href="{% url 'cliente_detail' cliente.id_cliente %}">
+                            {{ cliente.nombre }}{% if cliente.ap_pat %} {{ cliente.ap_pat }}{% endif %}{% if cliente.ap_mat %} {{ cliente.ap_mat }}{% endif %}
+                        </a>
+                    </td>
+                    <td>{{ cliente.telefono|default:"—" }}</td>
+                    <td>{{ cliente.fecha_registro|date:'d/m/Y'|default:"—" }}</td>
+                    <td>
+                        <div class="btn-group">
+                            <a class="btn btn-secondary btn-sm" href="{% url 'cliente_detail' cliente.id_cliente %}">Ver</a>
+                            <a class="btn btn-secondary btn-sm" href="{% url 'cliente_update' cliente.id_cliente %}">Editar</a>
+                            <a class="btn btn-danger btn-sm" href="{% url 'cliente_delete' cliente.id_cliente %}">Eliminar</a>
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5">
+                        <div class="empty-state">
+                            <div class="empty-icon">👤</div>
+                            <p>No hay clientes registrados.</p>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% if paginator.num_pages > 1 %}
+    <div class="pagination">
+        {% if page_obj.has_previous %}
+            <a href="?page=1{{ query_params }}" class="btn btn-secondary btn-sm">« Primera</a>
+            <a href="?page={{ page_obj.previous_page_number }}{{ query_params }}" class="btn btn-secondary btn-sm">‹</a>
+        {% else %}
+            <button class="btn btn-secondary btn-sm" disabled>« Primera</button>
+            <button class="btn btn-secondary btn-sm" disabled>‹</button>
+        {% endif %}
+        {% for num in paginator.page_range %}
+            {% if page_obj.number == num %}
+                <button class="btn btn-primary btn-sm">{{ num }}</button>
+            {% elif num >= page_obj.number|add:'-2' and num <= page_obj.number|add:'2' %}
+                <a href="?page={{ num }}{{ query_params }}" class="btn btn-secondary btn-sm">{{ num }}</a>
+            {% endif %}
+        {% endfor %}
+        {% if page_obj.has_next %}
+            <a href="?page={{ page_obj.next_page_number }}{{ query_params }}" class="btn btn-secondary btn-sm">›</a>
+            <a href="?page={{ paginator.num_pages }}{{ query_params }}" class="btn btn-secondary btn-sm">Última »</a>
+        {% else %}
+            <button class="btn btn-secondary btn-sm" disabled>›</button>
+            <button class="btn btn-secondary btn-sm" disabled>Última »</button>
+        {% endif %}
+        <span class="pagination-info">Página {{ page_obj.number }} de {{ paginator.num_pages }}</span>
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}

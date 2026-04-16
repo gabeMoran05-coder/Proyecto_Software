@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}Eliminar cliente{% endblock %}
+{% block content %}
+<div class="card mt-2" style="max-width:520px; margin:0 auto;">
+    <h1>Confirmar eliminación</h1>
+    <div class="alert alert-error mt-2">
+        ¿Estás seguro de que deseas eliminar al cliente
+        <strong>{{ cliente.nombre }} {{ cliente.ap_pat }}</strong>?
+    </div>
+    <form method="post" class="form-actions mt-2">
+        {% csrf_token %}
+        <button class="btn btn-danger" type="submit">Sí, eliminar</button>
+        <a class="btn btn-secondary" href="{% url 'cliente_list' %}">Cancelar</a>
+    </form>
+</div>
+{% endblock %}
