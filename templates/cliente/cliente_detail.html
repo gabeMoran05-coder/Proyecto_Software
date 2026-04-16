@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}{{ cliente.nombre }}{% endblock %}
+
+{% block content %}
+<div class="card mt-2">
+
+    <div class="page-header">
+        <div>
+            <h1>{{ cliente.nombre }} {{ cliente.ap_pat }} {{ cliente.ap_mat }}</h1>
+            <p class="page-subtitle">Cliente #{{ cliente.id_cliente }}</p>
+        </div>
+        <div class="btn-group">
+            <a class="btn btn-secondary" href="{% url 'cliente_update' cliente.id_cliente %}">Editar</a>
+            <a class="btn btn-danger" href="{% url 'cliente_delete' cliente.id_cliente %}">Eliminar</a>
+            <a class="btn btn-secondary" href="{% url 'cliente_list' %}">← Volver</a>
+        </div>
+    </div>
+
+    <div class="detail-section">
+        <h3>Datos del cliente</h3>
+        <table class="detail-table">
+            <tr><td>ID</td><td class="text-mono">{{ cliente.id_cliente }}</td></tr>
+            <tr><td>Nombre</td><td class="fw-600">{{ cliente.nombre }}</td></tr>
+            <tr><td>Apellido paterno</td><td>{{ cliente.ap_pat|default:"—" }}</td></tr>
+            <tr><td>Apellido materno</td><td>{{ cliente.ap_mat|default:"—" }}</td></tr>
+            <tr><td>Teléfono</td><td>{{ cliente.telefono|default:"—" }}</td></tr>
+            <tr><td>Fecha de registro</td><td>{{ cliente.fecha_registro|date:'d/m/Y'|default:"—" }}</td></tr>
+        </table>
+    </div>
+
+    <!-- Historial de compras -->
+    <div class="detail-section mt-2">
+        <h3>Historial de compras</h3>
+        {% if ventas %}
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Folio</th>
+                        <th>Fecha</th>
+                        <th>Método de pago</th>
+                        <th>Total</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for venta in ventas %}
+                    <tr>
+                        <td class="text-mono">#{{ venta.id_ventas }}</td>
+                        <td>{{ venta.fecha_venta|date:'d/m/Y H:i'|default:"—" }}</td>
+                        <td>{{ venta.id_metPag.nombre_metodo }}</td>
+                        <td class="text-mono fw-600">${{ venta.total_venta|floatformat:2|default:"—" }}</td>
+                        <td>
+                            <a class="btn btn-secondary btn-sm" href="{% url 'venta_detail' venta.id_ventas %}">Ver</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty-state" style="padding:1.5rem;">
+            <div class="empty-icon">🛒</div>
+            <p>Este cliente no tiene compras registradas.</p>
+        </div>
+        {% endif %}
+    </div>
+
+</div>
+{% endblock %}
