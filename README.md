@@ -266,7 +266,7 @@ farmacia_inclusiva/
 **1. Clonar el repositorio**
 
 ```bash
-git clone <url-del-repositorio>
+git clone https://github.com/gabeMoran05-coder/Proyecto_Software.git
 cd farmacia_inclusiva
 ```
 
