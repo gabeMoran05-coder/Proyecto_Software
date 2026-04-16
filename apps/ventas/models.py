@@ -1,5 +1,5 @@
 from django.db import models
-from apps.usuarios.models import Usuario
+from django.conf import settings
 from apps.clientes.models import Cliente
 
 class MetodoPago(models.Model):
@@ -16,7 +16,11 @@ class MetodoPago(models.Model):
 
 class Venta(models.Model):
     id_ventas = models.AutoField(primary_key=True)
-    id_usuario = models.ForeignKey(Usuario, on_delete=models.CASCADE, db_column='id_usuario')
+    id_usuario = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        db_column='id_usuario'
+    )
     id_metPag = models.ForeignKey(MetodoPago, on_delete=models.CASCADE, db_column='id_metPag')
     id_cliente = models.ForeignKey(Cliente, on_delete=models.SET_NULL, null=True, blank=True, db_column='id_cliente')
     fecha_venta = models.DateTimeField(null=True, blank=True)

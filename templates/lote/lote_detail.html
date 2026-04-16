@@ -1,0 +1,53 @@
+{% extends 'base.html' %}
+
+{% block title %}Detalle del Lote - {{ lote.numero_lote }}{% endblock %}
+
+{% block content %}
+<div class="card mt-4">
+    <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
+        <h3 class="mb-0">Información Detallada del Lote</h3>
+        <a href="{% url 'lote_list' %}" class="btn btn-sm btn-light">Volver a la Lista</a>
+    </div>
+    
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-6">
+                <h5 class="text-muted border-bottom pb-2">Datos de Identificación</h5>
+                <p><strong>ID Interno:</strong> <span class="text-mono">{{ lote.id_lote }}</span></p>
+                <p><strong>Número de Lote:</strong> <span class="badge bg-dark fs-6">{{ lote.numero_lote }}</span></p>
+                <p><strong>Proveedor:</strong> 
+                    <a href="{% url 'proveedor_detail' lote.id_prov.id_prov %}" class="link-primary">
+                        {{ lote.id_prov.nombre }}
+                    </a>
+                </p>
+                <p><strong>Estado del Sistema:</strong> 
+                    {% if lote.activo %}
+                        <span class="badge bg-success">Activo</span>
+                    {% else %}
+                        <span class="badge bg-secondary">Inactivo</span>
+                    {% endif %}
+                </p>
+            </div>
+
+            <div class="col-md-6">
+                <h5 class="text-muted border-bottom pb-2">Inventario y Precios</h5>
+                <p><strong>Stock Actual:</strong> <span class="fw-bold text-primary">{{ lote.stock_actual }} unidades</span></p>
+                <p><strong>Precio de Compra:</strong> ${{ lote.precio_compra|floatformat:2 }}</p>
+                <p><strong>Precio de Venta:</strong> ${{ lote.precio_venta|floatformat:2 }}</p>
+                <p><strong>Fecha de Caducidad:</strong> 
+                    <span class="text-danger fw-bold">{{ lote.fecha_caducidad|date:"d/m/Y"|default:"No registrada" }}</span>
+                </p>
+            </div>
+        </div>
+
+        <div class="mt-4 pt-3 border-top">
+            <a href="{% url 'lote_update' lote.id_lote %}" class="btn btn-warning">
+                <i class="fas fa-edit"></i> Editar Información
+            </a>
+            <button onclick="window.print();" class="btn btn-outline-secondary">
+                Imprimir Ficha
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}
