@@ -173,32 +173,16 @@ def qr_delete(request, qr_pk):
     messages.success(request, 'QR eliminado.')
     return redirect('medicamento_detail', pk=med_pk)
 
-def lote_list(request):
-    # Trae todos los lotes de la base de datos
-    lotes = Lote.objects.all()
-    # Los manda al archivo HTML que ya tienen en sus carpetas
-    return render(request, 'lote/lote_list.html', {'lotes': lotes})
 
-def lote_detail(request, pk):
-    # Buscamos el lote por su ID (pk)
-    # select_related('id_prov') sirve para traer los datos del proveedor de una vez
-    lote = get_object_or_404(Lote.objects.select_related('id_prov'), pk=pk)
-    
-    return render(request, 'lote/lote_detail.html', {
-        'lote': lote
-    })
 
 # ── LOTES ────────────────────────────────────────────────────
 
 def lote_list(request):
-    # 1. Traemos los lotes y los ordenamos (necesario para la paginación)
     qs = Lote.objects.select_related('id_prov').order_by('id_lote')
     
-    # 2. Atrapamos los valores exactos que manda tu HTML
     numero_filter = request.GET.get('numero', '') 
     activo_filter = request.GET.get('activo', '')
 
-    # 3. Aplicamos los filtros
     if numero_filter:
         qs = qs.filter(numero_lote__icontains=numero_filter)
         
@@ -207,21 +191,19 @@ def lote_list(request):
     elif activo_filter == 'no':
         qs = qs.filter(activo=False)
 
-    # 4. Guardamos los parámetros para que no se borren al cambiar de página
+
     params = []
     if numero_filter: params.append(f'&numero={numero_filter}')
     if activo_filter: params.append(f'&activo={activo_filter}')
     query_params = ''.join(params)
 
-    # 5. Paginación (10 lotes por página, igual que en medicamentos)
+    # Paginación 
     paginator = Paginator(qs, 10)
     page_obj = paginator.get_page(request.GET.get('page', 1))
 
-    # 6. Mandamos TODO lo que tu HTML está pidiendo
     return render(request, 'lote/lote_list.html', {
-        'lotes': page_obj,         # Tu HTML usa {% for lote in lotes %}
-        'page_obj': page_obj,      # Tu HTML usa page_obj para los botones
-        'paginator': paginator,    # Tu HTML usa paginator.count
+        'lotes': page_obj,         
+        'paginator': paginator,    
         'numero_filter': numero_filter,
         'activo_filter': activo_filter,
         'query_params': query_params,
@@ -236,30 +218,41 @@ def lote_create(request):
     errors = []
 
     if request.method == 'POST':
-        codigo = request.POST.get('codigo', '').strip()
-        fecha_vencimiento = request.POST.get('fecha_vencimiento') or None
-        stock_inicial = request.POST.get('stock_inicial', 0)
+        # CAPTURAMOS LOS NOMBRES EXACTOS DEL HTML
+        numero = request.POST.get('numero_lote', '').strip()
         id_prov_id = request.POST.get('id_prov')
+        fecha_cad = request.POST.get('fecha_caducidad') or None
+        stock = request.POST.get('stock_actual') or 0
+        p_compra = request.POST.get('precio_compra') or None
+        p_venta = request.POST.get('precio_venta') or None
+        activo = request.POST.get('activo') == 'true'
 
-        # Validaciones básicas
-        if not codigo:
-            errors.append('El código del lote es obligatorio.')
+        # Validaciones
+        if not numero:
+            errors.append('El número de lote es obligatorio.')
         if not id_prov_id:
             errors.append('Debe seleccionar un proveedor.')
 
         if not errors:
-            Lote.objects.create(
-                codigo_lote=codigo, 
-                fecha_vencimiento=fecha_vencimiento,
-                stock=stock_inicial,
-                id_prov_id=id_prov_id
-            )
-            messages.success(request, 'Lote registrado correctamente.')
-            return redirect('lote_list')
+            try:
+                Lote.objects.create(
+                    numero_lote=numero, 
+                    id_prov_id=id_prov_id,
+                    fecha_caducidad=fecha_cad,
+                    stock_actual=stock,
+                    precio_compra=p_compra,
+                    precio_venta=p_venta,
+                    activo=activo
+                )
+                messages.success(request, 'Lote registrado correctamente.')
+                return redirect('lote_list')
+            except Exception as e:
+                errors.append(f"Error en la base de datos: {e}")
 
     return render(request, 'lote/lote_form.html', {
         'proveedores': proveedores,
-        'errors': errors
+        'errors': errors,
+        'lote': None # Importante para que el HTML sepa que es "Nuevo"
     })
 
 # ── VISTAS DE LOTES ──────────────────────────────────────────

@@ -18,7 +18,7 @@ urlpatterns = [
     path('qr/<int:qr_pk>/regenerar/', views.qr_regenerar, name='qr_regenerar'),
     path('qr/<int:qr_pk>/eliminar/', views.qr_delete, name='qr_delete'),
 
-  # Lotes (Ahora sí, completos)
+  # Lotes 
     path('lotes/', views.lote_list, name='lote_list'),
     path('lotes/nuevo/', views.lote_create, name='lote_create'),
     path('lotes/<int:pk>/', views.lote_detail, name='lote_detail'),
@@ -26,6 +26,6 @@ urlpatterns = [
     path('lotes/<int:pk>/eliminar/', views.lote_delete, name='lote_delete'),
     path('lotes/<int:pk>/', views.lote_detail, name='lote_detail'),
 
-    # Proveedor detail (placeholder temporal)
+    # Proveedor 
     path('proveedor/<int:pk>/', placeholder, name='proveedor_detail'),
 ]
