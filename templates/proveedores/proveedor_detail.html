@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+{% block title %}{{ proveedor.nombre }}{% endblock %}
+
+{% block content %}
+<div class="card mt-2">
+
+    <div class="page-header">
+        <div>
+            <h1>{{ proveedor.nombre }}</h1>
+            <p class="page-subtitle">Proveedor #{{ proveedor.id_prov }}</p>
+        </div>
+        <div class="btn-group">
+            <a class="btn btn-secondary" href="{% url 'proveedor_update' proveedor.id_prov %}">Editar</a>
+            <a class="btn btn-danger" href="{% url 'proveedor_delete' proveedor.id_prov %}">Eliminar</a>
+            <a class="btn btn-secondary" href="{% url 'proveedor_list' %}">&larr; Volver</a>
+        </div>
+    </div>
+
+    <div class="detail-section">
+        <h3>Datos del proveedor</h3>
+        <table class="detail-table">
+            <tr><td>ID</td><td class="text-mono">{{ proveedor.id_prov }}</td></tr>
+            <tr><td>Nombre</td><td class="fw-600">{{ proveedor.nombre }}</td></tr>
+            <tr><td>Telefono</td><td>{{ proveedor.telefono|default:"-" }}</td></tr>
+            <tr><td>Correo</td><td>{{ proveedor.correo|default:"-" }}</td></tr>
+            <tr><td>Direccion</td><td>{{ proveedor.direccion|default:"-" }}</td></tr>
+        </table>
+    </div>
+
+    <div class="detail-section mt-2">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.85rem; gap:0.75rem; flex-wrap:wrap;">
+            <h3 style="margin-bottom:0;">Lotes suministrados</h3>
+            <a class="btn btn-primary btn-sm" href="{% url 'lote_create' %}?proveedor={{ proveedor.id_prov }}&amp;next=proveedor_detail">+ Agregar lote</a>
+        </div>
+
+        <form method="get" class="filter-bar" style="margin-bottom:0.9rem;">
+            <h4>Filtros</h4>
+            <div class="filter-row">
+                <div class="form-group">
+                    <label for="medicamento">Medicamento</label>
+                    <input id="medicamento" name="medicamento" type="text" placeholder="Buscar por nombre..." value="{{ medicamento_filter|default:'' }}">
+                </div>
+                <div class="form-group">
+                    <label for="presentacion">Presentacion</label>
+                    <input id="presentacion" name="presentacion" type="text" placeholder="Ej. tabletas, capsulas..." value="{{ presentacion_filter|default:'' }}">
+                </div>
+                <div class="form-group">
+                    <label for="estado">Estado</label>
+                    <select id="estado" name="estado">
+                        <option value="">-- Todos --</option>
+                        {% for value, label in estado_choices %}
+                            <option value="{{ value }}" {% if estado_filter == value %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="btn-group" style="align-self:flex-end;">
+                    <button class="btn btn-primary" type="submit">Filtrar</button>
+                    <a class="btn btn-secondary" href="{% url 'proveedor_detail' proveedor.id_prov %}">Limpiar</a>
+                </div>
+            </div>
+        </form>
+
+        {% if lotes %}
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Numero lote</th>
+                        <th>Medicamento</th>
+                        <th>Presentacion</th>
+                        <th>Estado</th>
+                        <th>Stock</th>
+                        <th>P. Venta</th>
+                        <th>Caducidad</th>
+                        <th>Activo</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for lote in lotes %}
+                    <tr>
+                        <td><a class="link" href="{% url 'lote_detail' lote.id_lote %}">{{ lote.numero_lote }}</a></td>
+                        <td>
+                            {% for med in lote.medicamento_set.all %}
+                                <div>
+                                    <a class="link" href="{% url 'medicamento_detail' med.id_med %}">{{ med.nombre }}</a>
+                                </div>
+                            {% empty %}
+                                <span class="text-muted">Sin medicamento</span>
+                            {% endfor %}
+                        </td>
+                        <td>
+                            {% for med in lote.medicamento_set.all %}
+                                <div>{{ med.presentacion|default:"-" }}</div>
+                            {% empty %}
+                                <span class="text-muted">-</span>
+                            {% endfor %}
+                        </td>
+                        <td>
+                            {% for med in lote.medicamento_set.all %}
+                                <div style="margin-bottom:0.25rem;">
+                                    <span class="badge color-{{ med.estado_colorimetria }}">
+                                        {{ med.get_estado_colorimetria_display }}
+                                    </span>
+                                </div>
+                            {% empty %}
+                                <span class="badge badge-gray">Sin medicamento</span>
+                            {% endfor %}
+                        </td>
+                        <td class="text-mono">{{ lote.stock_actual }}</td>
+                        <td class="text-mono">${{ lote.precio_venta|floatformat:2|default:"-" }}</td>
+                        <td>
+                            <div>{{ lote.fecha_caducidad|date:'d/m/Y'|default:"-" }}</div>
+                            <span class="badge color-{{ lote.estado_caducidad }}">
+                                {{ lote.estado_caducidad_display }}
+                            </span>
+                        </td>
+                        <td>
+                            {% if lote.activo %}
+                                <span class="badge badge-green">Activo</span>
+                            {% else %}
+                                <span class="badge badge-gray">Inactivo</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <a class="btn btn-secondary btn-sm" href="{% url 'lote_detail' lote.id_lote %}">Ver</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty-state" style="padding:1.5rem;">
+            <div class="empty-icon">Sin resultados</div>
+            <p>No hay lotes que coincidan con los filtros aplicados.</p>
+        </div>
+        {% endif %}
+    </div>
+
+</div>
+{% endblock %}
