@@ -84,6 +84,7 @@ def medicamento_list(request):
 
 
 def medicamento_detail(request, pk):
+    lote_orden = request.GET.get('lote_orden', 'caducidad_asc').strip()
     med = get_object_or_404(
         Medicamento.objects.select_related('id_lote__id_prov'),
         pk=pk,
@@ -102,8 +103,9 @@ def medicamento_detail(request, pk):
             lote=item.id_lote,
             qr=qr_por_medicamento.get(item.id_med),
         )
-        for item in _ordenar_medicamentos_por_lote(medicamentos_grupo)
+        for item in medicamentos_grupo
     ]
+    lote_items = _ordenar_lote_items(lote_items, lote_orden)
     return render(request, 'medicamentos/medicamento_detail.html', {
         'medicamento': med,
         'medicamentos_grupo': medicamentos_grupo,
@@ -112,6 +114,7 @@ def medicamento_detail(request, pk):
         'stock_total': stock_total,
         'estado_stock': estado_stock,
         'estado_stock_display': _estado_stock_display(stock_total),
+        'lote_orden': lote_orden,
         'qr_codes':    qr_codes,
     })
 
@@ -606,6 +609,27 @@ def _ordenar_medicamentos_por_lote(medicamentos):
             med.id_lote_id,
         ),
     )
+
+
+def _ordenar_lote_items(items, orden):
+    reverse = orden.endswith('_desc')
+    campo = orden.removesuffix('_asc').removesuffix('_desc')
+    fecha_maxima = datetime.max.date()
+    fecha_minima = datetime.min.replace(tzinfo=timezone.get_current_timezone())
+    claves = {
+        'lote': lambda item: (item.lote.numero_lote or '').lower(),
+        'proveedor': lambda item: (item.lote.id_prov.nombre or '').lower(),
+        'stock': lambda item: item.lote.stock_actual or 0,
+        'estado_stock': lambda item: item.lote.estado_stock,
+        'activo': lambda item: 1 if item.lote.activo and (item.lote.stock_actual or 0) > 0 else 0,
+        'compra': lambda item: item.lote.precio_compra or 0,
+        'venta': lambda item: item.lote.precio_venta or 0,
+        'fabricacion': lambda item: item.lote.fecha_fabricacion or fecha_maxima,
+        'caducidad': lambda item: item.lote.fecha_caducidad or fecha_maxima,
+        'alta': lambda item: item.lote.fecha_ingreso or fecha_minima,
+        'estado_caducidad': lambda item: item.lote.estado_caducidad,
+    }
+    return sorted(items, key=claves.get(campo, claves['caducidad']), reverse=reverse)
 
 
 def _validar_lote(data):

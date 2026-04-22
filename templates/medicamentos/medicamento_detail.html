@@ -65,17 +65,17 @@
             <table>
                 <thead>
                     <tr>
-                        <th>Lote</th>
-                        <th>Proveedor</th>
-                        <th>Stock</th>
-                        <th>Estado stock</th>
-                        <th>Activo</th>
-                        <th>Precio compra</th>
-                        <th>Precio venta</th>
-                        <th>Fabricacion</th>
-                        <th>Caducidad</th>
-                        <th>Alta</th>
-                        <th>Estado caducidad</th>
+                        <th><a class="sort-link" href="?lote_orden={% if lote_orden == 'lote_asc' %}lote_desc{% else %}lote_asc{% endif %}">Lote {% if lote_orden == 'lote_asc' %}↑{% elif lote_orden == 'lote_desc' %}↓{% endif %}</a></th>
+                        <th><a class="sort-link" href="?lote_orden={% if lote_orden == 'proveedor_asc' %}proveedor_desc{% else %}proveedor_asc{% endif %}">Proveedor {% if lote_orden == 'proveedor_asc' %}↑{% elif lote_orden == 'proveedor_desc' %}↓{% endif %}</a></th>
+                        <th><a class="sort-link" href="?lote_orden={% if lote_orden == 'stock_asc' %}stock_desc{% else %}stock_asc{% endif %}">Stock {% if lote_orden == 'stock_asc' %}↑{% elif lote_orden == 'stock_desc' %}↓{% endif %}</a></th>
+                        <th><a class="sort-link" href="?lote_orden={% if lote_orden == 'estado_stock_asc' %}estado_stock_desc{% else %}estado_stock_asc{% endif %}">Estado stock {% if lote_orden == 'estado_stock_asc' %}↑{% elif lote_orden == 'estado_stock_desc' %}↓{% endif %}</a></th>
+                        <th><a class="sort-link" href="?lote_orden={% if lote_orden == 'activo_asc' %}activo_desc{% else %}activo_asc{% endif %}">Activo {% if lote_orden == 'activo_asc' %}↑{% elif lote_orden == 'activo_desc' %}↓{% endif %}</a></th>
+                        <th><a class="sort-link" href="?lote_orden={% if lote_orden == 'compra_asc' %}compra_desc{% else %}compra_asc{% endif %}">Precio compra {% if lote_orden == 'compra_asc' %}↑{% elif lote_orden == 'compra_desc' %}↓{% endif %}</a></th>
+                        <th><a class="sort-link" href="?lote_orden={% if lote_orden == 'venta_asc' %}venta_desc{% else %}venta_asc{% endif %}">Precio venta {% if lote_orden == 'venta_asc' %}↑{% elif lote_orden == 'venta_desc' %}↓{% endif %}</a></th>
+                        <th><a class="sort-link" href="?lote_orden={% if lote_orden == 'fabricacion_asc' %}fabricacion_desc{% else %}fabricacion_asc{% endif %}">Fabricacion {% if lote_orden == 'fabricacion_asc' %}↑{% elif lote_orden == 'fabricacion_desc' %}↓{% endif %}</a></th>
+                        <th><a class="sort-link" href="?lote_orden={% if lote_orden == 'caducidad_asc' %}caducidad_desc{% else %}caducidad_asc{% endif %}">Caducidad {% if lote_orden == 'caducidad_asc' %}↑{% elif lote_orden == 'caducidad_desc' %}↓{% endif %}</a></th>
+                        <th><a class="sort-link" href="?lote_orden={% if lote_orden == 'alta_asc' %}alta_desc{% else %}alta_asc{% endif %}">Alta {% if lote_orden == 'alta_asc' %}↑{% elif lote_orden == 'alta_desc' %}↓{% endif %}</a></th>
+                        <th><a class="sort-link" href="?lote_orden={% if lote_orden == 'estado_caducidad_asc' %}estado_caducidad_desc{% else %}estado_caducidad_asc{% endif %}">Estado caducidad {% if lote_orden == 'estado_caducidad_asc' %}↑{% elif lote_orden == 'estado_caducidad_desc' %}↓{% endif %}</a></th>
                         <th>QR</th>
                     </tr>
                 </thead>
