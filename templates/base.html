@@ -80,6 +80,12 @@
             background: rgba(255,255,255,0.18);
             color: #fff;
         }
+        .nav-user {
+            color: rgba(255,255,255,0.9);
+            font-size: 0.82rem;
+            padding: 0.4rem 0.65rem;
+            border-left: 1px solid rgba(255,255,255,0.22);
+        }
 
         /* ===== CONTAINER ===== */
         .container {
@@ -356,6 +362,21 @@
         .fw-600 { font-weight: 600; }
         .link { color: var(--primary); text-decoration: none; font-weight: 500; }
         .link:hover { color: var(--primary-dark); text-decoration: underline; }
+        .sort-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+            color: var(--muted);
+            text-decoration: none;
+            font-weight: 700;
+        }
+        .sort-link:hover { color: var(--primary); text-decoration: none; }
+        .sort-arrow {
+            min-width: 0.8rem;
+            color: var(--primary);
+            font-size: 0.85rem;
+            line-height: 1;
+        }
         .empty-state {
             text-align: center;
             padding: 3rem 1rem;
@@ -363,9 +384,124 @@
         }
         .empty-state .empty-icon { font-size: 2.5rem; margin-bottom: 0.75rem; }
 
+        /* Compatibilidad ligera para templates escritos con clases Bootstrap. */
+        .row { display: flex; flex-wrap: wrap; gap: 1rem; }
+        .col, .col-12, .col-auto, .col-md-3, .col-md-4, .col-md-6, .col-md-8,
+        .col-md-9, .col-lg-5, .col-lg-7, .col-lg-8 { flex: 1 1 0; }
+        .col-auto { flex: 0 0 auto; }
+        .col-12 { flex-basis: 100%; }
+        .col-md-3 { flex-basis: 23%; }
+        .col-md-4 { flex-basis: 31%; }
+        .col-md-6 { flex-basis: 48%; }
+        .col-md-8, .col-lg-7, .col-lg-8 { flex-basis: 66%; }
+        .col-md-9 { flex-basis: 74%; }
+        .col-lg-5 { flex-basis: 42%; }
+        .d-flex { display: flex; }
+        .align-items-center { align-items: center; }
+        .align-items-end { align-items: flex-end; }
+        .justify-content-between { justify-content: space-between; }
+        .justify-content-center { justify-content: center; }
+        .justify-content-end { justify-content: flex-end; }
+        .gap-2 { gap: 0.5rem; }
+        .gap-3 { gap: 1rem; }
+        .gap-4 { gap: 1.5rem; }
+        .ms-auto { margin-left: auto; }
+        .me-1 { margin-right: 0.25rem; }
+        .me-2 { margin-right: 0.5rem; }
+        .mb-0 { margin-bottom: 0; }
+        .mb-1 { margin-bottom: 0.25rem; }
+        .mb-2 { margin-bottom: 0.5rem; }
+        .mb-3 { margin-bottom: 1rem; }
+        .mb-4 { margin-bottom: 1.5rem; }
+        .mt-4 { margin-top: 2rem; }
+        .p-3 { padding: 1rem; }
+        .p-4 { padding: 1.5rem; }
+        .py-3 { padding-top: 1rem; padding-bottom: 1rem; }
+        .px-4 { padding-left: 1.5rem; padding-right: 1.5rem; }
+        .small { font-size: 0.82rem; }
+        .fs-4 { font-size: 1.35rem; }
+        .fs-5 { font-size: 1.1rem; }
+        .fw-bold { font-weight: 700; }
+        .fw-semibold { font-weight: 600; }
+        .fst-italic { font-style: italic; }
+        .text-end { text-align: right; }
+        .text-start { text-align: left; }
+        .text-white { color: #fff; }
+        .text-danger { color: var(--danger); }
+        .text-dark { color: var(--text); }
+        .text-uppercase { text-transform: uppercase; letter-spacing: 0.05em; }
+        .bg-white { background: #fff; }
+        .bg-light { background: var(--surface-2); }
+        .bg-success { background: var(--primary); }
+        .bg-primary { background: var(--info); }
+        .bg-info { background: #bfe8f5; }
+        .bg-secondary { background: #73847c; }
+        .bg-danger { background: var(--danger); }
+        .rounded { border-radius: 10px; }
+        .rounded-circle { border-radius: 999px; }
+        .border-bottom { border-bottom: 1px solid var(--border); }
+        .border-danger { border-color: var(--danger); }
+        .card-body, .card-header, .card-footer { padding: 1rem; }
+        .card-header { border-bottom: 1px solid var(--border); }
+        .card-footer { border-top: 1px solid var(--border); }
+        .table { width: 100%; border-collapse: collapse; }
+        .table-container { overflow-x: auto; border: 1px solid var(--border); border-radius: 10px; }
+        .input-group { display: flex; align-items: stretch; }
+        .input-group-text {
+            display: inline-flex;
+            align-items: center;
+            padding: 0 0.7rem;
+            border: 1px solid var(--border);
+            border-right: 0;
+            border-radius: 8px 0 0 8px;
+            background: var(--surface-2);
+            color: var(--muted);
+        }
+        .input-group input, .input-group select { border-radius: 0 8px 8px 0; }
+        .btn-outline-secondary, .btn-outline-primary, .btn-outline-danger, .btn-outline-light {
+            background: #fff;
+            border-color: var(--border);
+            color: var(--text);
+        }
+        .btn-outline-danger { color: var(--danger); border-color: #efb6b0; }
+        .btn-warning { background: var(--warning); color: #fff; }
+        .alert-danger { background: var(--danger-light); color: #8b1a1a; border-color: var(--danger); }
+        .login-shell {
+            min-height: calc(100vh - 120px);
+            display: grid;
+            place-items: center;
+            padding: 2rem 0;
+        }
+        .login-card {
+            width: min(430px, 94vw);
+            background:
+                radial-gradient(circle at top left, rgba(46,160,90,0.18), transparent 38%),
+                var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 22px;
+            padding: 2rem;
+            box-shadow: 0 20px 60px rgba(26,107,60,0.16);
+        }
+        .login-mark {
+            width: 58px;
+            height: 58px;
+            border-radius: 18px;
+            display: grid;
+            place-items: center;
+            background: var(--primary);
+            color: #fff;
+            font-weight: 700;
+            font-size: 1.35rem;
+            margin-bottom: 1rem;
+        }
+
         @media (max-width: 700px) {
             .page-header { flex-direction: column; align-items: flex-start; }
             th, td { font-size: 0.83rem; padding: 0.55rem 0.65rem; }
+            .col, .col-12, .col-auto, .col-md-3, .col-md-4, .col-md-6,
+            .col-md-8, .col-md-9, .col-lg-5, .col-lg-7, .col-lg-8 {
+                flex-basis: 100%;
+            }
         }
     </style>
 </head>
@@ -386,5 +522,6 @@
     </main>
 
     {% include "components/footer.html" %}
+    {% block extra_js %}{% endblock %}
 </body>
 </html>
