@@ -1,155 +1,253 @@
 import os
-import django
 import sys
+from datetime import date, datetime
+from decimal import Decimal
+
+import django
+from django.urls import reverse
+from django.utils import timezone
+
 
 sys.path.insert(0, '/app')
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'farmacia.settings')
 django.setup()
 
-from datetime import date, datetime
-from apps.proveedores.models import Proveedor
 from apps.clientes.models import Cliente
+from apps.medicamentos.models import CodigoQR, Lote, Medicamento
+from apps.proveedores.models import Proveedor
 from apps.usuarios.models import Usuario
-from apps.ventas.models import MetodoPago, Venta, DetalleVenta
-from apps.medicamentos.models import Lote, Medicamento, CodigoQR
-import uuid
+from apps.ventas.models import DetalleVenta, MetodoPago, Venta
 
-print("Cargando datos de prueba...")
 
-# =====================
-# PROVEEDORES
-# =====================
-proveedores = [
-    Proveedor(nombre="Laboratorios Pisa", telefono="3331234567", correo="ventas@pisa.com.mx", direccion="Av. Patria 1501, Guadalajara, Jalisco"),
-    Proveedor(nombre="Distribuidora Nadro", telefono="5551234567", correo="contacto@nadro.com.mx", direccion="Av. Insurgentes Sur 800, CDMX"),
-    Proveedor(nombre="Grupo Farmacos", telefono="8181234567", correo="pedidos@grupofarmacos.com", direccion="Av. Gonzalitos 600, Monterrey, NL"),
-    Proveedor(nombre="Laboratorios Silanes", telefono="5559876543", correo="ventas@silanes.com.mx", direccion="Periferico Sur 7800, CDMX"),
-    Proveedor(nombre="Medix Farmaceutica", telefono="3339876543", correo="info@medix.com.mx", direccion="Av. López Mateos 2000, Guadalajara"),
-]
-Proveedor.objects.bulk_create(proveedores)
-print("✓ Proveedores creados")
+def upsert(model, lookup, defaults=None):
+    obj, created = model.objects.update_or_create(**lookup, defaults=defaults or {})
+    return obj, created
 
-# =====================
-# CLIENTES
-# =====================
-clientes = [
-    Cliente(nombre="María", ap_pat="González", ap_mat="López", fecha_registro=date(2024, 1, 15), telefono="3121234567"),
-    Cliente(nombre="José", ap_pat="Martínez", ap_mat="Pérez", fecha_registro=date(2024, 2, 20), telefono="3129876543"),
-    Cliente(nombre="Ana", ap_pat="Hernández", ap_mat="Ruiz", fecha_registro=date(2024, 3, 10), telefono="3123456789"),
-    Cliente(nombre="Carlos", ap_pat="Ramírez", ap_mat="Torres", fecha_registro=date(2024, 4, 5), telefono="3127654321"),
-    Cliente(nombre="Laura", ap_pat="Flores", ap_mat="Vega", fecha_registro=date(2024, 5, 18), telefono="3125551234"),
-]
-Cliente.objects.bulk_create(clientes)
-print("✓ Clientes creados")
 
-# =====================
-# USUARIOS
-# =====================
-usuarios_data = [
-    {"username": "jperez", "first_name": "Juan", "last_name": "Pérez", "rol": "farmaceutico", "telefono": "3121112233"},
-    {"username": "mlopez", "first_name": "Marina", "last_name": "López", "rol": "cajero", "telefono": "3122223344"},
-    {"username": "rsanchez", "first_name": "Roberto", "last_name": "Sánchez", "rol": "farmaceutico", "telefono": "3123334455"},
-    {"username": "lmendoza", "first_name": "Lucía", "last_name": "Mendoza", "rol": "administrador", "telefono": "3124445566"},
-    {"username": "agarcia", "first_name": "Arturo", "last_name": "García", "rol": "cajero", "telefono": "3125556677"},
-]
-usuarios_creados = []
-for u in usuarios_data:
-    usuario = Usuario(
-        username=u["username"],
-        first_name=u["first_name"],
-        last_name=u["last_name"],
-        rol=u["rol"],
-        telefono=u["telefono"],
-    )
-    usuario.set_password("Password123!")
-    usuario.save()
-    usuarios_creados.append(usuario)
-print("✓ Usuarios creados")
+def main():
+    print('Cargando datos de prueba realistas...')
 
-# =====================
-# MÉTODOS DE PAGO
-# =====================
-metodos = [
-    MetodoPago(nombre_metodo="Efectivo", descripcion="Pago en efectivo en caja"),
-    MetodoPago(nombre_metodo="Tarjeta de débito", descripcion="Pago con tarjeta de débito"),
-    MetodoPago(nombre_metodo="Tarjeta de crédito", descripcion="Pago con tarjeta de crédito"),
-    MetodoPago(nombre_metodo="Transferencia", descripcion="Transferencia bancaria SPEI"),
-    MetodoPago(nombre_metodo="Vales de medicina", descripcion="Vales del seguro o empresa"),
-]
-MetodoPago.objects.bulk_create(metodos)
-print("✓ Métodos de pago creados")
+    proveedores_data = [
+        {
+            'nombre': 'Laboratorios Pisa',
+            'telefono': '3331234567',
+            'correo': 'ventas@pisa.com.mx',
+            'direccion': 'Av. Espana 1840, Guadalajara, Jalisco',
+        },
+        {
+            'nombre': 'Nadro S.A.P.I.',
+            'telefono': '5551234567',
+            'correo': 'contacto@nadro.com.mx',
+            'direccion': 'Av. Insurgentes Sur 863, Ciudad de Mexico',
+        },
+        {
+            'nombre': 'Farmacos Nacionales',
+            'telefono': '8181234567',
+            'correo': 'pedidos@farmacosnacionales.mx',
+            'direccion': 'Av. Gonzalitos 600, Monterrey, Nuevo Leon',
+        },
+        {
+            'nombre': 'Laboratorios Silanes',
+            'telefono': '5559876543',
+            'correo': 'atencion@silanes.com.mx',
+            'direccion': 'Periferico Sur 3395, Ciudad de Mexico',
+        },
+        {
+            'nombre': 'Medix Farmaceutica',
+            'telefono': '3339876543',
+            'correo': 'servicio@medix.com.mx',
+            'direccion': 'Av. Lopez Mateos Sur 2077, Zapopan, Jalisco',
+        },
+    ]
 
-# =====================
-# LOTES
-# =====================
-proveedores_db = list(Proveedor.objects.all())
-lotes = [
-    Lote(id_prov=proveedores_db[0], numero_lote="PISA-2024-001", fecha_fabricacion=date(2024, 1, 1), fecha_caducidad=date(2026, 1, 1), fecha_ingreso=date(2024, 1, 20), stock_actual=100, activo=True, fecha_compra=date(2024, 1, 18), precio_compra=450.00, precio_venta=650.00),
-    Lote(id_prov=proveedores_db[1], numero_lote="NADRO-2024-015", fecha_fabricacion=date(2024, 2, 1), fecha_caducidad=date(2026, 2, 1), fecha_ingreso=date(2024, 2, 15), stock_actual=80, activo=True, fecha_compra=date(2024, 2, 12), precio_compra=300.00, precio_venta=420.00),
-    Lote(id_prov=proveedores_db[2], numero_lote="GF-2024-032", fecha_fabricacion=date(2024, 3, 1), fecha_caducidad=date(2025, 9, 1), fecha_ingreso=date(2024, 3, 10), stock_actual=50, activo=True, fecha_compra=date(2024, 3, 8), precio_compra=180.00, precio_venta=250.00),
-    Lote(id_prov=proveedores_db[3], numero_lote="SIL-2024-008", fecha_fabricacion=date(2024, 4, 1), fecha_caducidad=date(2026, 4, 1), fecha_ingreso=date(2024, 4, 5), stock_actual=120, activo=True, fecha_compra=date(2024, 4, 3), precio_compra=520.00, precio_venta=720.00),
-    Lote(id_prov=proveedores_db[4], numero_lote="MDX-2024-021", fecha_fabricacion=date(2024, 5, 1), fecha_caducidad=date(2026, 5, 1), fecha_ingreso=date(2024, 5, 20), stock_actual=60, activo=True, fecha_compra=date(2024, 5, 18), precio_compra=210.00, precio_venta=290.00),
-]
-Lote.objects.bulk_create(lotes)
-print("✓ Lotes creados")
+    proveedores = []
+    for data in proveedores_data:
+        proveedor, _ = upsert(
+            Proveedor,
+            {'nombre': data['nombre']},
+            {
+                'telefono': data['telefono'],
+                'correo': data['correo'],
+                'direccion': data['direccion'],
+            },
+        )
+        proveedores.append(proveedor)
+    print(f'- Proveedores listos: {len(proveedores)}')
 
-# =====================
-# MEDICAMENTOS
-# =====================
-lotes_db = list(Lote.objects.all())
-medicamentos = [
-    Medicamento(id_lote=lotes_db[0], nombre="Amoxicilina 500mg", presentacion="Cápsulas c/12", concentracion="500mg", requiere_receta=True, fecha_registro=date(2024, 1, 20), estado_colorimetria="verde"),
-    Medicamento(id_lote=lotes_db[1], nombre="Paracetamol 500mg", presentacion="Tabletas c/20", concentracion="500mg", requiere_receta=False, fecha_registro=date(2024, 2, 15), estado_colorimetria="verde"),
-    Medicamento(id_lote=lotes_db[2], nombre="Ibuprofeno 400mg", presentacion="Tabletas c/10", concentracion="400mg", requiere_receta=False, fecha_registro=date(2024, 3, 10), estado_colorimetria="amarillo"),
-    Medicamento(id_lote=lotes_db[3], nombre="Metformina 850mg", presentacion="Tabletas c/30", concentracion="850mg", requiere_receta=True, fecha_registro=date(2024, 4, 5), estado_colorimetria="verde"),
-    Medicamento(id_lote=lotes_db[4], nombre="Loratadina 10mg", presentacion="Tabletas c/10", concentracion="10mg", requiere_receta=False, fecha_registro=date(2024, 5, 20), estado_colorimetria="verde"),
-]
-Medicamento.objects.bulk_create(medicamentos)
-print("✓ Medicamentos creados")
+    clientes_data = [
+        ('Maria', 'Gonzalez', 'Lopez', date(2024, 1, 15), '3121234567'),
+        ('Jose', 'Martinez', 'Perez', date(2024, 2, 20), '3129876543'),
+        ('Ana', 'Hernandez', 'Ruiz', date(2024, 3, 10), '3123456789'),
+        ('Carlos', 'Ramirez', 'Torres', date(2024, 4, 5), '3127654321'),
+        ('Laura', 'Flores', 'Vega', date(2024, 5, 18), '3125551234'),
+    ]
 
-# =====================
-# CÓDIGOS QR
-# =====================
-medicamentos_db = list(Medicamento.objects.all())
-qrs = [
-    CodigoQR(id_medicamento=medicamentos_db[0], token=uuid.uuid4().hex[:64], url_qr="https://farmacia.com/qr/amoxicilina", fecha_generacion=date(2024, 1, 21), contador_escaneos=5, activo=True),
-    CodigoQR(id_medicamento=medicamentos_db[1], token=uuid.uuid4().hex[:64], url_qr="https://farmacia.com/qr/paracetamol", fecha_generacion=date(2024, 2, 16), contador_escaneos=12, activo=True),
-    CodigoQR(id_medicamento=medicamentos_db[2], token=uuid.uuid4().hex[:64], url_qr="https://farmacia.com/qr/ibuprofeno", fecha_generacion=date(2024, 3, 11), contador_escaneos=3, activo=True),
-    CodigoQR(id_medicamento=medicamentos_db[3], token=uuid.uuid4().hex[:64], url_qr="https://farmacia.com/qr/metformina", fecha_generacion=date(2024, 4, 6), contador_escaneos=8, activo=True),
-    CodigoQR(id_medicamento=medicamentos_db[4], token=uuid.uuid4().hex[:64], url_qr="https://farmacia.com/qr/loratadina", fecha_generacion=date(2024, 5, 21), contador_escaneos=2, activo=True),
-]
-CodigoQR.objects.bulk_create(qrs)
-print("✓ Códigos QR creados")
+    clientes = []
+    for nombre, ap_pat, ap_mat, fecha_registro, telefono in clientes_data:
+        cliente, _ = upsert(
+            Cliente,
+            {'nombre': nombre, 'ap_pat': ap_pat},
+            {
+                'ap_mat': ap_mat,
+                'fecha_registro': fecha_registro,
+                'telefono': telefono,
+            },
+        )
+        clientes.append(cliente)
+    print(f'- Clientes listos: {len(clientes)}')
 
-# =====================
-# VENTAS
-# =====================
-clientes_db = list(Cliente.objects.all())
-metodos_db = list(MetodoPago.objects.all())
-ventas = [
-    Venta(id_usuario=usuarios_creados[0], id_metPag=metodos_db[0], id_cliente=clientes_db[0], fecha_venta=datetime(2024, 6, 1, 10, 30), total_venta=650.00),
-    Venta(id_usuario=usuarios_creados[1], id_metPag=metodos_db[1], id_cliente=clientes_db[1], fecha_venta=datetime(2024, 6, 2, 11, 15), total_venta=420.00),
-    Venta(id_usuario=usuarios_creados[0], id_metPag=metodos_db[2], id_cliente=clientes_db[2], fecha_venta=datetime(2024, 6, 3, 12, 0), total_venta=500.00),
-    Venta(id_usuario=usuarios_creados[2], id_metPag=metodos_db[0], id_cliente=clientes_db[3], fecha_venta=datetime(2024, 6, 4, 9, 45), total_venta=290.00),
-    Venta(id_usuario=usuarios_creados[1], id_metPag=metodos_db[3], id_cliente=clientes_db[4], fecha_venta=datetime(2024, 6, 5, 14, 20), total_venta=970.00),
-]
-Venta.objects.bulk_create(ventas)
-print("✓ Ventas creadas")
+    usuarios_data = [
+        ('jperez', 'Juan', 'Perez', 'Soto', 'farmaceutico', '3121112233'),
+        ('mlopez', 'Marina', 'Lopez', 'Diaz', 'cajero', '3122223344'),
+        ('rsanchez', 'Roberto', 'Sanchez', 'Cruz', 'farmaceutico', '3123334455'),
+        ('lmendoza', 'Lucia', 'Mendoza', 'Rios', 'administrador', '3124445566'),
+        ('agarcia', 'Arturo', 'Garcia', 'Nava', 'cajero', '3125556677'),
+        ('aalmacen', 'Adriana', 'Alvarez', 'Mora', 'almacen', '3126667788'),
+    ]
 
-# =====================
-# DETALLE VENTAS
-# =====================
-ventas_db = list(Venta.objects.all())
-detalles = [
-    DetalleVenta(id_ventas=ventas_db[0], id_medicamento=medicamentos_db[0], cantidad=1, precio_unitario=650.00, subtotal=650.00),
-    DetalleVenta(id_ventas=ventas_db[1], id_medicamento=medicamentos_db[1], cantidad=1, precio_unitario=420.00, subtotal=420.00),
-    DetalleVenta(id_ventas=ventas_db[2], id_medicamento=medicamentos_db[1], cantidad=1, precio_unitario=420.00, subtotal=420.00),
-    DetalleVenta(id_ventas=ventas_db[2], id_medicamento=medicamentos_db[2], cantidad=1, precio_unitario=250.00, subtotal=250.00),
-    DetalleVenta(id_ventas=ventas_db[3], id_medicamento=medicamentos_db[4], cantidad=1, precio_unitario=290.00, subtotal=290.00),
-    DetalleVenta(id_ventas=ventas_db[4], id_medicamento=medicamentos_db[0], cantidad=1, precio_unitario=650.00, subtotal=650.00),
-    DetalleVenta(id_ventas=ventas_db[4], id_medicamento=medicamentos_db[3], cantidad=1, precio_unitario=320.00, subtotal=320.00),
-]
-DetalleVenta.objects.bulk_create(detalles)
-print("✓ Detalles de venta creados")
+    usuarios = []
+    for usuario_key, nombre, ap_pat, ap_mat, rol, telefono in usuarios_data:
+        usuario, _ = upsert(
+            Usuario,
+            {'usuario': usuario_key},
+            {
+                'nombre': nombre,
+                'ap_pat': ap_pat,
+                'ap_mat': ap_mat,
+                'rol': rol,
+                'telefono': telefono,
+                'fecha_creacion': date(2024, 1, 10),
+                'ultima_conexion': timezone.make_aware(datetime(2026, 4, 18, 9, 30)),
+            },
+        )
+        usuario.set_password('Password123!')
+        usuario.save(update_fields=['password_hash'])
+        usuarios.append(usuario)
+    print(f'- Usuarios listos: {len(usuarios)}')
 
-print("\n✅ Todos los datos cargados correctamente")
+    metodos_data = [
+        ('Efectivo', 'Pago en caja con moneda nacional'),
+        ('Tarjeta de debito', 'Pago con terminal bancaria'),
+        ('Tarjeta de credito', 'Pago con tarjeta bancaria'),
+        ('Transferencia SPEI', 'Transferencia bancaria inmediata'),
+        ('Vales de despensa', 'Vales aceptados por la farmacia'),
+    ]
+
+    metodos = []
+    for nombre_metodo, descripcion in metodos_data:
+        metodo, _ = upsert(
+            MetodoPago,
+            {'nombre_metodo': nombre_metodo},
+            {'descripcion': descripcion},
+        )
+        metodos.append(metodo)
+    print(f'- Metodos de pago listos: {len(metodos)}')
+
+    lotes_data = [
+        (proveedores[0], 'PISA-2026-001', date(2025, 12, 1), date(2027, 12, 1), 120, Decimal('85.50'), Decimal('125.00')),
+        (proveedores[1], 'NADRO-2026-015', date(2025, 11, 15), date(2027, 11, 15), 95, Decimal('32.00'), Decimal('58.00')),
+        (proveedores[2], 'FN-2026-032', date(2025, 10, 10), date(2027, 10, 10), 65, Decimal('44.00'), Decimal('79.00')),
+        (proveedores[3], 'SIL-2026-008', date(2025, 9, 20), date(2027, 9, 20), 80, Decimal('120.00'), Decimal('168.00')),
+        (proveedores[4], 'MDX-2026-021', date(2025, 8, 5), date(2027, 8, 5), 70, Decimal('38.00'), Decimal('69.00')),
+    ]
+
+    lotes = []
+    for proveedor, numero, fabricacion, caducidad, stock, compra, venta in lotes_data:
+        lote, _ = upsert(
+            Lote,
+            {'numero_lote': numero},
+            {
+                'id_prov': proveedor,
+                'fecha_fabricacion': fabricacion,
+                'fecha_caducidad': caducidad,
+                'fecha_ingreso': date(2026, 1, 15),
+                'stock_actual': stock,
+                'activo': True,
+                'fecha_compra': date(2026, 1, 12),
+                'precio_compra': compra,
+                'precio_venta': venta,
+            },
+        )
+        lotes.append(lote)
+    print(f'- Lotes listos: {len(lotes)}')
+
+    medicamentos_data = [
+        (lotes[0], 'Amoxicilina 500 mg', 'Capsulas caja c/12', '500 mg', True, 'verde'),
+        (lotes[1], 'Paracetamol 500 mg', 'Tabletas caja c/20', '500 mg', False, 'verde'),
+        (lotes[2], 'Ibuprofeno 400 mg', 'Tabletas caja c/10', '400 mg', False, 'amarillo'),
+        (lotes[3], 'Metformina 850 mg', 'Tabletas caja c/30', '850 mg', True, 'verde'),
+        (lotes[4], 'Loratadina 10 mg', 'Tabletas caja c/10', '10 mg', False, 'verde'),
+    ]
+
+    medicamentos = []
+    for lote, nombre, presentacion, concentracion, requiere_receta, color in medicamentos_data:
+        medicamento, _ = upsert(
+            Medicamento,
+            {'nombre': nombre},
+            {
+                'id_lote': lote,
+                'presentacion': presentacion,
+                'concentracion': concentracion,
+                'requiere_receta': requiere_receta,
+                'fecha_registro': date(2026, 1, 16),
+                'estado_colorimetria': color,
+            },
+        )
+        medicamentos.append(medicamento)
+    print(f'- Medicamentos listos: {len(medicamentos)}')
+
+    for index, medicamento in enumerate(medicamentos, start=1):
+        upsert(
+            CodigoQR,
+            {'token': f'DEMO-QR-{index:03d}-{medicamento.id_med}'},
+            {
+                'id_medicamento': medicamento,
+                'url_qr': reverse('qr_scan', kwargs={'token': f'DEMO-QR-{index:03d}-{medicamento.id_med}'}),
+                'fecha_generacion': date(2026, 1, 16),
+                'fecha_regeneracion': None,
+                'contador_escaneos': index * 3,
+                'activo': True,
+            },
+        )
+    print('- Codigos QR listos: 5')
+
+    ventas_data = [
+        (usuarios[1], metodos[0], clientes[0], datetime(2026, 4, 14, 10, 30), [(medicamentos[1], 2), (medicamentos[4], 1)]),
+        (usuarios[4], metodos[1], clientes[1], datetime(2026, 4, 15, 11, 15), [(medicamentos[0], 1)]),
+        (usuarios[1], metodos[2], clientes[2], datetime(2026, 4, 16, 12, 0), [(medicamentos[2], 2)]),
+        (usuarios[4], metodos[3], clientes[3], datetime(2026, 4, 17, 9, 45), [(medicamentos[3], 1)]),
+        (usuarios[1], metodos[4], clientes[4], datetime(2026, 4, 18, 14, 20), [(medicamentos[0], 1), (medicamentos[1], 1)]),
+    ]
+
+    ventas_creadas = []
+    for index, (usuario, metodo, cliente, fecha, lineas) in enumerate(ventas_data, start=1):
+        fecha_aware = timezone.make_aware(fecha)
+        total = sum(med.id_lote.precio_venta * cantidad for med, cantidad in lineas)
+        venta, _ = upsert(
+            Venta,
+            {'id_usuario': usuario, 'fecha_venta': fecha_aware},
+            {
+                'id_metPag': metodo,
+                'id_cliente': cliente,
+                'total_venta': total,
+            },
+        )
+        venta.detalleventa_set.all().delete()
+        for medicamento, cantidad in lineas:
+            precio = medicamento.id_lote.precio_venta
+            DetalleVenta.objects.create(
+                id_ventas=venta,
+                id_medicamento=medicamento,
+                cantidad=cantidad,
+                precio_unitario=precio,
+                subtotal=precio * cantidad,
+            )
+        ventas_creadas.append(venta)
+        print(f'  Venta demo {index}: #{venta.id_ventas} total ${total}')
+
+    print(f'- Ventas listas: {len(ventas_creadas)}')
+    print('\nDatos de prueba cargados correctamente.')
+
+
+if __name__ == '__main__':
+    main()

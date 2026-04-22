@@ -1,0 +1,64 @@
+{% extends 'base.html' %}
+
+{% block title %}Gestionar usuario - Farmacia Inclusiva{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center mt-4">
+    <div class="col-md-6 col-lg-5">
+        <div class="card border-danger">
+            <div class="card-header bg-danger text-white py-3">
+                <h5 class="mb-0">Gestionar acceso del usuario</h5>
+            </div>
+            <div class="card-body p-4 text-center">
+
+                <p class="fs-5 mb-1">Usuario seleccionado:</p>
+                <p class="fw-bold fs-4 text-danger mb-1">
+                    {{ object.nombre_completo }}
+                </p>
+                <p class="text-muted mb-3">
+                    @{{ object.usuario }} -
+                    {% if object.activo %}
+                        <span class="badge badge-green">Activo</span>
+                    {% else %}
+                        <span class="badge badge-gray">Inactivo</span>
+                    {% endif %}
+                </p>
+
+                {% if ventas_count %}
+                    <div class="alert alert-warning text-start small" role="alert">
+                        <strong>Proteccion de historial:</strong>
+                        este usuario tiene {{ ventas_count }} venta(s) registrada(s), por eso no se puede eliminar.
+                        Puedes inhabilitarlo para que ya no aparezca en nuevas ventas, pero sus tickets e historial se conservan.
+                    </div>
+
+                    <form method="post">
+                        {% csrf_token %}
+                        <input type="hidden" name="accion" value="desactivar">
+                        <div class="d-flex gap-2 justify-content-center mt-3">
+                            <a href="{% url 'usuario_list' %}" class="btn btn-outline-secondary px-4">Cancelar</a>
+                            {% if object.activo %}
+                                <button type="submit" class="btn btn-warning px-4">Inhabilitar usuario</button>
+                            {% else %}
+                                <a href="{% url 'usuario_update' object.id_usuario %}" class="btn btn-primary px-4">Editar usuario</a>
+                            {% endif %}
+                        </div>
+                    </form>
+                {% else %}
+                    <div class="alert alert-danger text-start small" role="alert">
+                        Este usuario no tiene ventas registradas. Si lo eliminas, su cuenta se quitara del sistema.
+                    </div>
+
+                    <form method="post">
+                        {% csrf_token %}
+                        <input type="hidden" name="accion" value="eliminar">
+                        <div class="d-flex gap-2 justify-content-center mt-3">
+                            <a href="{% url 'usuario_list' %}" class="btn btn-outline-secondary px-4">Cancelar</a>
+                            <button type="submit" class="btn btn-danger px-4">Si, eliminar</button>
+                        </div>
+                    </form>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

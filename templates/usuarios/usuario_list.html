@@ -1,0 +1,218 @@
+{% extends 'base.html' %}
+
+{% block title %}{% if ocultos %}Usuarios ocultos{% else %}Usuarios{% endif %} - Farmacia Inclusiva{% endblock %}
+
+{% block content %}
+<div class="card mt-2">
+    <div class="page-header">
+        <div>
+            <h1>{% if ocultos %}Usuarios ocultos{% else %}Usuarios del Sistema{% endif %}</h1>
+            <p class="page-subtitle">
+                {% if ocultos %}
+                    Personal inhabilitado que conserva historial de ventas y movimientos.
+                {% else %}
+                    Administracion del personal con acceso a la plataforma.
+                {% endif %}
+            </p>
+        </div>
+        <div class="btn-group">
+            {% if ocultos %}
+                <a href="{% url 'usuario_list' %}" class="btn btn-secondary">Ver usuarios activos</a>
+            {% else %}
+                <a href="{% url 'usuario_ocultos' %}" class="btn btn-secondary">Ver usuarios ocultos</a>
+                <a href="{% url 'usuario_create' %}" class="btn btn-primary">+ Nuevo usuario</a>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if ocultos %}
+    <div class="alert alert-info">
+        Los usuarios ocultos no pueden iniciar sesion ni aparecer como vendedores nuevos, pero sus ventas historicas se mantienen.
+    </div>
+    {% endif %}
+
+    <div class="filter-bar">
+        <h4>Filtros</h4>
+        <form method="get">
+            <div class="filter-row">
+                <div class="form-group">
+                    <label for="q">Nombre o usuario</label>
+                    <input id="q" type="text" name="q" value="{{ request.GET.q }}" placeholder="Buscar...">
+                </div>
+                <div class="form-group">
+                    <label for="rol">Rol</label>
+                    <select id="rol" name="rol">
+                        <option value="">Todos los roles</option>
+                        <option value="administrador" {% if request.GET.rol == 'administrador' %}selected{% endif %}>Administrador</option>
+                        <option value="admin" {% if request.GET.rol == 'admin' %}selected{% endif %}>Admin</option>
+                        <option value="cajero" {% if request.GET.rol == 'cajero' %}selected{% endif %}>Cajero</option>
+                        <option value="almacen" {% if request.GET.rol == 'almacen' %}selected{% endif %}>Almacen</option>
+                        <option value="farmaceutico" {% if request.GET.rol == 'farmaceutico' %}selected{% endif %}>Farmaceutico</option>
+                    </select>
+                </div>
+                <div class="btn-group" style="align-self:flex-end;">
+                    <button type="submit" class="btn btn-primary">Filtrar</button>
+                    <a href="{% if ocultos %}{% url 'usuario_ocultos' %}{% else %}{% url 'usuario_list' %}{% endif %}" class="btn btn-secondary">Limpiar</a>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <p class="text-muted" style="margin-bottom:0.85rem;">
+        Mostrando {{ page_obj.start_index }}-{{ page_obj.end_index }} de {{ paginator.count }} usuarios
+    </p>
+
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>
+                        {% if orden_filter == 'id_asc' %}
+                            <a class="sort-link" href="?orden=id_desc{{ filter_query_params }}">ID <span class="sort-arrow">↑</span></a>
+                        {% elif orden_filter == 'id_desc' %}
+                            <a class="sort-link" href="?orden=id_asc{{ filter_query_params }}">ID <span class="sort-arrow">↓</span></a>
+                        {% else %}
+                            <a class="sort-link" href="?orden=id_asc{{ filter_query_params }}">ID</a>
+                        {% endif %}
+                    </th>
+                    <th>
+                        {% if orden_filter == 'usuario_asc' %}
+                            <a class="sort-link" href="?orden=usuario_desc{{ filter_query_params }}">Usuario <span class="sort-arrow">↑</span></a>
+                        {% elif orden_filter == 'usuario_desc' %}
+                            <a class="sort-link" href="?orden=usuario_asc{{ filter_query_params }}">Usuario <span class="sort-arrow">↓</span></a>
+                        {% else %}
+                            <a class="sort-link" href="?orden=usuario_asc{{ filter_query_params }}">Usuario</a>
+                        {% endif %}
+                    </th>
+                    <th>
+                        {% if orden_filter == 'nombre_asc' %}
+                            <a class="sort-link" href="?orden=nombre_desc{{ filter_query_params }}">Nombre completo <span class="sort-arrow">↑</span></a>
+                        {% elif orden_filter == 'nombre_desc' %}
+                            <a class="sort-link" href="?orden=nombre_asc{{ filter_query_params }}">Nombre completo <span class="sort-arrow">↓</span></a>
+                        {% else %}
+                            <a class="sort-link" href="?orden=nombre_asc{{ filter_query_params }}">Nombre completo</a>
+                        {% endif %}
+                    </th>
+                    <th>Telefono</th>
+                    <th>
+                        {% if orden_filter == 'puesto_asc' %}
+                            <a class="sort-link" href="?orden=puesto_desc{{ filter_query_params }}">Puesto <span class="sort-arrow">↑</span></a>
+                        {% elif orden_filter == 'puesto_desc' %}
+                            <a class="sort-link" href="?orden=puesto_asc{{ filter_query_params }}">Puesto <span class="sort-arrow">↓</span></a>
+                        {% else %}
+                            <a class="sort-link" href="?orden=puesto_asc{{ filter_query_params }}">Puesto</a>
+                        {% endif %}
+                    </th>
+                    <th>
+                        {% if orden_filter == 'rol_asc' %}
+                            <a class="sort-link" href="?orden=rol_desc{{ filter_query_params }}">Rol <span class="sort-arrow">↑</span></a>
+                        {% elif orden_filter == 'rol_desc' %}
+                            <a class="sort-link" href="?orden=rol_asc{{ filter_query_params }}">Rol <span class="sort-arrow">↓</span></a>
+                        {% else %}
+                            <a class="sort-link" href="?orden=rol_asc{{ filter_query_params }}">Rol</a>
+                        {% endif %}
+                    </th>
+                    <th>Estado</th>
+                    <th>
+                        {% if orden_filter == 'contratacion_asc' %}
+                            <a class="sort-link" href="?orden=contratacion_desc{{ filter_query_params }}">Contratacion <span class="sort-arrow">↑</span></a>
+                        {% elif orden_filter == 'contratacion_desc' %}
+                            <a class="sort-link" href="?orden=contratacion_asc{{ filter_query_params }}">Contratacion <span class="sort-arrow">↓</span></a>
+                        {% else %}
+                            <a class="sort-link" href="?orden=contratacion_asc{{ filter_query_params }}">Contratacion</a>
+                        {% endif %}
+                    </th>
+                    <th>
+                        {% if orden_filter == 'conexion_asc' %}
+                            <a class="sort-link" href="?orden=conexion_desc{{ filter_query_params }}">Ultima conexion <span class="sort-arrow">↑</span></a>
+                        {% elif orden_filter == 'conexion_desc' %}
+                            <a class="sort-link" href="?orden=conexion_asc{{ filter_query_params }}">Ultima conexion <span class="sort-arrow">↓</span></a>
+                        {% else %}
+                            <a class="sort-link" href="?orden=conexion_desc{{ filter_query_params }}">Ultima conexion</a>
+                        {% endif %}
+                    </th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for usuario in object_list %}
+                <tr>
+                    <td class="text-mono">{{ usuario.id_usuario }}</td>
+                    <td>
+                        <a class="link" href="{% url 'usuario_detail' usuario.id_usuario %}">
+                            {{ usuario.usuario }}
+                        </a>
+                    </td>
+                    <td>{{ usuario.nombre_completo }}</td>
+                    <td class="text-muted">{{ usuario.telefono|default:"-" }}</td>
+                    <td class="text-muted">{{ usuario.puesto|default:usuario.get_rol_display }}</td>
+                    <td>
+                        {% if usuario.rol == 'administrador' or usuario.rol == 'admin' %}
+                            <span class="badge badge-blue">Administrador</span>
+                        {% elif usuario.rol == 'cajero' %}
+                            <span class="badge badge-green">Cajero</span>
+                        {% else %}
+                            <span class="badge badge-gray">{{ usuario.get_rol_display }}</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if usuario.activo %}
+                            <span class="badge badge-green">Activo</span>
+                        {% else %}
+                            <span class="badge badge-gray">Oculto</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-muted small">
+                        {{ usuario.fecha_contratacion|date:"d/m/Y"|default:"-" }}
+                        {% if usuario.fecha_baja %}
+                            <br><span class="text-danger">Ultimo dia: {{ usuario.fecha_baja|date:"d/m/Y" }}</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-muted small">
+                        {% if usuario.ultima_conexion %}
+                            {{ usuario.ultima_conexion|date:"d/m/Y H:i" }}
+                        {% else %}
+                            <span class="fst-italic">Sin actividad</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div class="btn-group">
+                            <a href="{% url 'usuario_detail' usuario.id_usuario %}" class="btn btn-secondary btn-sm">Ver</a>
+                            <a href="{% url 'usuario_update' usuario.id_usuario %}" class="btn btn-secondary btn-sm">Editar</a>
+                            {% if ocultos %}
+                                <form method="post" action="{% url 'usuario_restaurar' usuario.id_usuario %}">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-primary btn-sm">Restaurar</button>
+                                </form>
+                            {% else %}
+                                <a href="{% url 'usuario_delete' usuario.id_usuario %}" class="btn btn-danger btn-sm">Ocultar</a>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="10">
+                        <div class="empty-state">
+                            <p>No hay usuarios para mostrar.</p>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% if is_paginated %}
+    <div class="pagination">
+        {% if page_obj.has_previous %}
+            <a class="btn btn-secondary btn-sm" href="?page={{ page_obj.previous_page_number }}{{ query_params }}">Anterior</a>
+        {% endif %}
+        <span class="pagination-info">Pagina {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
+        {% if page_obj.has_next %}
+            <a class="btn btn-secondary btn-sm" href="?page={{ page_obj.next_page_number }}{{ query_params }}">Siguiente</a>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

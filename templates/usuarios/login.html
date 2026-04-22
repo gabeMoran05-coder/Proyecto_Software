@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Iniciar sesion - Farmacia Inclusiva{% endblock %}
+
+{% block content %}
+<div class="login-shell">
+    <div class="login-card">
+        <div class="login-mark">FI</div>
+        <h1>Iniciar sesion</h1>
+        <p class="page-subtitle mb-3">
+            Entra con tu usuario para acceder solo a las areas permitidas por tu rol.
+        </p>
+
+        <form method="post" class="form-grid">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{{ next }}">
+
+            <div class="form-group">
+                <label for="{{ form.usuario.id_for_label }}">Usuario</label>
+                {{ form.usuario }}
+                {% if form.usuario.errors %}
+                    <div class="text-danger small">{{ form.usuario.errors }}</div>
+                {% endif %}
+            </div>
+
+            <div class="form-group">
+                <label for="{{ form.password.id_for_label }}">Contrasena</label>
+                {{ form.password }}
+                {% if form.password.errors %}
+                    <div class="text-danger small">{{ form.password.errors }}</div>
+                {% endif %}
+            </div>
+
+            <button type="submit" class="btn btn-primary" style="justify-content:center;">
+                Entrar al sistema
+            </button>
+        </form>
+
+        <div class="alert alert-info mt-3">
+            <strong>Usuarios demo:</strong>
+            admin: <span class="text-mono">lmendoza</span>,
+            cajero: <span class="text-mono">mlopez</span>,
+            almacen: <span class="text-mono">aalmacen</span>.
+            Contrasena: <span class="text-mono">Password123!</span>
+        </div>
+    </div>
+</div>
+{% endblock %}

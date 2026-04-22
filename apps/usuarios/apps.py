@@ -1,5 +1,7 @@
-from django.apps import AppConfig
+from django.apps import AppConfig # type: ignore
 
 
 class UsuariosConfig(AppConfig):
-    name = 'apps.usuarios'
+    default_auto_field = 'django.db.models.BigAutoField'
+    name               = 'apps.usuarios'
+    verbose_name       = 'Usuarios'

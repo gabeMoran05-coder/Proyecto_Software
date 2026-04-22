@@ -1,0 +1,124 @@
+{% extends 'base.html' %}
+
+{% block title %}Perfil: {{ object.usuario }} — Farmacia Inclusiva{% endblock %}
+
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center">
+    <div>
+        <h2><i class="bi bi-person-badge-fill me-2"></i>Detalle de Usuario</h2>
+        <p>Información completa del perfil del empleado</p>
+    </div>
+    <a href="{% url 'usuario_list' %}" class="btn btn-outline-light">
+        <i class="bi bi-arrow-left me-1"></i>Volver al listado
+    </a>
+</div>
+
+<div class="row justify-content-center">
+    <div class="col-md-8 col-lg-7">
+        <div class="card">
+            <!-- Encabezado del perfil -->
+            <div class="card-body p-4 border-bottom">
+                <div class="d-flex align-items-center gap-4">
+                    <div class="rounded-circle bg-success text-white d-flex align-items-center justify-content-center"
+                         style="width:72px;height:72px;font-size:1.8rem;font-weight:700;flex-shrink:0;">
+                        {{ object.nombre|slice:":1"|upper }}
+                    </div>
+                    <div>
+                        <h4 class="mb-0 fw-bold">
+                            {{ object.nombre }}
+                            {% if object.ap_pat %} {{ object.ap_pat }}{% endif %}
+                            {% if object.ap_mat %} {{ object.ap_mat }}{% endif %}
+                        </h4>
+                        <p class="text-muted mb-1">@{{ object.usuario }}</p>
+                        {% if object.rol == 'administrador' %}
+                            <span class="badge bg-primary">
+                                <i class="bi bi-shield-check me-1"></i>Administrador
+                            </span>
+                        {% elif object.rol == 'cajero' %}
+                            <span class="badge bg-info text-dark">
+                                <i class="bi bi-cash-register me-1"></i>Cajero
+                            </span>
+                        {% else %}
+                            <span class="badge bg-secondary">{{ object.rol }}</span>
+                        {% endif %}
+                        {% if object.activo %}
+                            <span class="badge badge-green">Activo</span>
+                        {% else %}
+                            <span class="badge badge-gray">Inactivo</span>
+                        {% endif %}
+                    </div>
+                    <div class="ms-auto text-end">
+                        <small class="text-muted">ID del usuario</small>
+                        <div class="fs-4 fw-bold text-muted">#{{ object.id_usuario }}</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Detalles -->
+            <div class="card-body p-4">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <div class="p-3 bg-light rounded">
+                            <div class="text-muted small fw-semibold text-uppercase mb-1">
+                                <i class="bi bi-telephone me-1"></i>Teléfono
+                            </div>
+                            <div class="fw-semibold">{{ object.telefono|default:"—" }}</div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="p-3 bg-light rounded">
+                            <div class="text-muted small fw-semibold text-uppercase mb-1">
+                                <i class="bi bi-calendar-plus me-1"></i>Fecha de creación
+                            </div>
+                            <div class="fw-semibold">
+                                {{ object.fecha_creacion|date:"d/m/Y"|default:"—" }}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="p-3 bg-light rounded">
+                            <div class="text-muted small fw-semibold text-uppercase mb-1">Puesto</div>
+                            <div class="fw-semibold">{{ object.puesto|default:object.get_rol_display }}</div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="p-3 bg-light rounded">
+                            <div class="text-muted small fw-semibold text-uppercase mb-1">Fecha de contratacion</div>
+                            <div class="fw-semibold">{{ object.fecha_contratacion|date:"d/m/Y"|default:"-" }}</div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="p-3 bg-light rounded">
+                            <div class="text-muted small fw-semibold text-uppercase mb-1">Ultimo dia</div>
+                            <div class="fw-semibold">{{ object.fecha_baja|date:"d/m/Y"|default:"-" }}</div>
+                        </div>
+                    </div>
+                    <div class="col-12">
+                        <div class="p-3 bg-light rounded">
+                            <div class="text-muted small fw-semibold text-uppercase mb-1">
+                                <i class="bi bi-clock-history me-1"></i>Última conexión
+                            </div>
+                            <div class="fw-semibold">
+                                {% if object.ultima_conexion %}
+                                    {{ object.ultima_conexion|date:"d/m/Y H:i" }}
+                                {% else %}
+                                    <span class="text-muted fst-italic">Sin actividad registrada</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card-footer bg-white d-flex justify-content-end gap-2 py-3">
+                <a href="{% url 'usuario_update' object.id_usuario %}" class="btn btn-primary">
+                    <i class="bi bi-pencil me-1"></i>Editar
+                </a>
+                <a href="{% url 'usuario_delete' object.id_usuario %}" class="btn btn-outline-danger">
+                    <i class="bi bi-trash me-1"></i>Eliminar
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

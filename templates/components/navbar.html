@@ -1,15 +1,36 @@
 <header>
     <div class="nav-inner">
         <a href="/" class="nav-brand">
-            🌿 <strong>Farmacia Inclusiva</strong>
+            <strong>Farmacia Inclusiva</strong>
             <span>/ ITCO</span>
         </a>
+
+        {% if current_usuario %}
         <nav class="nav-links">
-            <a class="nav-link {% if request.resolver_match.app_name == 'medicamentos' %}active{% endif %}" href="{% url 'medicamento_list' %}">Medicamentos</a>
-            <a class="nav-link {% if request.resolver_match.app_name == 'proveedores' %}active{% endif %}" href="{% url 'proveedor_list' %}">Proveedores</a>
-            <a class="nav-link {% if request.resolver_match.app_name == 'clientes' %}active{% endif %}" href="{% url 'cliente_list' %}">Clientes</a>
-            <a class="nav-link {% if request.resolver_match.app_name == 'usuarios' %}active{% endif %}" href="{% url 'usuario_list' %}">Usuarios</a>
-            <a class="nav-link {% if request.resolver_match.app_name == 'ventas' %}active{% endif %}" href="{% url 'venta_list' %}">Ventas</a>
+            {% if current_usuario_is_admin or current_usuario_role == 'almacen' or current_usuario_role == 'farmaceutico' or current_usuario_role == 'cajero' %}
+                <a class="nav-link" href="{% url 'medicamento_list' %}">Medicamentos</a>
+            {% endif %}
+
+            {% if current_usuario_is_admin or current_usuario_role == 'almacen' or current_usuario_role == 'farmaceutico' %}
+                <a class="nav-link" href="{% url 'lote_list' %}">Lotes</a>
+                <a class="nav-link" href="{% url 'proveedor_list' %}">Proveedores</a>
+            {% endif %}
+
+            {% if current_usuario_is_admin %}
+                <a class="nav-link" href="{% url 'cliente_list' %}">Clientes</a>
+                <a class="nav-link" href="{% url 'usuario_list' %}">Usuarios</a>
+            {% endif %}
+
+            {% if current_usuario_is_admin or current_usuario_role == 'cajero' %}
+                <a class="nav-link" href="{% url 'venta_list' %}">Ventas</a>
+                <a class="nav-link" href="{% url 'venta_create' %}">Venta</a>
+            {% endif %}
+
+            <span class="nav-user">
+                {{ current_usuario.nombre }} · {{ current_usuario.get_rol_display }}
+            </span>
+            <a class="nav-link" href="{% url 'usuario_logout' %}">Salir</a>
         </nav>
+        {% endif %}
     </div>
 </header>
