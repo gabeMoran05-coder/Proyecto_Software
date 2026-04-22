@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% block title %}Venta #{{ venta.id_ventas }} — Farmacia Inclusiva{% endblock %}
+
+{% block content %}
+<div class="card mt-2">
+
+    <div class="page-header">
+        <div>
+            <h1>Venta #{{ venta.id_ventas }}</h1>
+            <p class="page-subtitle">{{ venta.fecha_venta|date:'d/m/Y H:i'|default:"—" }}</p>
+        </div>
+        <div class="btn-group">
+            <a class="btn btn-primary" href="{% url 'venta_ticket' venta.id_ventas %}" target="_blank">Generar ticket</a>
+            <a class="btn btn-primary" href="{% url 'venta_ticket_whatsapp' venta.id_ventas %}">Enviar WhatsApp</a>
+            <a class="btn btn-secondary" href="{% url 'venta_ticket_image' venta.ticket_token %}?download=1">Descargar ticket PNG</a>
+            <a class="btn btn-secondary" href="{% url 'venta_ticket_qr_image' venta.ticket_token %}?download=1">Descargar QR PNG</a>
+            <a class="btn btn-secondary" href="{% url 'venta_ticket_qr_pdf' venta.ticket_token %}">Descargar QR PDF</a>
+            <a class="btn btn-secondary" href="{% url 'venta_list' %}">Volver</a>
+        </div>
+    </div>
+
+    <div class="detail-section">
+        <h3>Datos de la venta</h3>
+        <table class="detail-table">
+            <tr><td>Folio</td><td class="text-mono fw-600">#{{ venta.id_ventas }}</td></tr>
+            <tr><td>Fecha</td><td>{{ venta.fecha_venta|date:'d/m/Y H:i'|default:"—" }}</td></tr>
+            <tr><td>Cajero</td><td>{{ venta.id_usuario.get_full_name|default:venta.id_usuario.username }}</td></tr>
+            <tr><td>Método de pago</td><td>{{ venta.id_metPag.nombre_metodo }}</td></tr>
+            <tr>
+                <td>Cliente</td>
+                <td>
+                    {% if venta.id_cliente %}
+                        <a class="link" href="{% url 'cliente_detail' venta.id_cliente.id_cliente %}">
+                            {{ venta.id_cliente.nombre }}{% if venta.id_cliente.ap_pat %} {{ venta.id_cliente.ap_pat }}{% endif %}
+                        </a>
+                    {% else %}
+                        <span class="text-muted">Público general</span>
+                    {% endif %}
+                </td>
+            </tr>
+            <tr>
+                <td>Total</td>
+                <td class="text-mono fw-600" style="font-size:1.1rem;color:var(--primary);">
+                    ${{ venta.total_venta|floatformat:2|default:"—" }}
+                </td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="detail-section mt-2">
+        <h3>Productos vendidos</h3>
+        {% if detalles %}
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Medicamento</th>
+                        <th>Cantidad</th>
+                        <th class="text-right">Precio unitario</th>
+                        <th class="text-right">Subtotal</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for det in detalles %}
+                    <tr>
+                        <td>
+                            <a class="link" href="{% url 'medicamento_detail' det.id_medicamento.id_med %}">
+                                {{ det.id_medicamento.nombre }}
+                            </a>
+                        </td>
+                        <td class="text-mono">{{ det.cantidad }}</td>
+                        <td class="text-mono text-right">${{ det.precio_unitario|floatformat:2 }}</td>
+                        <td class="text-mono fw-600 text-right">${{ det.subtotal|floatformat:2 }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot>
+                    <tr style="border-top:2px solid var(--border);">
+                        <td colspan="3" class="fw-600 text-right">Total:</td>
+                        <td class="text-mono fw-600" style="color:var(--primary);">
+                            ${{ venta.total_venta|floatformat:2|default:"—" }}
+                        </td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty-state" style="padding:1.5rem;">
+            <div class="empty-icon">📦</div>
+            <p>No hay productos registrados en esta venta.</p>
+        </div>
+        {% endif %}
+    </div>
+
+</div>
+{% endblock %}

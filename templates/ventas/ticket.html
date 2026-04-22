@@ -1,0 +1,180 @@
+{% extends "base.html" %}
+{% block title %}Ticket venta #{{ venta.id_ventas }}{% endblock %}
+
+{% block content %}
+<div class="ticket-actions">
+    {% if not public %}
+        <a class="btn btn-secondary" href="{% url 'venta_detail' venta.id_ventas %}">Volver a venta</a>
+    {% endif %}
+    <button class="btn btn-primary" type="button" onclick="window.print()">Imprimir / guardar PDF</button>
+    <a class="btn btn-secondary" href="{% url 'venta_ticket_image' venta.ticket_token %}?download=1">Descargar ticket PNG</a>
+    {% if not public %}
+        <a class="btn btn-primary" href="{% url 'venta_ticket_whatsapp' venta.id_ventas %}">Enviar WhatsApp</a>
+    {% endif %}
+    <a class="btn btn-secondary" href="{% url 'venta_ticket_qr_image' venta.ticket_token %}?download=1">Descargar QR PNG</a>
+    <a class="btn btn-secondary" href="{% url 'venta_ticket_qr_pdf' venta.ticket_token %}">Descargar QR PDF</a>
+</div>
+
+<div class="ticket-card">
+    <div class="ticket-head">
+        <div>
+            <p class="ticket-kicker">Farmacia Inclusiva</p>
+            <h1>Ticket de compra</h1>
+            <p class="text-muted">Folio #{{ venta.id_ventas }} · {{ venta.fecha_venta|date:"d/m/Y H:i" }}</p>
+        </div>
+        <img class="ticket-qr" src="{% url 'venta_ticket_qr_image' venta.ticket_token %}" alt="QR del ticket">
+    </div>
+
+    <div class="ticket-grid">
+        <div>
+            <strong>Cliente</strong>
+            <p>{{ venta.cliente_display }}</p>
+        </div>
+        <div>
+            <strong>Cajero</strong>
+            <p>{{ venta.id_usuario.nombre_completo }}</p>
+        </div>
+        <div>
+            <strong>Metodo de pago</strong>
+            <p>{{ venta.id_metPag.nombre_metodo }}</p>
+        </div>
+        <div>
+            <strong>Total</strong>
+            <p class="ticket-total">${{ venta.total_venta|floatformat:2 }}</p>
+        </div>
+    </div>
+
+    <h2>Productos comprados</h2>
+    <table class="ticket-table">
+        <thead>
+            <tr>
+                <th>Medicamento</th>
+                <th>Cant.</th>
+                <th>Precio</th>
+                <th>Subtotal</th>
+                <th>QR medicamento</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for detalle, qr in detalle_qrs %}
+            <tr>
+                <td>
+                    <strong>{{ detalle.id_medicamento.nombre }}</strong>
+                    <div class="text-muted small">
+                        {{ detalle.id_medicamento.presentacion|default:"Sin presentacion" }}
+                        · {{ detalle.id_medicamento.concentracion|default:"Sin concentracion" }}
+                    </div>
+                </td>
+                <td>{{ detalle.cantidad }}</td>
+                <td>${{ detalle.precio_unitario|floatformat:2 }}</td>
+                <td>${{ detalle.subtotal|floatformat:2 }}</td>
+                <td>
+                    <img class="med-qr" src="{% url 'qr_image' qr.id_qr %}" alt="QR {{ detalle.id_medicamento.nombre }}">
+                    <div><a class="link small" href="{{ qr.url_qr }}" target="_blank">Ficha del medicamento</a></div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+        <tfoot>
+            <tr>
+                <td colspan="3" class="text-right fw-600">Total</td>
+                <td colspan="2" class="fw-600">${{ venta.total_venta|floatformat:2 }}</td>
+            </tr>
+        </tfoot>
+    </table>
+
+    <div class="ticket-note">
+        <p><strong>QR del ticket:</strong> {{ ticket_url }}</p>
+        <p>Este QR abre el resumen de la compra y muestra los QR individuales de cada medicamento adquirido.</p>
+    </div>
+</div>
+
+<style>
+.ticket-actions {
+    display: flex;
+    justify-content: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    margin: 0 0 1rem;
+}
+.ticket-card {
+    width: min(860px, 100%);
+    margin: 0 auto;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 1.5rem;
+    box-shadow: var(--shadow);
+}
+.ticket-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    align-items: flex-start;
+    border-bottom: 2px dashed var(--border);
+    padding-bottom: 1rem;
+    margin-bottom: 1rem;
+}
+.ticket-kicker {
+    color: var(--primary);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-size: 0.8rem;
+}
+.ticket-qr {
+    width: 150px;
+    height: 150px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 0.4rem;
+}
+.ticket-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    gap: 0.8rem;
+    margin-bottom: 1.25rem;
+}
+.ticket-grid div {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 0.85rem;
+}
+.ticket-total {
+    color: var(--primary);
+    font-size: 1.25rem;
+    font-weight: 700;
+}
+.ticket-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+.ticket-table th,
+.ticket-table td {
+    border-bottom: 1px solid var(--border);
+    padding: 0.7rem;
+    vertical-align: top;
+}
+.med-qr {
+    width: 86px;
+    height: 86px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 0.25rem;
+}
+.ticket-note {
+    margin-top: 1rem;
+    background: var(--primary-light);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 0.85rem;
+}
+@media print {
+    header, footer, .ticket-actions { display: none !important; }
+    body { background: #fff; }
+    main { padding: 0; }
+    .ticket-card { border: 0; box-shadow: none; width: 100%; }
+}
+</style>
+{% endblock %}

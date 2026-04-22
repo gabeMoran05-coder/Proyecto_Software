@@ -1,0 +1,266 @@
+{% extends "base.html" %}
+{% block title %}Ventas - Farmacia Inclusiva{% endblock %}
+
+{% block content %}
+<div class="card mt-2">
+
+    <div class="page-header">
+        <div>
+            <h1>Ventas</h1>
+            <p class="page-subtitle">Registro de transacciones realizadas en la farmacia</p>
+        </div>
+    </div>
+
+    <form class="ventas-filters" method="get">
+        <div class="filter-field">
+            <label>Desde</label>
+            <input type="date" name="fecha_desde" value="{{ fecha_desde }}">
+        </div>
+        <div class="filter-field">
+            <label>Hasta</label>
+            <input type="date" name="fecha_hasta" value="{{ fecha_hasta }}">
+        </div>
+        {% if current_usuario_is_admin %}
+        <div class="filter-field">
+            <label>Vendedor</label>
+            <select name="usuario">
+                <option value="">Todos</option>
+                {% for usuario in usuarios %}
+                    <option value="{{ usuario.id_usuario }}" {% if usuario_filter == usuario.id_usuario|stringformat:"s" %}selected{% endif %}>
+                        {{ usuario.nombre_completo }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+        {% endif %}
+        <div class="filter-field">
+            <label>Metodo de pago</label>
+            <select name="metodo_pago">
+                <option value="">Todos</option>
+                {% for metodo in metodos_pago %}
+                    <option value="{{ metodo.id_metPag }}" {% if metodo_filter == metodo.id_metPag|stringformat:"s" %}selected{% endif %}>
+                        {{ metodo.nombre_metodo }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="filter-actions">
+            <button class="btn btn-primary" type="submit">Filtrar</button>
+            <a class="btn btn-secondary" href="{% url 'venta_list' %}">Limpiar</a>
+        </div>
+    </form>
+
+    <details class="seller-summary">
+        <summary>
+            <span>Resumen por vendedor</span>
+            <strong>{{ ventas|length }} venta(s)</strong>
+        </summary>
+        <div class="seller-summary-grid">
+            {% for group in vendedor_groups %}
+            <details class="seller-card">
+                <summary>
+                    <span>{{ group.vendedor.nombre_completo }}</span>
+                    <strong>${{ group.total|floatformat:2 }}</strong>
+                    <em>{{ group.cantidad }} venta(s)</em>
+                </summary>
+                <div class="seller-sales">
+                    {% for venta in group.ventas %}
+                    <a href="{% url 'venta_detail' venta.id_ventas %}">
+                        <span>#{{ venta.id_ventas }} - {{ venta.fecha_venta|date:'d/m/Y H:i'|default:"-" }}</span>
+                        <strong>${{ venta.total_venta|floatformat:2|default:"-" }}</strong>
+                    </a>
+                    {% empty %}
+                    <p class="text-muted">Sin ventas con los filtros actuales.</p>
+                    {% endfor %}
+                </div>
+            </details>
+            {% empty %}
+            <p class="text-muted">No hay vendedores para mostrar.</p>
+            {% endfor %}
+        </div>
+    </details>
+
+    <div class="group-summary">
+        <strong>{% if current_usuario_role == 'cajero' %}Mis ventas{% else %}Todas las ventas{% endif %}</strong>
+        <span>{{ ventas|length }} venta(s){% if current_usuario_role == 'cajero' %} propias{% endif %}</span>
+    </div>
+
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>
+                        {% if orden_filter == 'folio_asc' %}
+                            <a class="sort-link" href="?orden=folio_desc{{ filter_query_params }}">Folio <span class="sort-arrow">↑</span></a>
+                        {% elif orden_filter == 'folio_desc' %}
+                            <a class="sort-link" href="?orden=folio_asc{{ filter_query_params }}">Folio <span class="sort-arrow">↓</span></a>
+                        {% else %}
+                            <a class="sort-link" href="?orden=folio_desc{{ filter_query_params }}">Folio</a>
+                        {% endif %}
+                    </th>
+                    <th>
+                        {% if orden_filter == 'fecha_asc' %}
+                            <a class="sort-link" href="?orden=fecha_desc{{ filter_query_params }}">Fecha <span class="sort-arrow">↑</span></a>
+                        {% elif orden_filter == 'fecha_desc' %}
+                            <a class="sort-link" href="?orden=fecha_asc{{ filter_query_params }}">Fecha <span class="sort-arrow">↓</span></a>
+                        {% else %}
+                            <a class="sort-link" href="?orden=fecha_desc{{ filter_query_params }}">Fecha</a>
+                        {% endif %}
+                    </th>
+                    <th>Vendedor</th>
+                    <th>Cliente</th>
+                    <th>Metodo de pago</th>
+                    <th class="text-right">
+                        {% if orden_filter == 'total_asc' %}
+                            <a class="sort-link" href="?orden=total_desc{{ filter_query_params }}">Total <span class="sort-arrow">↑</span></a>
+                        {% elif orden_filter == 'total_desc' %}
+                            <a class="sort-link" href="?orden=total_asc{{ filter_query_params }}">Total <span class="sort-arrow">↓</span></a>
+                        {% else %}
+                            <a class="sort-link" href="?orden=total_desc{{ filter_query_params }}">Total</a>
+                        {% endif %}
+                    </th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for venta in ventas %}
+                <tr>
+                    <td class="text-mono">#{{ venta.id_ventas }}</td>
+                    <td>{{ venta.fecha_venta|date:'d/m/Y H:i'|default:"-" }}</td>
+                    <td>{{ venta.id_usuario.get_full_name|default:venta.id_usuario.username }}</td>
+                    <td>
+                        {% if venta.id_cliente %}
+                            <a class="link" href="{% url 'cliente_detail' venta.id_cliente.id_cliente %}">
+                                {{ venta.id_cliente.nombre }}{% if venta.id_cliente.ap_pat %} {{ venta.id_cliente.ap_pat }}{% endif %}
+                            </a>
+                        {% else %}
+                            <span class="text-muted">Publico general</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ venta.id_metPag.nombre_metodo }}</td>
+                    <td class="text-mono fw-600 text-right">${{ venta.total_venta|floatformat:2|default:"-" }}</td>
+                    <td>
+                        <a class="btn btn-secondary btn-sm" href="{% url 'venta_detail' venta.id_ventas %}">Ver</a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7">
+                        <div class="empty-state">
+                            <p>No hay ventas registradas con esos filtros.</p>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+</div>
+
+<style>
+.ventas-filters {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    gap: 0.75rem;
+    margin: 1rem 0 1.25rem;
+}
+.filter-field label {
+    display: block;
+    color: var(--muted);
+    font-size: 0.78rem;
+    font-weight: 700;
+    margin-bottom: 0.35rem;
+    text-transform: uppercase;
+}
+.filter-field input,
+.filter-field select {
+    width: 100%;
+}
+.filter-actions {
+    display: flex;
+    align-items: end;
+    gap: 0.5rem;
+}
+.seller-summary {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    margin-bottom: 1.25rem;
+    background: var(--surface-2);
+}
+.seller-summary > summary {
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.85rem 1rem;
+    font-weight: 700;
+}
+.seller-summary-grid {
+    display: grid;
+    gap: 0.65rem;
+    padding: 0 1rem 1rem;
+}
+.seller-card {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+}
+.seller-card > summary {
+    cursor: pointer;
+    display: grid;
+    grid-template-columns: minmax(180px, 1fr) auto auto;
+    gap: 0.85rem;
+    align-items: center;
+    padding: 0.75rem;
+}
+.seller-card strong {
+    color: var(--primary);
+    font-family: 'IBM Plex Mono', monospace;
+}
+.seller-card em {
+    color: var(--muted);
+    font-style: normal;
+    font-size: 0.85rem;
+}
+.seller-sales {
+    border-top: 1px solid var(--border);
+    padding: 0.55rem 0.75rem 0.75rem;
+}
+.seller-sales a {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    color: var(--text);
+    text-decoration: none;
+    padding: 0.35rem 0;
+}
+.seller-sales a:hover {
+    color: var(--primary);
+}
+.group-summary {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    align-items: center;
+    margin-bottom: 0.7rem;
+    color: var(--muted);
+}
+.group-summary strong {
+    color: var(--text);
+    font-size: 1.05rem;
+}
+@media (max-width: 720px) {
+    .filter-actions,
+    .group-summary,
+    .seller-summary > summary,
+    .seller-sales a {
+        align-items: stretch;
+        flex-direction: column;
+    }
+    .seller-card > summary {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+{% endblock %}

@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Cancelar venta #{{ venta.id_ventas }}{% endblock %}
+{% block content %}
+<div class="card mt-2" style="max-width:520px; margin:0 auto;">
+    <h1>Cancelar venta</h1>
+    <div class="alert alert-error mt-2">
+        ¿Estás seguro de que deseas cancelar la venta
+        <strong>#{{ venta.id_ventas }}</strong> del {{ venta.fecha_venta|date:'d/m/Y'|default:"—" }}
+        por un total de <strong>${{ venta.total_venta|floatformat:2 }}</strong>?
+        <br><br>
+        Esta acción devolverá el stock de los productos al inventario.
+    </div>
+    <form method="post" class="form-actions mt-2">
+        {% csrf_token %}
+        <button class="btn btn-danger" type="submit">Sí, cancelar venta</button>
+        <a class="btn btn-secondary" href="{% url 'venta_detail' venta.id_ventas %}">Volver</a>
+    </form>
+</div>
+{% endblock %}

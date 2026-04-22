@@ -1,0 +1,328 @@
+{% extends "base.html" %}
+{% block title %}Venta{% endblock %}
+
+{% block content %}
+<div class="card mt-2">
+
+    <div class="page-header">
+        <div>
+            <h1>Venta</h1>
+            <p class="page-subtitle">Registrar transacción en punto de venta</p>
+        </div>
+    </div>
+
+    {% if errors %}
+    <div class="alert alert-error">
+        <ul style="padding-left:1.2rem; margin:0;">
+            {% for e in errors %}<li>{{ e }}</li>{% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+
+    <form method="post" id="form-venta">
+        {% csrf_token %}
+
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-bottom:1rem;">
+
+            <!-- Datos generales -->
+            <fieldset>
+                <legend>Datos de la venta</legend>
+                <div class="form-grid" style="gap:0.85rem;">
+                    <div class="form-group">
+                        <label for="id_usuario">Cajero *</label>
+                        {% if current_usuario_role == 'cajero' %}
+                            <input type="text" value="{{ current_usuario.nombre_completo }}" readonly>
+                            <input type="hidden" id="id_usuario" name="id_usuario" value="{{ current_usuario.id_usuario }}">
+                        {% else %}
+                        <select id="id_usuario" name="id_usuario" required>
+                            <option value="">— Seleccione cajero —</option>
+                            {% for usr in usuarios %}
+                            <option value="{{ usr.id_usuario }}">{{ usr.nombre }} ({{ usr.rol }})</option>
+                            {% endfor %}
+                        </select>
+                        {% endif %}
+                    </div>
+                    <div class="form-group">
+                        <label for="id_metPag">Método de pago *</label>
+                        <select id="id_metPag" name="id_metPag" required>
+                            <option value="">— Seleccione —</option>
+                            {% for mp in metodos_pago %}
+                            <option value="{{ mp.id_metPag }}">{{ mp.nombre_metodo }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="id_cliente">Cliente (opcional)</label>
+                        <select id="id_cliente" name="id_cliente">
+                            <option value="">Público en general</option>
+                            {% for cli in clientes %}
+                            <option value="{{ cli.id_cliente }}">
+                                {{ cli.nombre }} {{ cli.ap_pat|default:"" }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="fecha_venta">Fecha y hora</label>
+                        <input id="fecha_venta" name="fecha_venta" type="datetime-local"
+                            value="{{ fecha_actual|default:'' }}">
+                    </div>
+                </div>
+            </fieldset>
+
+            <!-- Total calculado -->
+            <fieldset>
+                <legend>Resumen</legend>
+                <div style="display:flex; flex-direction:column; gap:0.75rem; padding:0.5rem 0;">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <span class="text-muted">Productos agregados:</span>
+                        <span id="resumen-productos" class="text-mono fw-600">0</span>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <span class="text-muted">Cantidad total:</span>
+                        <span id="resumen-cantidad" class="text-mono fw-600">0</span>
+                    </div>
+                    <hr style="border-color:var(--border);">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <span style="font-weight:600; font-size:1rem;">TOTAL A COBRAR</span>
+                        <span id="resumen-total" class="text-mono fw-600"
+                            style="font-size:1.5rem; color:var(--primary);">$0.00</span>
+                    </div>
+                    <input type="hidden" name="total_venta" id="total_venta" value="0">
+                </div>
+            </fieldset>
+        </div>
+
+        <!-- SECCIÓN DE PRODUCTOS -->
+        <fieldset>
+            <legend>Productos</legend>
+
+            <!-- Buscador rápido -->
+            <div class="filter-bar" style="margin-bottom:1rem;">
+                <div class="filter-row">
+                    <div class="form-group" style="flex:2;">
+                        <label for="buscar-med">Agregar medicamento</label>
+                        <select id="buscar-med">
+                            <option value="">— Seleccione medicamento —</option>
+                            {% for med in medicamentos %}
+                            <option value="{{ med.id_med }}"
+                                data-nombre="{{ med.nombre }}"
+                                data-precio="{{ med.precio_venta|default:0 }}"
+                                data-stock="{{ med.stock_total }}"
+                                data-receta="{{ med.requiere_receta|yesno:'true,false' }}"
+                                data-lotes='{{ med.lotes_json|safe }}'>
+                                {{ med.nombre }} - Stock total: {{ med.stock_total }} - Desde ${{ med.precio_venta|floatformat:2|default:"S/P" }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group" style="flex:0 0 120px;">
+                        <label for="cantidad-agregar">Cantidad</label>
+                        <input id="cantidad-agregar" type="number" min="1" value="1">
+                    </div>
+                    <div style="align-self:flex-end;">
+                        <button type="button" id="btn-agregar" class="btn btn-primary">+ Agregar</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tabla de productos en venta -->
+            <div class="table-wrap">
+                <table id="tabla-productos">
+                    <thead>
+                        <tr>
+                            <th>Medicamento</th>
+                            <th class="text-right">Precio unit.</th>
+                            <th class="text-right">Cantidad</th>
+                            <th class="text-right">Subtotal</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbody-productos">
+                        <tr id="fila-vacia">
+                            <td colspan="5">
+                                <div class="empty-state" style="padding:1.5rem;">
+                                    <div class="empty-icon">💊</div>
+                                    <p>Aún no hay productos. Usa el selector de arriba para agregar.</p>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Inputs ocultos para enviar al backend -->
+            <div id="inputs-ocultos"></div>
+        </fieldset>
+
+        <div class="form-actions mt-2">
+            <button type="submit" class="btn btn-primary" id="btn-registrar" disabled>
+                ✅ Registrar venta
+            </button>
+            <a class="btn btn-secondary" href="{% url 'venta_list' %}">Cancelar</a>
+        </div>
+    </form>
+</div>
+
+<script>
+const productos = {};
+
+function formatCurrency(n) {
+    return '$' + parseFloat(n).toFixed(2);
+}
+
+function actualizarResumen() {
+    let total = 0;
+    let cantTotal = 0;
+    const keys = Object.keys(productos);
+    keys.forEach(id => {
+        const p = productos[id];
+        total += totalProducto(p);
+        cantTotal += p.cantidad;
+    });
+    const recetasPendientes = keys.some(id => productos[id].requiere_receta && !productos[id].receta_confirmada);
+    document.getElementById('resumen-productos').textContent = keys.length;
+    document.getElementById('resumen-cantidad').textContent = cantTotal;
+    document.getElementById('resumen-total').textContent = formatCurrency(total);
+    document.getElementById('total_venta').value = total.toFixed(2);
+    document.getElementById('btn-registrar').disabled = keys.length === 0 || recetasPendientes;
+}
+
+function renderTabla() {
+    const tbody = document.getElementById('tbody-productos');
+    const filaVacia = document.getElementById('fila-vacia');
+    const inputsOcultos = document.getElementById('inputs-ocultos');
+    tbody.innerHTML = '';
+    inputsOcultos.innerHTML = '';
+
+    const keys = Object.keys(productos);
+    if (keys.length === 0) {
+        tbody.appendChild(filaVacia);
+        return;
+    }
+
+    keys.forEach((id, idx) => {
+        const p = productos[id];
+        const subtotal = totalProducto(p);
+        const desglose = desgloseLotes(p);
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td>
+                <strong>${p.nombre}</strong>${p.requiere_receta ? ' <span class="badge badge-yellow" style="font-size:0.7rem;">Receta</span>' : ''}
+                <div class="text-muted small" style="margin-top:0.35rem;">
+                    ${desglose.map(d => `${d.cantidad} de lote ${d.numero} a ${formatCurrency(d.precio)} = ${formatCurrency(d.subtotal)}`).join('<br>')}
+                </div>
+                ${p.requiere_receta ? `
+                    <label class="small" style="display:block; margin-top:0.35rem;">
+                        <input type="checkbox" ${p.receta_confirmada ? 'checked' : ''} onchange="confirmarReceta('${id}', this.checked)">
+                        Receta verificada
+                    </label>
+                ` : ''}
+            </td>
+            <td class="text-right text-mono">
+                ${formatCurrency(p.precio)}
+                ${desglose.length > 1 ? '<div class="text-muted small">Precio por lote</div>' : ''}
+            </td>
+            <td class="text-right">
+                <input type="number" min="1" max="${p.stock}" value="${p.cantidad}"
+                    style="width:70px; text-align:center;"
+                    onchange="cambiarCantidad('${id}', this.value)">
+            </td>
+            <td class="text-right text-mono fw-600">${formatCurrency(subtotal)}</td>
+            <td><button type="button" class="btn btn-danger btn-sm" onclick="eliminarProducto('${id}')">✕</button></td>
+        `;
+        tbody.appendChild(tr);
+
+        // Inputs ocultos para el backend
+        inputsOcultos.innerHTML += `
+            <input type="hidden" name="medicamento_ids[]" value="${id}">
+            <input type="hidden" name="cantidades[]" value="${p.cantidad}">
+            <input type="hidden" name="precios_unitarios[]" value="${p.precio}">
+            ${p.requiere_receta && p.receta_confirmada ? `<input type="hidden" name="recetas_confirmadas[]" value="${id}">` : ''}
+        `;
+    });
+
+    actualizarResumen();
+}
+
+function eliminarProducto(id) {
+    delete productos[id];
+    renderTabla();
+    actualizarResumen();
+}
+
+function cambiarCantidad(id, val) {
+    val = parseInt(val);
+    if (isNaN(val) || val < 1) val = 1;
+    if (val > productos[id].stock) val = productos[id].stock;
+    productos[id].cantidad = val;
+    renderTabla();
+}
+
+function desgloseLotes(producto) {
+    let restante = producto.cantidad;
+    const partes = [];
+    producto.lotes.forEach(lote => {
+        if (restante <= 0) return;
+        const cantidad = Math.min(restante, lote.stock);
+        if (cantidad <= 0) return;
+        const subtotal = cantidad * lote.precio;
+        partes.push({
+            numero: lote.numero,
+            cantidad,
+            precio: lote.precio,
+            subtotal,
+            caducidad: lote.caducidad
+        });
+        restante -= cantidad;
+    });
+    return partes;
+}
+
+function totalProducto(producto) {
+    return desgloseLotes(producto).reduce((sum, lote) => sum + lote.subtotal, 0);
+}
+
+function confirmarReceta(id, checked) {
+    productos[id].receta_confirmada = checked;
+    renderTabla();
+}
+
+document.getElementById('btn-agregar').addEventListener('click', function () {
+    const sel = document.getElementById('buscar-med');
+    const cantInput = document.getElementById('cantidad-agregar');
+    const opt = sel.selectedOptions[0];
+    if (!opt || !opt.value) {
+        alert('Selecciona un medicamento.');
+        return;
+    }
+    const id = opt.value;
+    const nombre = opt.dataset.nombre;
+    const precio = parseFloat(opt.dataset.precio) || 0;
+    const stock = parseInt(opt.dataset.stock) || 0;
+    const receta = opt.dataset.receta === 'true';
+    const lotes = JSON.parse(opt.dataset.lotes || '[]');
+    let cantidad = parseInt(cantInput.value) || 1;
+
+    if (stock === 0) {
+        alert('Este medicamento no tiene stock disponible.');
+        return;
+    }
+    if (cantidad > stock) {
+        alert(`Stock insuficiente. Disponible: ${stock}`);
+        cantidad = stock;
+    }
+
+    if (productos[id]) {
+        productos[id].cantidad = Math.min(productos[id].cantidad + cantidad, stock);
+    } else {
+        productos[id] = { nombre, precio, cantidad, stock, requiere_receta: receta, receta_confirmada: !receta, lotes };
+    }
+
+    renderTabla();
+    sel.value = '';
+    cantInput.value = 1;
+});
+</script>
+
+{% endblock %}

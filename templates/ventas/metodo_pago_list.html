@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}Métodos de pago{% endblock %}
+
+{% block content %}
+<div class="card mt-2">
+
+    <div class="page-header">
+        <div>
+            <h1>Métodos de pago</h1>
+            <p class="page-subtitle">Formas de pago aceptadas en la farmacia</p>
+        </div>
+        <a class="btn btn-primary" href="{% url 'metodo_pago_create' %}">+ Nuevo método</a>
+    </div>
+
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Nombre</th>
+                    <th>Descripción</th>
+                    <th># Ventas</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for metodo in metodos %}
+                <tr>
+                    <td class="text-mono">{{ metodo.id_metPag }}</td>
+                    <td class="fw-600">{{ metodo.nombre_metodo }}</td>
+                    <td class="text-muted">{{ metodo.descripcion|default:"—" }}</td>
+                    <td class="text-mono">{{ metodo.venta_set.count }}</td>
+                    <td>
+                        <div class="btn-group">
+                            <a class="btn btn-secondary btn-sm"
+                               href="{% url 'metodo_pago_update' metodo.id_metPag %}">Editar</a>
+                            <a class="btn btn-danger btn-sm"
+                               href="{% url 'metodo_pago_delete' metodo.id_metPag %}">Eliminar</a>
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5">
+                        <div class="empty-state">
+                            <div class="empty-icon">💳</div>
+                            <p>No hay métodos de pago registrados.</p>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+</div>
+{% endblock %}
