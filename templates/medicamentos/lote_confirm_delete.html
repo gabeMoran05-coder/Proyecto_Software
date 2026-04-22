@@ -1,0 +1,33 @@
+{% extends 'base.html' %}
+
+{% block title %}Eliminar Lote - {{ lote.numero_lote }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center mt-5">
+    <div class="col-md-6">
+        <div class="card border-danger shadow">
+            <div class="card-header bg-danger text-white">
+                <h3 class="mb-0">¿Confirmar Eliminación?</h3>
+            </div>
+            <div class="card-body text-center">
+                <div class="mb-4">
+                    <i class="fas fa-exclamation-triangle text-danger" style="font-size: 3rem;"></i>
+                </div>
+                <p class="fs-5">Estás a punto de eliminar permanentemente el lote:</p>
+                <h4 class="fw-bold text-dark">{{ lote.numero_lote }}</h4>
+                <p class="text-muted">Esta acción no se puede deshacer y el stock asociado desaparecerá.</p>
+                
+                <hr>
+                
+                <form method="POST">
+                    {% csrf_token %}
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-danger btn-lg">Sí, Eliminar Lote</button>
+                        <a href="{% url 'lote_list' %}" class="btn btn-outline-secondary">No, Cancelar y Volver</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

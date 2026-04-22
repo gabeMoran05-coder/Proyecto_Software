@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% block title %}Codigos QR - Farmacia Inclusiva{% endblock %}
+
+{% block content %}
+<div class="card mt-2">
+    <div class="page-header">
+        <div>
+            <h1>Codigos QR</h1>
+            <p class="page-subtitle">Tokens vinculados a medicamentos registrados</p>
+        </div>
+        <a class="btn btn-secondary" href="{% url 'medicamento_list' %}">Volver a medicamentos</a>
+    </div>
+
+    <div class="filter-bar">
+        <h4>Filtros</h4>
+        <form method="get">
+            <div class="filter-row">
+                <div class="form-group">
+                    <label for="medicamento">Medicamento</label>
+                    <select id="medicamento" name="medicamento">
+                        <option value="">-- Todos --</option>
+                        {% for med in medicamentos %}
+                            <option value="{{ med.id_med }}" {% if med_filter == med.id_med|stringformat:"s" %}selected{% endif %}>
+                                {{ med.nombre }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="activo">Estado</label>
+                    <select id="activo" name="activo">
+                        <option value="">-- Todos --</option>
+                        <option value="si" {% if activo_filter == 'si' %}selected{% endif %}>Activos</option>
+                        <option value="no" {% if activo_filter == 'no' %}selected{% endif %}>Inactivos</option>
+                    </select>
+                </div>
+                <button class="btn btn-primary" type="submit">Filtrar</button>
+                <a class="btn btn-secondary" href="{% url 'qr_list' %}">Limpiar</a>
+            </div>
+        </form>
+    </div>
+
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>QR</th>
+                    <th>Medicamento</th>
+                    <th>Token</th>
+                    <th>Generado</th>
+                    <th>Escaneos</th>
+                    <th>Estado</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for qr in qr_codes %}
+                <tr>
+                    <td class="text-mono">#{{ qr.id_qr }}</td>
+                    <td>
+                        <img src="{% url 'qr_image' qr.id_qr %}" alt="Codigo QR {{ qr.id_qr }}"
+                             style="width:84px;height:84px;border:1px solid var(--border);border-radius:10px;background:#fff;padding:0.35rem;">
+                    </td>
+                    <td>
+                        <a class="link" href="{% url 'medicamento_detail' qr.id_medicamento.id_med %}">
+                            {{ qr.id_medicamento.nombre }}
+                        </a>
+                    </td>
+                    <td>
+                        <span class="qr-token">{{ qr.token }}</span>
+                        <div class="mt-1">
+                            <a class="link" href="{{ qr.url_qr }}" target="_blank">Abrir ficha</a>
+                        </div>
+                    </td>
+                    <td>{{ qr.fecha_generacion|date:"d/m/Y"|default:"-" }}</td>
+                    <td>{{ qr.contador_escaneos }}</td>
+                    <td>
+                        {% if qr.activo %}
+                            <span class="badge badge-green">Activo</span>
+                        {% else %}
+                            <span class="badge badge-gray">Inactivo</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div class="btn-group">
+                            <a class="btn btn-secondary btn-sm" href="{% url 'qr_regenerar' qr.id_qr %}">Regenerar</a>
+                            <a class="btn btn-danger btn-sm" href="{% url 'qr_delete' qr.id_qr %}">Eliminar</a>
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="8">
+                        <div class="empty-state">
+                            <div class="empty-icon">QR</div>
+                            <p>No hay codigos QR registrados.</p>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

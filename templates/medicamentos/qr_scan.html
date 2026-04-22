@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block title %}Ficha QR - {{ medicamento.nombre }}{% endblock %}
+
+{% block content %}
+<div class="card mt-2">
+    <div class="page-header">
+        <div>
+            <h1>{{ medicamento.nombre }}</h1>
+            <p class="page-subtitle">Ficha publica generada desde codigo QR</p>
+        </div>
+        <span class="badge badge-green">QR activo</span>
+    </div>
+
+    {% if medicamento.id_lote.estado_caducidad == 'rojo' %}
+    <div class="alert alert-error">
+        Este medicamento aparece como CADUCO. No debe consumirse ni comercializarse. Consulta al personal de la farmacia.
+    </div>
+    {% elif medicamento.id_lote.estado_caducidad == 'amarillo' %}
+    <div class="alert alert-warning">
+        Este medicamento esta proximo a caducar. Revisa la fecha antes de usarlo y consulta al personal de la farmacia.
+    </div>
+    {% else %}
+    <div class="alert alert-success">
+        Este medicamento esta vigente segun la fecha de caducidad registrada.
+    </div>
+    {% endif %}
+
+    <div id="info-medicamento" class="detail-section">
+        <h3>Informacion para el paciente</h3>
+        <table class="detail-table">
+            <tr><td>Medicamento</td><td>{{ medicamento.nombre }}</td></tr>
+            <tr><td>Presentacion</td><td>{{ medicamento.presentacion|default:"No registrada" }}</td></tr>
+            <tr><td>Concentracion</td><td>{{ medicamento.concentracion|default:"No registrada" }}</td></tr>
+            <tr>
+                <td>Receta</td>
+                <td>
+                    {% if medicamento.requiere_receta %}
+                        Este medicamento requiere receta medica.
+                    {% else %}
+                        Este medicamento no requiere receta medica.
+                    {% endif %}
+                </td>
+            </tr>
+            <tr>
+                <td>Caducidad</td>
+                <td>
+                    {{ medicamento.id_lote.fecha_caducidad|date:"d/m/Y"|default:"No registrada" }}
+                    <span class="badge color-{{ medicamento.id_lote.estado_caducidad }}">
+                        {{ medicamento.id_lote.estado_caducidad_display }}
+                    </span>
+                </td>
+            </tr>
+            <tr>
+                <td>Estado de caducidad</td>
+                <td>
+                    {% if medicamento.id_lote.estado_caducidad == 'rojo' %}
+                        Caduco. No debe consumirse ni comercializarse.
+                    {% elif medicamento.id_lote.estado_caducidad == 'amarillo' %}
+                        Proximo a caducar. Faltan {{ medicamento.id_lote.dias_para_caducar }} dias o menos.
+                    {% else %}
+                        Vigente. Faltan mas de 90 dias para la caducidad.
+                    {% endif %}
+                </td>
+            </tr>
+            <tr><td>Proveedor</td><td>{{ medicamento.id_lote.id_prov.nombre }}</td></tr>
+        </table>
+    </div>
+
+    <div class="btn-group">
+        <button type="button" class="btn btn-primary" onclick="leerInfoMedicamento()">Leer en voz alta</button>
+        <button type="button" class="btn btn-secondary" onclick="speechSynthesis.cancel()">Detener voz</button>
+    </div>
+
+    <p class="text-muted mt-2">
+        Escaneos registrados para este QR: <span class="text-mono">{{ qr.contador_escaneos }}</span>
+    </p>
+</div>
+
+<script>
+function leerInfoMedicamento() {
+    const texto = document.getElementById('info-medicamento').innerText;
+    const voz = new SpeechSynthesisUtterance(texto);
+    voz.lang = 'es-MX';
+    voz.rate = 0.95;
+    speechSynthesis.cancel();
+    speechSynthesis.speak(voz);
+}
+</script>
+{% endblock %}

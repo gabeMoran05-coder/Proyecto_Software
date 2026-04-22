@@ -1,0 +1,135 @@
+{% extends 'base.html' %}
+
+{% block title %}Detalle del lote - {{ lote.numero_lote }}{% endblock %}
+
+{% block content %}
+<div class="card mt-4">
+    <div class="page-header">
+        <div>
+            <h1>Informacion del lote</h1>
+            <p class="page-subtitle">{{ lote.numero_lote }}</p>
+        </div>
+        <div class="btn-group">
+            <a href="{% url 'lote_update' lote.id_lote %}" class="btn btn-secondary">Editar</a>
+            {% if lote.oculto_por_caducidad %}
+                <form method="post" action="{% url 'lote_restaurar' lote.id_lote %}">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-primary">Restaurar</button>
+                </form>
+            {% else %}
+                <a href="{% url 'lote_ocultar' lote.id_lote %}" class="btn btn-danger">Ocultar</a>
+            {% endif %}
+            <a href="{% url 'lote_list' %}" class="btn btn-secondary">&larr; Volver</a>
+        </div>
+    </div>
+
+    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:1rem;">
+        <div class="detail-section">
+            <h3>Datos del lote</h3>
+            <table class="detail-table">
+                <tr><td>ID interno</td><td class="text-mono">{{ lote.id_lote }}</td></tr>
+                <tr><td>Numero de lote</td><td class="text-mono fw-600">{{ lote.numero_lote }}</td></tr>
+                <tr>
+                    <td>Retiro por protocolo</td>
+                    <td>
+                        {% if lote.oculto_por_caducidad %}
+                            <span class="badge badge-red">Oculto del inventario</span>
+                        {% else %}
+                            <span class="badge badge-green">Visible</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                <tr>
+                    <td>Proveedor</td>
+                    <td>
+                        <a href="{% url 'proveedor_detail' lote.id_prov.id_prov %}" class="link">
+                            {{ lote.id_prov.nombre }}
+                        </a>
+                    </td>
+                </tr>
+                <tr>
+                    <td>Estado del sistema</td>
+                    <td>
+                        {% if lote.activo %}
+                            <span class="badge badge-green">Activo</span>
+                        {% else %}
+                            <span class="badge badge-gray">Inactivo</span>
+                        {% endif %}
+                    </td>
+                </tr>
+            </table>
+        </div>
+
+        <div class="detail-section">
+            <h3>Inventario y precios</h3>
+            <table class="detail-table">
+                <tr><td>Stock actual</td><td class="text-mono fw-600">{{ lote.stock_actual }} unidades</td></tr>
+                <tr><td>Precio compra</td><td class="text-mono">${{ lote.precio_compra|floatformat:2|default:"-" }}</td></tr>
+                <tr><td>Precio venta</td><td class="text-mono fw-600">${{ lote.precio_venta|floatformat:2|default:"-" }}</td></tr>
+                <tr>
+                    <td>Fecha caducidad</td>
+                    <td>
+                        {{ lote.fecha_caducidad|date:"d/m/Y"|default:"No registrada" }}
+                        <span class="badge color-{{ lote.estado_caducidad }}">
+                            {{ lote.estado_caducidad_display }}
+                        </span>
+                        {% if lote.fecha_caducidad %}
+                            <span class="text-muted small">({{ lote.dias_para_caducar }} dias)</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                <tr><td>Fecha fabricacion</td><td>{{ lote.fecha_fabricacion|date:"d/m/Y"|default:"No registrada" }}</td></tr>
+                <tr><td>Fecha ingreso</td><td>{{ lote.fecha_ingreso|date:"d/m/Y"|default:"No registrada" }}</td></tr>
+            </table>
+        </div>
+    </div>
+
+    <div class="detail-section mt-2">
+        <h3>Medicamentos asociados</h3>
+        {% if medicamentos %}
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Medicamento</th>
+                            <th>Presentacion</th>
+                            <th>Concentracion</th>
+                            <th>Receta</th>
+                            <th>Estado</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for med in medicamentos %}
+                        <tr>
+                            <td><a class="link" href="{% url 'medicamento_detail' med.id_med %}">{{ med.nombre }}</a></td>
+                            <td>{{ med.presentacion|default:"-" }}</td>
+                            <td>{{ med.concentracion|default:"-" }}</td>
+                            <td>
+                                {% if med.requiere_receta %}
+                                    <span class="badge badge-yellow">Si</span>
+                                {% else %}
+                                    <span class="badge badge-gray">No</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="badge color-{{ med.estado_colorimetria }}">
+                                    {{ med.get_estado_colorimetria_display }}
+                                </span>
+                            </td>
+                            <td>
+                                <a class="btn btn-secondary btn-sm" href="{% url 'medicamento_detail' med.id_med %}">Ver</a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="empty-state" style="padding:1.5rem;">
+                <p>Este lote aun no tiene medicamentos asociados.</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

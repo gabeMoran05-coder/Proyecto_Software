@@ -1,0 +1,252 @@
+{% extends "base.html" %}
+{% block title %}{% if ocultos %}Lotes ocultos{% else %}Lotes{% endif %}{% endblock %}
+
+{% block content %}
+<div class="card mt-2">
+
+    <div class="page-header">
+        <div>
+            <h1>{% if ocultos %}Lotes ocultos{% else %}Lotes{% endif %}</h1>
+            <p class="page-subtitle">
+                {% if ocultos %}
+                    Lotes retirados del inventario operativo por protocolo.
+                {% else %}
+                    Gestion de lotes de medicamentos recibidos de proveedores.
+                {% endif %}
+            </p>
+        </div>
+        <div class="btn-group">
+            {% if ocultos %}
+                <a class="btn btn-secondary" href="{% url 'lote_list' %}">Ver lotes activos</a>
+            {% else %}
+                <a class="btn btn-secondary" href="{% url 'lote_ocultos' %}">Ver lotes ocultos</a>
+                <a class="btn btn-primary" href="{% url 'lote_create' %}">+ Nuevo lote</a>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="alert alert-info">
+        Criterio de caducidad: verde vigente si faltan mas de 90 dias; amarillo proximo a caducar si faltan 90 dias o menos; rojo caduco si la fecha de caducidad ya paso. Los lotes caducos no deben comercializarse y pueden ocultarse para retirarlos del inventario operativo sin borrarlos de la base de datos.
+    </div>
+
+    <div class="filter-bar">
+        <h4>Filtros</h4>
+        <form method="get">
+            <div class="filter-row">
+                <div class="form-group">
+                    <label for="numero">Numero de lote</label>
+                    <input id="numero" name="numero" type="text"
+                        placeholder="Buscar..." value="{{ numero_filter|default:'' }}">
+                </div>
+                <div class="form-group">
+                    <label for="medicamento">Medicamento</label>
+                    <input id="medicamento" name="medicamento" type="text"
+                        placeholder="Buscar por nombre..." value="{{ medicamento_filter|default:'' }}">
+                </div>
+                <div class="form-group">
+                    <label for="activo">Estado inventario</label>
+                    <select id="activo" name="activo">
+                        <option value="">-- Todos --</option>
+                        <option value="si" {% if activo_filter == 'si' %}selected{% endif %}>Activos</option>
+                        <option value="no" {% if activo_filter == 'no' %}selected{% endif %}>Inactivos</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="caducidad">Caducidad</label>
+                    <select id="caducidad" name="caducidad">
+                        <option value="">-- Todas --</option>
+                        <option value="verde" {% if caducidad_filter == 'verde' %}selected{% endif %}>Verde - vigente</option>
+                        <option value="amarillo" {% if caducidad_filter == 'amarillo' %}selected{% endif %}>Amarillo - proximo</option>
+                        <option value="rojo" {% if caducidad_filter == 'rojo' %}selected{% endif %}>Rojo - caduco</option>
+                    </select>
+                </div>
+                <div class="btn-group" style="align-self:flex-end;">
+                    <button type="submit" class="btn btn-primary">Filtrar</button>
+                    <a href="{% if ocultos %}{% url 'lote_ocultos' %}{% else %}{% url 'lote_list' %}{% endif %}" class="btn btn-secondary">Limpiar</a>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <p class="text-muted" style="margin-bottom:0.85rem;">
+        Mostrando {{ page_obj.start_index }}-{{ page_obj.end_index }} de {{ paginator.count }} lotes
+    </p>
+
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>
+                        {% if orden_filter == 'numero_asc' %}
+                            <a class="sort-link" href="?orden=numero_desc{{ filter_query_params }}">Numero de lote <span class="sort-arrow">↑</span></a>
+                        {% elif orden_filter == 'numero_desc' %}
+                            <a class="sort-link" href="?orden=numero_asc{{ filter_query_params }}">Numero de lote <span class="sort-arrow">↓</span></a>
+                        {% else %}
+                            <a class="sort-link" href="?orden=numero_asc{{ filter_query_params }}">Numero de lote</a>
+                        {% endif %}
+                    </th>
+                    <th>
+                        {% if orden_filter == 'medicamento_asc' %}
+                            <a class="sort-link" href="?orden=medicamento_desc{{ filter_query_params }}">Medicamento <span class="sort-arrow">↑</span></a>
+                        {% elif orden_filter == 'medicamento_desc' %}
+                            <a class="sort-link" href="?orden=medicamento_asc{{ filter_query_params }}">Medicamento <span class="sort-arrow">↓</span></a>
+                        {% else %}
+                            <a class="sort-link" href="?orden=medicamento_asc{{ filter_query_params }}">Medicamento</a>
+                        {% endif %}
+                    </th>
+                    <th>
+                        {% if orden_filter == 'proveedor_asc' %}
+                            <a class="sort-link" href="?orden=proveedor_desc{{ filter_query_params }}">Proveedor <span class="sort-arrow">↑</span></a>
+                        {% elif orden_filter == 'proveedor_desc' %}
+                            <a class="sort-link" href="?orden=proveedor_asc{{ filter_query_params }}">Proveedor <span class="sort-arrow">↓</span></a>
+                        {% else %}
+                            <a class="sort-link" href="?orden=proveedor_asc{{ filter_query_params }}">Proveedor</a>
+                        {% endif %}
+                    </th>
+                    <th>
+                        {% if orden_filter == 'stock_desc' %}
+                            <a class="sort-link" href="?orden=stock_asc{{ filter_query_params }}">Stock <span class="sort-arrow">↓</span></a>
+                        {% elif orden_filter == 'stock_asc' %}
+                            <a class="sort-link" href="?orden=stock_desc{{ filter_query_params }}">Stock <span class="sort-arrow">↑</span></a>
+                        {% else %}
+                            <a class="sort-link" href="?orden=stock_desc{{ filter_query_params }}">Stock</a>
+                        {% endif %}
+                    </th>
+                    <th>
+                        {% if orden_filter == 'compra_desc' %}
+                            <a class="sort-link" href="?orden=compra_asc{{ filter_query_params }}">P. Compra <span class="sort-arrow">↓</span></a>
+                        {% elif orden_filter == 'compra_asc' %}
+                            <a class="sort-link" href="?orden=compra_desc{{ filter_query_params }}">P. Compra <span class="sort-arrow">↑</span></a>
+                        {% else %}
+                            <a class="sort-link" href="?orden=compra_desc{{ filter_query_params }}">P. Compra</a>
+                        {% endif %}
+                    </th>
+                    <th>
+                        {% if orden_filter == 'venta_desc' %}
+                            <a class="sort-link" href="?orden=venta_asc{{ filter_query_params }}">P. Venta <span class="sort-arrow">↓</span></a>
+                        {% elif orden_filter == 'venta_asc' %}
+                            <a class="sort-link" href="?orden=venta_desc{{ filter_query_params }}">P. Venta <span class="sort-arrow">↑</span></a>
+                        {% else %}
+                            <a class="sort-link" href="?orden=venta_desc{{ filter_query_params }}">P. Venta</a>
+                        {% endif %}
+                    </th>
+                    <th>
+                        {% if orden_filter == 'caducidad_asc' %}
+                            <a class="sort-link" href="?orden=caducidad_desc{{ filter_query_params }}">Caducidad <span class="sort-arrow">↑</span></a>
+                        {% elif orden_filter == 'caducidad_desc' %}
+                            <a class="sort-link" href="?orden=caducidad_asc{{ filter_query_params }}">Caducidad <span class="sort-arrow">↓</span></a>
+                        {% else %}
+                            <a class="sort-link" href="?orden=caducidad_asc{{ filter_query_params }}">Caducidad</a>
+                        {% endif %}
+                    </th>
+                    <th>
+                        {% if orden_filter == 'activo_desc' %}
+                            <a class="sort-link" href="?orden=activo_asc{{ filter_query_params }}">Activo <span class="sort-arrow">↓</span></a>
+                        {% elif orden_filter == 'activo_asc' %}
+                            <a class="sort-link" href="?orden=activo_desc{{ filter_query_params }}">Activo <span class="sort-arrow">↑</span></a>
+                        {% else %}
+                            <a class="sort-link" href="?orden=activo_desc{{ filter_query_params }}">Activo</a>
+                        {% endif %}
+                    </th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for lote in lotes %}
+                <tr>
+                    <td class="text-mono">{{ lote.id_lote }}</td>
+                    <td>
+                        <a class="link" href="{% url 'lote_detail' lote.id_lote %}">
+                            {{ lote.numero_lote }}
+                        </a>
+                    </td>
+                    <td>
+                        {% for med in lote.medicamento_set.all %}
+                            <div><a class="link" href="{% url 'medicamento_detail' med.id_med %}">{{ med.nombre }}</a></div>
+                            <div class="text-muted small">{{ med.presentacion|default:"Sin presentacion" }}</div>
+                        {% empty %}
+                            <span class="text-muted">Sin medicamento</span>
+                        {% endfor %}
+                    </td>
+                    <td>
+                        <a class="link" href="{% url 'proveedor_detail' lote.id_prov.id_prov %}">
+                            {{ lote.id_prov.nombre }}
+                        </a>
+                    </td>
+                    <td class="text-mono fw-600">{{ lote.stock_actual }}</td>
+                    <td class="text-mono">${{ lote.precio_compra|floatformat:2|default:"-" }}</td>
+                    <td class="text-mono">${{ lote.precio_venta|floatformat:2|default:"-" }}</td>
+                    <td>
+                        <div>{{ lote.fecha_caducidad|date:'d/m/Y'|default:"Sin fecha" }}</div>
+                        <span class="badge color-{{ lote.estado_caducidad }}">
+                            {{ lote.estado_caducidad_display }}
+                        </span>
+                        {% if lote.fecha_caducidad %}
+                            <div class="text-muted small">{{ lote.dias_para_caducar }} dias</div>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if lote.activo %}
+                            <span class="badge badge-green">Activo</span>
+                        {% else %}
+                            <span class="badge badge-gray">Inactivo</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div class="btn-group">
+                            <a class="btn btn-secondary btn-sm" href="{% url 'lote_detail' lote.id_lote %}">Ver</a>
+                            <a class="btn btn-secondary btn-sm" href="{% url 'lote_update' lote.id_lote %}">Editar</a>
+                            {% if ocultos %}
+                                <form method="post" action="{% url 'lote_restaurar' lote.id_lote %}">
+                                    {% csrf_token %}
+                                    <button class="btn btn-primary btn-sm" type="submit">Restaurar</button>
+                                </form>
+                            {% else %}
+                                <a class="btn btn-danger btn-sm" href="{% url 'lote_ocultar' lote.id_lote %}">Ocultar</a>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="10">
+                        <div class="empty-state">
+                            <p>No hay lotes para mostrar.</p>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% if paginator.num_pages > 1 %}
+    <div class="pagination">
+        {% if page_obj.has_previous %}
+            <a href="?page=1{{ query_params }}" class="btn btn-secondary btn-sm">Primera</a>
+            <a href="?page={{ page_obj.previous_page_number }}{{ query_params }}" class="btn btn-secondary btn-sm">Anterior</a>
+        {% else %}
+            <button class="btn btn-secondary btn-sm" disabled>Primera</button>
+            <button class="btn btn-secondary btn-sm" disabled>Anterior</button>
+        {% endif %}
+        {% for num in paginator.page_range %}
+            {% if page_obj.number == num %}
+                <button class="btn btn-primary btn-sm">{{ num }}</button>
+            {% elif num >= page_obj.number|add:'-2' and num <= page_obj.number|add:'2' %}
+                <a href="?page={{ num }}{{ query_params }}" class="btn btn-secondary btn-sm">{{ num }}</a>
+            {% endif %}
+        {% endfor %}
+        {% if page_obj.has_next %}
+            <a href="?page={{ page_obj.next_page_number }}{{ query_params }}" class="btn btn-secondary btn-sm">Siguiente</a>
+            <a href="?page={{ paginator.num_pages }}{{ query_params }}" class="btn btn-secondary btn-sm">Ultima</a>
+        {% else %}
+            <button class="btn btn-secondary btn-sm" disabled>Siguiente</button>
+            <button class="btn btn-secondary btn-sm" disabled>Ultima</button>
+        {% endif %}
+        <span class="pagination-info">Pagina {{ page_obj.number }} de {{ paginator.num_pages }}</span>
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}

@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Ocultar lote {{ lote.numero_lote }}{% endblock %}
+
+{% block content %}
+<div class="card mt-2">
+    <div class="page-header">
+        <div>
+            <h1>Ocultar lote</h1>
+            <p class="page-subtitle">{{ lote.numero_lote }}</p>
+        </div>
+        <a class="btn btn-secondary" href="{% url 'lote_detail' lote.id_lote %}">&larr; Volver</a>
+    </div>
+
+    <div class="alert alert-warning">
+        Este lote se retirara del inventario operativo y dejara de aparecer en la lista principal. No se borrara de la base de datos; podras consultarlo en Lotes ocultos.
+    </div>
+
+    <div class="detail-section">
+        <h3>Resumen</h3>
+        <table class="detail-table">
+            <tr><td>Lote</td><td class="text-mono fw-600">{{ lote.numero_lote }}</td></tr>
+            <tr><td>Caducidad</td><td>{{ lote.fecha_caducidad|date:"d/m/Y"|default:"Sin fecha" }}</td></tr>
+            <tr>
+                <td>Estado de caducidad</td>
+                <td>
+                    <span class="badge color-{{ lote.estado_caducidad }}">
+                        {{ lote.estado_caducidad_display }}
+                    </span>
+                </td>
+            </tr>
+            <tr><td>Stock registrado</td><td class="text-mono">{{ lote.stock_actual }}</td></tr>
+        </table>
+    </div>
+
+    <form method="post" class="form-actions">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-danger">Ocultar y retirar del inventario</button>
+        <a class="btn btn-secondary" href="{% url 'lote_detail' lote.id_lote %}">Cancelar</a>
+    </form>
+</div>
+{% endblock %}

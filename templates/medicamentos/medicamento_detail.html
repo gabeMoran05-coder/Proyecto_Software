@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+{% block title %}{{ medicamento.nombre }}{% endblock %}
+
+{% block content %}
+<div class="card mt-2">
+    <div class="page-header">
+        <div>
+            <h1>{{ medicamento.nombre }}</h1>
+            <p class="page-subtitle">ID #{{ medicamento.id_med }} - Detalle del medicamento</p>
+        </div>
+        <div class="btn-group">
+            {% if current_usuario_role != 'cajero' %}
+                <a class="btn btn-secondary" href="{% url 'medicamento_update' medicamento.id_med %}">Editar</a>
+                <a class="btn btn-danger" href="{% url 'medicamento_delete' medicamento.id_med %}">Eliminar</a>
+            {% endif %}
+            <a class="btn btn-secondary" href="{% url 'medicamento_list' %}">Volver</a>
+        </div>
+    </div>
+
+    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:1rem;">
+        <div class="detail-section">
+            <h3>Informacion general</h3>
+            <table class="detail-table">
+                <tr><td>ID principal</td><td class="text-mono">{{ medicamento.id_med }}</td></tr>
+                <tr><td>Nombre</td><td class="fw-600">{{ medicamento.nombre }}</td></tr>
+                <tr><td>Presentacion</td><td>{{ medicamento.presentacion|default:"-" }}</td></tr>
+                <tr><td>Componentes activos y concentracion</td><td>{{ medicamento.concentracion|default:"-" }}</td></tr>
+                <tr><td>Requiere receta</td><td>
+                    {% if medicamento.requiere_receta %}
+                        <span class="badge badge-yellow">Si requiere</span>
+                    {% else %}
+                        <span class="badge badge-gray">No requiere</span>
+                    {% endif %}
+                </td></tr>
+                <tr><td>Fecha registro</td><td>{{ medicamento.fecha_registro|date:'d/m/Y'|default:"-" }}</td></tr>
+            </table>
+        </div>
+
+        <div class="detail-section">
+            <h3>Inventario agrupado</h3>
+            <table class="detail-table">
+                <tr><td>Stock total</td><td class="text-mono fw-600" style="font-size:1.1rem; color:var(--primary);">{{ stock_total }}</td></tr>
+                <tr><td>Estado stock</td><td><span class="badge color-{{ estado_stock }}">{{ estado_stock_display }}</span></td></tr>
+                <tr><td>Activo para venta</td><td>
+                    {% if stock_total > 0 %}
+                        <span class="badge badge-green">Activo</span>
+                    {% else %}
+                        <span class="badge badge-gray">No activo</span>
+                    {% endif %}
+                </td></tr>
+                <tr><td>Lotes registrados</td><td class="text-mono">{{ lotes|length }}</td></tr>
+                <tr><td>Registros unidos</td><td class="text-mono">{{ medicamentos_grupo|length }}</td></tr>
+            </table>
+        </div>
+    </div>
+
+    <div class="detail-section mt-2">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.85rem;">
+            <h3 style="margin-bottom:0;">Lotes</h3>
+            {% if current_usuario_role != 'cajero' %}
+                <a class="btn btn-primary btn-sm" href="{% url 'lote_create' %}">+ Agregar lote</a>
+            {% endif %}
+        </div>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Lote</th>
+                        <th>Proveedor</th>
+                        <th>Stock</th>
+                        <th>Estado stock</th>
+                        <th>Activo</th>
+                        <th>Precio compra</th>
+                        <th>Precio venta</th>
+                        <th>Fabricacion</th>
+                        <th>Caducidad</th>
+                        <th>Alta</th>
+                        <th>Estado caducidad</th>
+                        <th>QR</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in lote_items %}
+                    {% with lote=item.lote qr=item.qr %}
+                    <tr>
+                        <td>
+                            {% if current_usuario_role == 'cajero' %}
+                                <span class="text-mono">{{ lote.numero_lote }}</span>
+                            {% else %}
+                                <a class="link text-mono" href="{% url 'lote_detail' lote.id_lote %}">{{ lote.numero_lote }}</a>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if current_usuario_role == 'cajero' %}
+                                {{ lote.id_prov.nombre }}
+                            {% else %}
+                                <a class="link" href="{% url 'proveedor_detail' lote.id_prov.id_prov %}">{{ lote.id_prov.nombre }}</a>
+                            {% endif %}
+                        </td>
+                        <td class="text-mono fw-600">{{ lote.stock_actual }}</td>
+                        <td>
+                            <span class="badge color-{{ lote.estado_stock }}">
+                                {% if lote.estado_stock == 'sin_stock' %}Sin stock
+                                {% elif lote.estado_stock == 'rojo' %}Rojo
+                                {% elif lote.estado_stock == 'amarillo' %}Amarillo
+                                {% else %}Verde{% endif %}
+                            </span>
+                        </td>
+                        <td>
+                            {% if lote.activo and lote.stock_actual > 0 %}
+                                <span class="badge badge-green">Activo</span>
+                            {% else %}
+                                <span class="badge badge-gray">No activo</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-mono">${{ lote.precio_compra|floatformat:2|default:"-" }}</td>
+                        <td class="text-mono fw-600">${{ lote.precio_venta|floatformat:2|default:"-" }}</td>
+                        <td>{{ lote.fecha_fabricacion|date:'d/m/Y'|default:"-" }}</td>
+                        <td>{{ lote.fecha_caducidad|date:'d/m/Y'|default:"Sin fecha" }}</td>
+                        <td>{{ lote.fecha_ingreso|date:'d/m/Y H:i'|default:"-" }}</td>
+                        <td>
+                            <span class="badge color-{{ lote.estado_caducidad }}">{{ lote.estado_caducidad_display }}</span>
+                            {% if lote.fecha_caducidad %}
+                                <div class="text-muted small">{{ lote.dias_para_caducar }} dias</div>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if qr %}
+                                <a href="{% url 'qr_scan' qr.token %}" target="_blank">
+                                    <img src="{% url 'qr_image' qr.id_qr %}" alt="QR {{ lote.numero_lote }}"
+                                         style="width:76px;height:76px;border:1px solid var(--border);border-radius:10px;background:#fff;padding:0.25rem;">
+                                </a>
+                                <div class="btn-group" style="margin-top:0.35rem;">
+                                    <a class="btn btn-primary btn-sm" href="{% url 'qr_scan' qr.token %}" target="_blank">Abrir</a>
+                                    <a class="btn btn-secondary btn-sm" href="{% url 'qr_image' qr.id_qr %}?download=1">Descargar</a>
+                                    {% if current_usuario_role != 'cajero' %}
+                                        <a class="btn btn-secondary btn-sm" href="{% url 'qr_regenerar' qr.id_qr %}">Regenerar</a>
+                                    {% endif %}
+                                </div>
+                            {% elif current_usuario_role != 'cajero' %}
+                                <a class="btn btn-primary btn-sm" href="{% url 'qr_create' item.medicamento.id_med %}">+ QR</a>
+                            {% else %}
+                                <span class="text-muted">Sin QR</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endwith %}
+                    {% empty %}
+                    <tr><td colspan="12"><div class="empty-state"><p>No hay lotes registrados para este medicamento.</p></div></td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% block title %}{% if medicamento %}Editar medicamento{% else %}Nuevo medicamento{% endif %}{% endblock %}
+
+{% block content %}
+<div class="card mt-2" style="max-width:720px; margin-left:auto; margin-right:auto;">
+
+    <div class="page-header">
+        <div>
+            <h1>{% if medicamento %}Editar medicamento{% else %}Nuevo medicamento{% endif %}</h1>
+            <p class="page-subtitle">
+                {% if medicamento %}Modificar datos del medicamento #{{ medicamento.id_med }}{% else %}Registrar un nuevo medicamento en el catalogo{% endif %}
+            </p>
+        </div>
+    </div>
+
+    {% if errors %}
+    <div class="alert alert-error">
+        <ul style="padding-left:1.2rem; margin:0;">
+            {% for error in errors %}<li>{{ error }}</li>{% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+
+    <form method="post" class="form-grid">
+        {% csrf_token %}
+
+        <fieldset>
+            <legend>Datos del medicamento</legend>
+            <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap:0.85rem;">
+                <div class="form-group" style="grid-column:1/-1;">
+                    <label for="nombre">Nombre *</label>
+                    <input id="nombre" name="nombre" type="text"
+                        value="{{ medicamento.nombre|default:'' }}" required
+                        placeholder="Ej: Paracetamol 500 mg">
+                </div>
+                <div class="form-group">
+                    <label for="presentacion">Presentacion</label>
+                    <select id="presentacion" name="presentacion">
+                        <option value="">-- Seleccione presentacion --</option>
+                        {% for presentacion in presentaciones %}
+                        <option value="{{ presentacion }}" {% if medicamento and medicamento.presentacion == presentacion %}selected{% endif %}>
+                            {{ presentacion }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="concentracion">Componentes activos y concentracion</label>
+                    <input id="concentracion" name="concentracion" type="text"
+                        value="{{ medicamento.concentracion|default:'' }}"
+                        placeholder="Ej: Paracetamol 500 mg, Ambroxol 15 mg/5 ml">
+                </div>
+                <div class="form-group">
+                    <label for="requiere_receta">Requiere receta</label>
+                    <select id="requiere_receta" name="requiere_receta">
+                        <option value="false" {% if not medicamento or not medicamento.requiere_receta %}selected{% endif %}>No requiere receta</option>
+                        <option value="true" {% if medicamento and medicamento.requiere_receta %}selected{% endif %}>Si requiere receta</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Fecha de registro</label>
+                    <input type="text"
+                        value="{% if medicamento %}{{ medicamento.fecha_registro|date:'d/m/Y H:i' }}{% else %}Se asigna automaticamente al guardar{% endif %}"
+                        readonly>
+                </div>
+            </div>
+        </fieldset>
+
+        <fieldset>
+            <legend>Lote y estado</legend>
+            <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap:0.85rem;">
+                <div class="form-group">
+                    <label for="id_lote">Lote *</label>
+                    <select id="id_lote" name="id_lote" required>
+                        <option value="">-- Seleccione un lote --</option>
+                        {% for lote in lotes %}
+                        <option value="{{ lote.id_lote }}"
+                            {% if medicamento and medicamento.id_lote_id == lote.id_lote %}selected{% endif %}>
+                            {{ lote.numero_lote }} ({{ lote.id_prov.nombre }}) - Stock: {{ lote.stock_actual }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Estado de stock</label>
+                    <input type="text"
+                        value="{% if medicamento %}{{ medicamento.get_estado_colorimetria_display }}{% else %}Automatico segun el lote{% endif %}"
+                        readonly>
+                    <div class="text-muted small">
+                        Se calcula solo: 0 sin stock, 1-5 rojo, 6-20 amarillo, 21+ verde.
+                    </div>
+                </div>
+            </div>
+        </fieldset>
+
+        <div class="form-actions">
+            <button class="btn btn-primary" type="submit">Guardar</button>
+            <a class="btn btn-secondary" href="{% url 'medicamento_list' %}">Cancelar</a>
+        </div>
+    </form>
+
+</div>
+{% endblock %}

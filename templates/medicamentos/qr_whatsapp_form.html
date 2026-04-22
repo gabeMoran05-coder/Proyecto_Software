@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% block title %}Enviar QR por WhatsApp{% endblock %}
+
+{% block content %}
+<div class="card mt-2">
+    <div class="page-header">
+        <div>
+            <h1>Enviar QR por WhatsApp</h1>
+            <p class="page-subtitle">{{ medicamento.nombre }} - QR #{{ qr.id_qr }}</p>
+        </div>
+        <a class="btn btn-secondary" href="{% url 'medicamento_detail' medicamento.id_med %}">&larr; Volver</a>
+    </div>
+
+    {% if errors %}
+    <div class="alert alert-error">
+        {% for error in errors %}<p>{{ error }}</p>{% endfor %}
+    </div>
+    {% endif %}
+
+    <div style="display:grid; grid-template-columns: minmax(280px, 0.9fr) minmax(320px, 1.1fr); gap:1rem;">
+        <div class="detail-section">
+            <h3>Destino</h3>
+            <form method="post" class="form-grid">
+                {% csrf_token %}
+                <div class="form-group">
+                    <label for="telefono-local">Numero de WhatsApp</label>
+                    <div class="phone-row">
+                        <select id="pais-codigo" name="pais_codigo" aria-label="Pais">
+                            {% for country in country_codes %}
+                                <option value="{{ country.code }}" data-placeholder="{{ country.placeholder }}" {% if country_code == country.code %}selected{% endif %}>
+                                    {{ country.flag }} +{{ country.code }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                        <input
+                            id="telefono-local"
+                            name="telefono_local"
+                            type="tel"
+                            inputmode="numeric"
+                            placeholder="{{ phone_placeholder }}"
+                            value="{{ telefono_local|default:'' }}"
+                            autocomplete="tel-national"
+                            required>
+                    </div>
+                    <p class="text-muted">Elige el pais y escribe el numero con espacios, por ejemplo: 312 198 1722.</p>
+                </div>
+                <div class="form-actions">
+                    <button class="btn btn-primary" type="submit">Enviar paquete</button>
+                    <a class="btn btn-secondary" href="{% url 'qr_image' qr.id_qr %}?download=1">Descargar QR</a>
+                </div>
+            </form>
+        </div>
+
+        <div class="detail-section">
+            <h3>Vista previa del mensaje</h3>
+            <div class="whatsapp-preview">
+                <p class="text-mono" style="white-space:pre-line;">{{ preview.texto }}</p>
+            </div>
+            <div class="mt-2">
+                <h3>Texto del audio IA</h3>
+                <p class="text-muted" style="line-height:1.55;">{{ preview.audio }}</p>
+            </div>
+            <p class="text-muted mt-2">
+                El paquete envia texto informativo e imagen QR. Si OPENAI_API_KEY esta configurada, tambien envia audio MP3 generado por IA.
+            </p>
+        </div>
+    </div>
+</div>
+
+<style>
+.phone-row {
+    display: grid;
+    grid-template-columns: minmax(118px, 0.42fr) minmax(180px, 1fr);
+    gap: 0.5rem;
+}
+.phone-row select,
+.phone-row input {
+    min-height: 42px;
+}
+@media (max-width: 560px) {
+    .phone-row { grid-template-columns: 1fr; }
+}
+</style>
+
+<script>
+const countrySelect = document.getElementById('pais-codigo');
+const phoneInput = document.getElementById('telefono-local');
+
+function formatPhone(value) {
+    const digits = value.replace(/\D/g, '').slice(0, 14);
+    if (digits.length <= 3) return digits;
+    if (digits.length <= 6) return `${digits.slice(0, 3)} ${digits.slice(3)}`;
+    if (digits.length <= 10) return `${digits.slice(0, 3)} ${digits.slice(3, 6)} ${digits.slice(6)}`;
+    return `${digits.slice(0, 3)} ${digits.slice(3, 6)} ${digits.slice(6, 10)} ${digits.slice(10)}`;
+}
+
+phoneInput.addEventListener('input', () => {
+    phoneInput.value = formatPhone(phoneInput.value);
+});
+
+countrySelect.addEventListener('change', () => {
+    const option = countrySelect.selectedOptions[0];
+    phoneInput.placeholder = option.dataset.placeholder || '312 198 1722';
+});
+</script>
+{% endblock %}
