@@ -66,36 +66,9 @@
             </div>
         </fieldset>
 
-        <fieldset>
-            <legend>Lote y estado</legend>
-            <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap:0.85rem;">
-                <div class="form-group">
-                    <label for="id_lote">Lote *</label>
-                    <select id="id_lote" name="id_lote" required>
-                        <option value="">-- Seleccione un lote --</option>
-                        {% for lote in lotes %}
-                        <option value="{{ lote.id_lote }}"
-                            {% if medicamento and medicamento.id_lote_id == lote.id_lote %}selected{% endif %}>
-                            {{ lote.numero_lote }} ({{ lote.id_prov.nombre }}) - Stock: {{ lote.stock_actual }}
-                        </option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label>Estado de stock</label>
-                    <input type="text"
-                        value="{% if medicamento %}{{ medicamento.get_estado_colorimetria_display }}{% else %}Automatico segun el lote{% endif %}"
-                        readonly>
-                    <div class="text-muted small">
-                        Se calcula solo: 0 sin stock, 1-5 rojo, 6-20 amarillo, 21+ verde.
-                    </div>
-                </div>
-            </div>
-        </fieldset>
-
         <div class="form-actions">
-            <button class="btn btn-primary" type="submit">Guardar</button>
             <a class="btn btn-secondary" href="{% url 'medicamento_list' %}">Cancelar</a>
+            <button class="btn btn-primary" type="submit">Guardar</button>
         </div>
     </form>
 

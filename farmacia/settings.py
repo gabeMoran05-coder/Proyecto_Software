@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     'apps.clientes.apps.ClientesConfig',
     'apps.usuarios.apps.UsuariosConfig',
     'apps.ventas.apps.VentasConfig',
+    'apps.reportes.apps.ReportesConfig',
 ]
 
 MIDDLEWARE = [
@@ -139,6 +140,8 @@ SITE_PUBLIC_BASE_URL = os.environ.get('SITE_PUBLIC_BASE_URL', '').rstrip('/')
 WHATSAPP_GRAPH_API_VERSION = os.environ.get('WHATSAPP_GRAPH_API_VERSION', 'v21.0')
 WHATSAPP_PHONE_NUMBER_ID = os.environ.get('WHATSAPP_PHONE_NUMBER_ID', '')
 WHATSAPP_ACCESS_TOKEN = os.environ.get('WHATSAPP_ACCESS_TOKEN', '')
+WHATSAPP_TICKET_TEMPLATE_NAME = os.environ.get('WHATSAPP_TICKET_TEMPLATE_NAME', 'ticket_compra_farmacia')
+WHATSAPP_TICKET_TEMPLATE_LANGUAGE = os.environ.get('WHATSAPP_TICKET_TEMPLATE_LANGUAGE', 'es_MX')
 
 OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY', '')
 OPENAI_TTS_MODEL = os.environ.get('OPENAI_TTS_MODEL', 'gpt-4o-mini-tts')

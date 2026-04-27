@@ -170,6 +170,40 @@ def _enviar_audio(telefono, media_id):
     })
 
 
+def _enviar_plantilla(telefono, template_name, language_code, body_params, header_image_id=None):
+    components = []
+    if header_image_id:
+        components.append({
+            'type': 'header',
+            'parameters': [
+                {
+                    'type': 'image',
+                    'image': {'id': header_image_id},
+                },
+            ],
+        })
+
+    components.append({
+        'type': 'body',
+        'parameters': [
+            {'type': 'text', 'text': str(param)}
+            for param in body_params
+        ],
+    })
+
+    _enviar_mensaje({
+        'messaging_product': 'whatsapp',
+        'recipient_type': 'individual',
+        'to': telefono,
+        'type': 'template',
+        'template': {
+            'name': template_name,
+            'language': {'code': language_code},
+            'components': components,
+        },
+    })
+
+
 def _enviar_mensaje(payload):
     response = requests.post(
         _graph_url('messages'),

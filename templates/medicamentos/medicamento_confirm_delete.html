@@ -10,8 +10,8 @@
     </div>
     <form method="post" class="form-actions mt-2">
         {% csrf_token %}
-        <button class="btn btn-danger" type="submit">Sí, eliminar</button>
         <a class="btn btn-secondary" href="{% url 'medicamento_list' %}">Cancelar</a>
+        <button class="btn btn-danger" type="submit">Sí, eliminar</button>
     </form>
 </div>
 {% endblock %}

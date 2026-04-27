@@ -1,3 +1,5 @@
+from django.contrib import messages
+from django.core.paginator import Paginator
 from django.shortcuts import get_object_or_404, redirect, render
 
 from .models import Proveedor
@@ -5,15 +7,49 @@ from apps.medicamentos.models import Medicamento
 
 
 def proveedor_list(request):
-    proveedores   = Proveedor.objects.all()
+    proveedores   = Proveedor.objects.filter(activo=True)
     nombre_filter = request.GET.get('nombre', '').strip()
+    orden_filter = request.GET.get('orden', 'nombre_asc').strip()
 
     if nombre_filter:
         proveedores = proveedores.filter(nombre__icontains=nombre_filter)
 
+    ordenes = {
+        'id_asc': 'id_prov',
+        'id_desc': '-id_prov',
+        'nombre_asc': 'nombre',
+        'nombre_desc': '-nombre',
+        'telefono_asc': 'telefono',
+        'telefono_desc': '-telefono',
+        'correo_asc': 'correo',
+        'correo_desc': '-correo',
+        'direccion_asc': 'direccion',
+        'direccion_desc': '-direccion',
+    }
+    proveedores = proveedores.order_by(ordenes.get(orden_filter, 'nombre'))
+
+    paginator = Paginator(proveedores, 10)
+    try:
+        page_obj = paginator.page(request.GET.get('page', 1))
+    except Exception:
+        page_obj = paginator.page(1)
+
+    query_params = ''
+    if nombre_filter:
+        query_params += f'&nombre={nombre_filter}'
+    filter_query_params = query_params
+    if orden_filter:
+        query_params += f'&orden={orden_filter}'
+
     return render(request, 'proveedores/proveedor_list.html', {
-        'proveedores':  proveedores.order_by('nombre'),
+        'proveedores':  page_obj.object_list,
+        'page_obj': page_obj,
+        'paginator': paginator,
+        'is_paginated': paginator.num_pages > 1,
         'nombre_filter': nombre_filter,
+        'orden_filter': orden_filter,
+        'query_params': query_params,
+        'filter_query_params': filter_query_params,
     })
 
 
@@ -88,9 +124,37 @@ def proveedor_update(request, pk):
 def proveedor_delete(request, pk):
     proveedor = get_object_or_404(Proveedor, pk=pk)
     if request.method == 'POST':
-        proveedor.delete()
+        messages.error(
+            request,
+            'No se puede borrar un proveedor porque conserva historial de lotes y ventas. Usa Ocultar proveedor.'
+        )
+
+    lotes_count = proveedor.lote_set.count()
+    return render(request, 'proveedores/proveedor_confirm_delete.html', {
+        'proveedor': proveedor,
+        'lotes_count': lotes_count,
+    })
+
+
+def proveedor_ocultar(request, pk):
+    proveedor = get_object_or_404(Proveedor, pk=pk)
+    if request.method == 'POST':
+        lotes_actualizados = proveedor.lote_set.update(
+            activo=False,
+            oculto_por_caducidad=True,
+        )
+        proveedor.activo = False
+        proveedor.save(update_fields=['activo'])
+        messages.success(
+            request,
+            f'Proveedor ocultado. Tambien se ocultaron {lotes_actualizados} lote(s) relacionados.'
+        )
         return redirect('proveedor_list')
-    return render(request, 'proveedores/proveedor_confirm_delete.html', {'proveedor': proveedor})
+
+    return render(request, 'proveedores/proveedor_ocultar_confirm.html', {
+        'proveedor': proveedor,
+        'lotes_count': proveedor.lote_set.count(),
+    })
 
 
 # ── Helpers ──────────────────────────────────────────────────────────────────

@@ -42,14 +42,14 @@
                 <tr><td>Stock total</td><td class="text-mono fw-600" style="font-size:1.1rem; color:var(--primary);">{{ stock_total }}</td></tr>
                 <tr><td>Estado stock</td><td><span class="badge color-{{ estado_stock }}">{{ estado_stock_display }}</span></td></tr>
                 <tr><td>Activo para venta</td><td>
-                    {% if stock_total > 0 %}
-                        <span class="badge badge-green">Activo</span>
+                    {% if lotes_activos_count > 0 %}
+                        <span class="fw-600">SI</span>
                     {% else %}
-                        <span class="badge badge-gray">No activo</span>
+                        <span class="fw-600">NO</span>
                     {% endif %}
                 </td></tr>
-                <tr><td>Lotes registrados</td><td class="text-mono">{{ lotes|length }}</td></tr>
-                <tr><td>Registros unidos</td><td class="text-mono">{{ medicamentos_grupo|length }}</td></tr>
+                <tr><td>Lotes activos</td><td class="text-mono">{{ lotes_activos_count }}</td></tr>
+                <tr><td>Lotes no disponibles</td><td class="text-mono">{{ lotes_no_disponibles_count }}</td></tr>
             </table>
         </div>
     </div>
@@ -58,7 +58,7 @@
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.85rem;">
             <h3 style="margin-bottom:0;">Lotes</h3>
             {% if current_usuario_role != 'cajero' %}
-                <a class="btn btn-primary btn-sm" href="{% url 'lote_create' %}">+ Agregar lote</a>
+                <a class="btn btn-primary btn-plus btn-sm" href="{% url 'lote_create' %}?medicamento={{ medicamento.id_med }}" title="Agregar lote" aria-label="Agregar lote">+</a>
             {% endif %}
         </div>
         <div class="table-wrap">
@@ -72,9 +72,6 @@
                         <th><a class="sort-link" href="?lote_orden={% if lote_orden == 'activo_asc' %}activo_desc{% else %}activo_asc{% endif %}">Activo {% if lote_orden == 'activo_asc' %}↑{% elif lote_orden == 'activo_desc' %}↓{% endif %}</a></th>
                         <th><a class="sort-link" href="?lote_orden={% if lote_orden == 'compra_asc' %}compra_desc{% else %}compra_asc{% endif %}">Precio compra {% if lote_orden == 'compra_asc' %}↑{% elif lote_orden == 'compra_desc' %}↓{% endif %}</a></th>
                         <th><a class="sort-link" href="?lote_orden={% if lote_orden == 'venta_asc' %}venta_desc{% else %}venta_asc{% endif %}">Precio venta {% if lote_orden == 'venta_asc' %}↑{% elif lote_orden == 'venta_desc' %}↓{% endif %}</a></th>
-                        <th><a class="sort-link" href="?lote_orden={% if lote_orden == 'fabricacion_asc' %}fabricacion_desc{% else %}fabricacion_asc{% endif %}">Fabricacion {% if lote_orden == 'fabricacion_asc' %}↑{% elif lote_orden == 'fabricacion_desc' %}↓{% endif %}</a></th>
-                        <th><a class="sort-link" href="?lote_orden={% if lote_orden == 'caducidad_asc' %}caducidad_desc{% else %}caducidad_asc{% endif %}">Caducidad {% if lote_orden == 'caducidad_asc' %}↑{% elif lote_orden == 'caducidad_desc' %}↓{% endif %}</a></th>
-                        <th><a class="sort-link" href="?lote_orden={% if lote_orden == 'alta_asc' %}alta_desc{% else %}alta_asc{% endif %}">Alta {% if lote_orden == 'alta_asc' %}↑{% elif lote_orden == 'alta_desc' %}↓{% endif %}</a></th>
                         <th><a class="sort-link" href="?lote_orden={% if lote_orden == 'estado_caducidad_asc' %}estado_caducidad_desc{% else %}estado_caducidad_asc{% endif %}">Estado caducidad {% if lote_orden == 'estado_caducidad_asc' %}↑{% elif lote_orden == 'estado_caducidad_desc' %}↓{% endif %}</a></th>
                         <th>QR</th>
                     </tr>
@@ -108,16 +105,13 @@
                         </td>
                         <td>
                             {% if lote.activo and lote.stock_actual > 0 %}
-                                <span class="badge badge-green">Activo</span>
+                                <span class="fw-600">SI</span>
                             {% else %}
-                                <span class="badge badge-gray">No activo</span>
+                                <span class="fw-600">NO</span>
                             {% endif %}
                         </td>
                         <td class="text-mono">${{ lote.precio_compra|floatformat:2|default:"-" }}</td>
                         <td class="text-mono fw-600">${{ lote.precio_venta|floatformat:2|default:"-" }}</td>
-                        <td>{{ lote.fecha_fabricacion|date:'d/m/Y'|default:"-" }}</td>
-                        <td>{{ lote.fecha_caducidad|date:'d/m/Y'|default:"Sin fecha" }}</td>
-                        <td>{{ lote.fecha_ingreso|date:'d/m/Y H:i'|default:"-" }}</td>
                         <td>
                             <span class="badge color-{{ lote.estado_caducidad }}">{{ lote.estado_caducidad_display }}</span>
                             {% if lote.fecha_caducidad %}
@@ -138,7 +132,7 @@
                                     {% endif %}
                                 </div>
                             {% elif current_usuario_role != 'cajero' %}
-                                <a class="btn btn-primary btn-sm" href="{% url 'qr_create' item.medicamento.id_med %}">+ QR</a>
+                                <a class="btn btn-primary btn-plus btn-sm" href="{% url 'qr_create' item.medicamento.id_med %}" title="Generar QR" aria-label="Generar QR">+</a>
                             {% else %}
                                 <span class="text-muted">Sin QR</span>
                             {% endif %}
@@ -146,7 +140,7 @@
                     </tr>
                     {% endwith %}
                     {% empty %}
-                    <tr><td colspan="12"><div class="empty-state"><p>No hay lotes registrados para este medicamento.</p></div></td></tr>
+                    <tr><td colspan="9"><div class="empty-state"><p>No hay lotes registrados para este medicamento.</p></div></td></tr>
                     {% endfor %}
                 </tbody>
             </table>
@@ -154,3 +148,6 @@
     </div>
 </div>
 {% endblock %}
+
+
+

@@ -1,16 +1,18 @@
 {% extends "base.html" %}
-{% block title %}Eliminar proveedor{% endblock %}
+{% block title %}Proveedor protegido{% endblock %}
+
 {% block content %}
 <div class="card mt-2" style="max-width:520px; margin:0 auto;">
-    <h1>Confirmar eliminación</h1>
-    <div class="alert alert-error mt-2">
-        ¿Estás seguro de que deseas eliminar al proveedor <strong>{{ proveedor.nombre }}</strong>?
-        Esta acción eliminará también todos sus lotes asociados.
+    <h1>No se puede borrar proveedor</h1>
+    <div class="alert alert-warning mt-2">
+        El proveedor <strong>{{ proveedor.nombre }}</strong> no debe borrarse porque puede tener lotes y ventas relacionadas.
+        Para retirarlo del sistema, usa <strong>Ocultar proveedor</strong>. Tambien se ocultaran sus {{ lotes_count }} lote(s) relacionados.
     </div>
-    <form method="post" class="form-actions mt-2">
+
+    <form method="post" action="{% url 'proveedor_ocultar' proveedor.id_prov %}" class="form-actions mt-2">
         {% csrf_token %}
-        <button class="btn btn-danger" type="submit">Sí, eliminar</button>
         <a class="btn btn-secondary" href="{% url 'proveedor_list' %}">Cancelar</a>
+        <button class="btn btn-danger" type="submit">Ocultar proveedor</button>
     </form>
 </div>
 {% endblock %}

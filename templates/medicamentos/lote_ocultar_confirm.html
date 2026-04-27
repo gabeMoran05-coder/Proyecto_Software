@@ -34,8 +34,8 @@
 
     <form method="post" class="form-actions">
         {% csrf_token %}
-        <button type="submit" class="btn btn-danger">Ocultar y retirar del inventario</button>
         <a class="btn btn-secondary" href="{% url 'lote_detail' lote.id_lote %}">Cancelar</a>
+        <button type="submit" class="btn btn-danger">Ocultar y retirar del inventario</button>
     </form>
 </div>
 {% endblock %}

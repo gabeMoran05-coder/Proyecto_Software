@@ -8,6 +8,7 @@ import qrcode
 from django.contrib import messages
 from django.http import HttpResponse
 from django.core.paginator import Paginator
+from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
@@ -29,7 +30,7 @@ from apps.proveedores.models import Proveedor
 
 def medicamento_list(request):
     meds = Medicamento.objects.select_related('id_lote__id_prov').filter(
-        id_lote__oculto_por_caducidad=False
+        Q(id_lote__isnull=True) | Q(id_lote__oculto_por_caducidad=False)
     )
 
     nombre_filter = request.GET.get('nombre', '').strip()
@@ -73,6 +74,7 @@ def medicamento_list(request):
         'medicamentos':   page_obj.object_list,
         'page_obj':       page_obj,
         'paginator':      paginator,
+        'is_paginated':   paginator.num_pages > 1,
         'nombre_filter':  nombre_filter,
         'estado_filter':  estado_filter,
         'caducidad_filter': caducidad_filter,
@@ -90,9 +92,17 @@ def medicamento_detail(request, pk):
         pk=pk,
     )
     medicamentos_grupo = _medicamentos_mismo_grupo(med)
-    lotes = [item.id_lote for item in medicamentos_grupo]
+    lotes = [item.id_lote for item in medicamentos_grupo if item.id_lote]
     stock_total = sum(lote.stock_actual or 0 for lote in lotes if not lote.oculto_por_caducidad)
     estado_stock = _estado_stock_total(stock_total)
+    lotes_activos = [
+        lote for lote in lotes
+        if lote.activo
+        and not lote.oculto_por_caducidad
+        and (lote.stock_actual or 0) > 0
+        and lote.estado_caducidad != 'rojo'
+    ]
+    lotes_no_disponibles = [lote for lote in lotes if lote not in lotes_activos]
     qr_codes = CodigoQR.objects.filter(
         id_medicamento__in=medicamentos_grupo
     ).select_related('id_medicamento').order_by('-fecha_generacion')
@@ -104,6 +114,7 @@ def medicamento_detail(request, pk):
             qr=qr_por_medicamento.get(item.id_med),
         )
         for item in medicamentos_grupo
+        if item.id_lote
     ]
     lote_items = _ordenar_lote_items(lote_items, lote_orden)
     return render(request, 'medicamentos/medicamento_detail.html', {
@@ -114,14 +125,15 @@ def medicamento_detail(request, pk):
         'stock_total': stock_total,
         'estado_stock': estado_stock,
         'estado_stock_display': _estado_stock_display(stock_total),
+        'lotes_activos_count': len(lotes_activos),
+        'lotes_no_disponibles_count': len(lotes_no_disponibles),
         'lote_orden': lote_orden,
         'qr_codes':    qr_codes,
     })
 
 
 def medicamento_create(request):
-    lotes = Lote.objects.select_related('id_prov').filter(activo=True).order_by('numero_lote')
-    context = {'lotes': lotes, 'presentaciones': _presentaciones()}
+    context = {'presentaciones': _presentaciones()}
 
     if request.method == 'POST':
         errors = _validar_medicamento(request.POST)
@@ -131,7 +143,6 @@ def medicamento_create(request):
             return render(request, 'medicamentos/medicamento_form.html', context)
 
         Medicamento.objects.create(
-            id_lote             = get_object_or_404(Lote, pk=request.POST['id_lote']),
             nombre              = request.POST.get('nombre', '').strip(),
             presentacion        = request.POST.get('presentacion', '').strip() or None,
             concentracion       = request.POST.get('concentracion', '').strip() or None,
@@ -144,8 +155,7 @@ def medicamento_create(request):
 
 def medicamento_update(request, pk):
     med   = get_object_or_404(Medicamento, pk=pk)
-    lotes = Lote.objects.select_related('id_prov').filter(activo=True).order_by('numero_lote')
-    context = {'medicamento': med, 'lotes': lotes, 'presentaciones': _presentaciones()}
+    context = {'medicamento': med, 'presentaciones': _presentaciones()}
 
     if request.method == 'POST':
         errors = _validar_medicamento(request.POST)
@@ -153,7 +163,6 @@ def medicamento_update(request, pk):
             context['errors'] = errors
             return render(request, 'medicamentos/medicamento_form.html', context)
 
-        med.id_lote             = get_object_or_404(Lote, pk=request.POST['id_lote'])
         med.nombre              = request.POST.get('nombre', '').strip()
         med.presentacion        = request.POST.get('presentacion', '').strip() or None
         med.concentracion       = request.POST.get('concentracion', '').strip() or None
@@ -229,6 +238,7 @@ def _lote_list(request, ocultos=False):
         'lotes':          page_obj.object_list,
         'page_obj':       page_obj,
         'paginator':      paginator,
+        'is_paginated':   paginator.num_pages > 1,
         'numero_filter':  numero_filter,
         'medicamento_filter': medicamento_filter,
         'activo_filter':  activo_filter,
@@ -246,19 +256,25 @@ def lote_detail(request, pk):
     return render(request, 'medicamentos/lote_detail.html', {
         'lote':         lote,
         'medicamentos': medicamentos,
+        'medicamentos_catalogo': _medicamentos_catalogo_para_asignar(),
     })
 
 
 def lote_create(request):
-    proveedores = Proveedor.objects.all().order_by('nombre')
+    proveedores = Proveedor.objects.filter(activo=True).order_by('nombre')
     proveedor_preseleccionado = None
     proveedor_id = request.GET.get('proveedor') or request.POST.get('id_prov')
+    medicamento_preseleccionado = None
+    medicamento_id = request.GET.get('medicamento') or request.POST.get('medicamento_base')
     if proveedor_id:
         proveedor_preseleccionado = Proveedor.objects.filter(pk=proveedor_id).first()
+    if medicamento_id:
+        medicamento_preseleccionado = Medicamento.objects.filter(pk=medicamento_id).first()
 
     context = {
         'proveedores': proveedores,
         'proveedor_preseleccionado': proveedor_preseleccionado,
+        'medicamento_preseleccionado': medicamento_preseleccionado,
         'volver_proveedor': request.GET.get('next') == 'proveedor_detail' or request.POST.get('next') == 'proveedor_detail',
     }
 
@@ -280,6 +296,9 @@ def lote_create(request):
             fecha_caducidad  = request.POST.get('fecha_caducidad') or None,
             fecha_compra     = request.POST.get('fecha_compra') or None,
         )
+        if medicamento_preseleccionado:
+            _crear_medicamento_para_lote(medicamento_preseleccionado, lote)
+            return redirect('medicamento_detail', pk=medicamento_preseleccionado.pk)
         if context['volver_proveedor']:
             return redirect('proveedor_detail', pk=lote.id_prov_id)
         return redirect('lote_list')
@@ -289,8 +308,14 @@ def lote_create(request):
 
 def lote_update(request, pk):
     lote        = get_object_or_404(Lote, pk=pk)
-    proveedores = Proveedor.objects.all().order_by('nombre')
-    context     = {'lote': lote, 'proveedores': proveedores}
+    proveedores = Proveedor.objects.filter(activo=True).order_by('nombre')
+    medicamento_asociado = lote.medicamento_set.order_by('id_med').first()
+    context     = {
+        'lote': lote,
+        'proveedores': proveedores,
+        'medicamentos_catalogo': _medicamentos_catalogo_para_asignar(),
+        'medicamento_asociado': medicamento_asociado,
+    }
 
     if request.method == 'POST':
         errors = _validar_lote(request.POST)
@@ -308,6 +333,10 @@ def lote_update(request, pk):
         lote.fecha_caducidad   = request.POST.get('fecha_caducidad') or None
         lote.fecha_compra      = request.POST.get('fecha_compra') or None
         lote.save()
+        medicamento_id = request.POST.get('medicamento_id') or None
+        if medicamento_id:
+            medicamento_base = get_object_or_404(Medicamento, pk=medicamento_id)
+            _asignar_medicamento_a_lote(lote, medicamento_base)
         return redirect('lote_detail', pk=pk)
 
     return render(request, 'medicamentos/lote_form.html', context)
@@ -319,6 +348,27 @@ def lote_delete(request, pk):
         lote.delete()
         return redirect('lote_list')
     return render(request, 'medicamentos/lote_confirm_delete.html', {'lote': lote})
+
+
+def lote_asignar_medicamento(request, pk):
+    lote = get_object_or_404(Lote, pk=pk)
+    if request.method != 'POST':
+        return redirect('lote_detail', pk=pk)
+
+    medicamento = get_object_or_404(Medicamento, pk=request.POST.get('medicamento_id'))
+    existente = lote.medicamento_set.filter(
+        nombre__iexact=medicamento.nombre,
+        presentacion=medicamento.presentacion,
+        concentracion=medicamento.concentracion,
+        requiere_receta=medicamento.requiere_receta,
+    ).first()
+    if existente:
+        messages.warning(request, 'Ese medicamento ya esta asociado a este lote.')
+        return redirect('lote_detail', pk=pk)
+
+    _asignar_medicamento_a_lote(lote, medicamento)
+    messages.success(request, f'Lote asignado a {medicamento.nombre}.')
+    return redirect('lote_detail', pk=pk)
 
 
 def lote_ocultar(request, pk):
@@ -465,8 +515,6 @@ def _validar_medicamento(data):
     errors = []
     if not data.get('nombre', '').strip():
         errors.append('El nombre del medicamento es obligatorio.')
-    if not data.get('id_lote'):
-        errors.append('Debes seleccionar un lote.')
     return errors
 
 
@@ -507,8 +555,7 @@ def _medicamentos_mismo_grupo(med):
             presentacion=med.presentacion,
             concentracion=med.concentracion,
             requiere_receta=med.requiere_receta,
-            id_lote__oculto_por_caducidad=False,
-        )
+        ).filter(Q(id_lote__isnull=True) | Q(id_lote__oculto_por_caducidad=False))
     )
 
 
@@ -519,7 +566,7 @@ def _agrupar_medicamentos(queryset):
 
     medicamentos = []
     for grupo in grupos.values():
-        grupo = sorted(grupo, key=lambda med: med.id_med)
+        grupo = sorted(grupo, key=lambda med: (med.id_lote_id is not None, med.id_med))
         principal = grupo[0]
         lotes = [med.id_lote for med in grupo if med.id_lote and not med.id_lote.oculto_por_caducidad]
         stock_total = sum(lote.stock_actual or 0 for lote in lotes)
@@ -541,6 +588,41 @@ def _agrupar_medicamentos(queryset):
             precio_venta=_precio_venta_referencia(lotes),
         ))
     return medicamentos
+
+
+def _medicamentos_catalogo_para_asignar():
+    grupos = defaultdict(list)
+    for med in Medicamento.objects.select_related('id_lote').all().order_by('nombre', 'id_med'):
+        grupos[_clave_medicamento(med)].append(med)
+
+    catalogo = []
+    for grupo in grupos.values():
+        grupo = sorted(grupo, key=lambda med: (med.id_lote_id is not None, med.id_med))
+        catalogo.append(grupo[0])
+    return sorted(catalogo, key=lambda med: (med.nombre or '').lower())
+
+
+def _crear_medicamento_para_lote(medicamento_base, lote):
+    return Medicamento.objects.create(
+        id_lote=lote,
+        nombre=medicamento_base.nombre,
+        presentacion=medicamento_base.presentacion,
+        concentracion=medicamento_base.concentracion,
+        requiere_receta=medicamento_base.requiere_receta,
+    )
+
+
+def _asignar_medicamento_a_lote(lote, medicamento_base):
+    asociado = lote.medicamento_set.order_by('id_med').first()
+    if asociado is None:
+        return _crear_medicamento_para_lote(medicamento_base, lote)
+
+    asociado.nombre = medicamento_base.nombre
+    asociado.presentacion = medicamento_base.presentacion
+    asociado.concentracion = medicamento_base.concentracion
+    asociado.requiere_receta = medicamento_base.requiere_receta
+    asociado.save()
+    return asociado
 
 
 def _ordenar_medicamentos_agrupados(medicamentos, orden):
@@ -603,10 +685,11 @@ def _ordenar_medicamentos_por_lote(medicamentos):
     return sorted(
         medicamentos,
         key=lambda med: (
-            med.id_lote.estado_caducidad == 'rojo',
-            med.id_lote.fecha_caducidad or fecha_maxima,
-            med.id_lote.fecha_ingreso or timezone.now(),
-            med.id_lote_id,
+            med.id_lote is None,
+            med.id_lote.estado_caducidad == 'rojo' if med.id_lote else True,
+            med.id_lote.fecha_caducidad or fecha_maxima if med.id_lote else fecha_maxima,
+            med.id_lote.fecha_ingreso or timezone.now() if med.id_lote else timezone.now(),
+            med.id_lote_id or 0,
         ),
     )
 

@@ -173,6 +173,29 @@
         .btn-danger { background: var(--danger); color: #fff; }
         .btn-danger:hover { background: #a93226; }
         .btn-sm { padding: 0.3rem 0.65rem; font-size: 0.8rem; border-radius: 6px; }
+        .btn-plus {
+            align-items: center;
+            aspect-ratio: 1;
+            border-radius: 999px;
+            box-shadow: 0 4px 10px rgba(26,107,60,0.14);
+            display: inline-flex;
+            font-size: 1.4rem;
+            font-weight: 700;
+            gap: 0;
+            justify-content: center;
+            line-height: 1;
+            min-height: 44px;
+            min-width: 44px;
+            padding: 0;
+        }
+        .btn-plus.btn-sm {
+            min-height: 36px;
+            min-width: 36px;
+            font-size: 1.15rem;
+        }
+        .btn-plus:hover {
+            transform: translateY(-1px);
+        }
         .btn-group { display: flex; gap: 0.4rem; flex-wrap: wrap; }
 
         /* ===== BADGES ===== */
@@ -268,8 +291,47 @@
             margin-top: 1.5rem;
             flex-wrap: wrap;
         }
-        .pagination .btn { min-width: 36px; justify-content: center; }
-        .pagination-info { color: var(--muted); font-size: 0.85rem; }
+        .pagination .btn {
+            justify-content: center;
+            min-height: 40px;
+            min-width: 40px;
+            padding: 0.45rem 0.9rem;
+        }
+        .pagination .btn-primary {
+            box-shadow: 0 4px 10px rgba(26,107,60,0.14);
+        }
+        .pagination .btn[disabled] {
+            cursor: not-allowed;
+            opacity: 0.65;
+        }
+        .pagination-info {
+            color: var(--muted);
+            font-size: 0.85rem;
+        }
+        .pagination-toolbar {
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            justify-content: space-between;
+            padding: 0.65rem;
+        }
+        .pagination-actions,
+        .pagination-jump {
+            align-items: center;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.4rem;
+        }
+        .pagination-jump label {
+            color: var(--muted);
+            font-size: 0.78rem;
+            font-weight: 700;
+        }
+        .pagination-jump select {
+            min-height: 32px;
+            min-width: 72px;
+            padding: 0.25rem 0.45rem;
+        }
 
         /* ===== STATS CARDS ===== */
         .stats-grid {

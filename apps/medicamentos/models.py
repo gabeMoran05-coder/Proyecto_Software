@@ -78,7 +78,7 @@ class Medicamento(models.Model):
     ]
 
     id_med = models.AutoField(primary_key=True)
-    id_lote = models.ForeignKey(Lote, on_delete=models.CASCADE, db_column='id_lote')
+    id_lote = models.ForeignKey(Lote, on_delete=models.CASCADE, db_column='id_lote', null=True, blank=True)
     nombre = models.CharField(max_length=120)
     presentacion = models.CharField(max_length=80, null=True, blank=True)
     concentracion = models.CharField(max_length=60, null=True, blank=True)

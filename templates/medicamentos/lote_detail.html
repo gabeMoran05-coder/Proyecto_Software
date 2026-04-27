@@ -85,7 +85,26 @@
     </div>
 
     <div class="detail-section mt-2">
-        <h3>Medicamentos asociados</h3>
+        <div style="display:flex; justify-content:space-between; gap:1rem; align-items:flex-start; margin-bottom:0.85rem;">
+            <h3 style="margin-bottom:0;">Medicamentos asociados</h3>
+            {% if current_usuario_role != 'cajero' and not medicamentos %}
+            <form method="post" action="{% url 'lote_asignar_medicamento' lote.id_lote %}" style="display:flex; gap:0.5rem; align-items:flex-end; flex-wrap:wrap;">
+                {% csrf_token %}
+                <div class="form-group" style="min-width:260px;">
+                    <label for="medicamento_id">Asignar medicamento</label>
+                    <select id="medicamento_id" name="medicamento_id" required>
+                        <option value="">-- Seleccione medicamento --</option>
+                        {% for med in medicamentos_catalogo %}
+                            <option value="{{ med.id_med }}">
+                                {{ med.nombre }}{% if med.presentacion %} - {{ med.presentacion }}{% endif %}{% if med.concentracion %} - {{ med.concentracion }}{% endif %}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <button class="btn btn-primary" type="submit">Asignar</button>
+            </form>
+            {% endif %}
+        </div>
         {% if medicamentos %}
             <div class="table-wrap">
                 <table>
