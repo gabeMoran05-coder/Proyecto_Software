@@ -8,22 +8,25 @@
         {% if current_usuario %}
         <nav class="nav-links">
             {% if current_usuario_is_admin or current_usuario_role == 'almacen' or current_usuario_role == 'farmaceutico' or current_usuario_role == 'cajero' %}
-                <a class="nav-link" href="{% url 'medicamento_list' %}">Medicamentos</a>
+                <a class="nav-link {% if request.path|slice:':14' == '/medicamentos/' and request.path|slice:':21' != '/medicamentos/lotes/' %}active{% endif %}" href="{% url 'medicamento_list' %}">Medicamentos</a>
             {% endif %}
 
             {% if current_usuario_is_admin or current_usuario_role == 'almacen' or current_usuario_role == 'farmaceutico' %}
-                <a class="nav-link" href="{% url 'lote_list' %}">Lotes</a>
-                <a class="nav-link" href="{% url 'proveedor_list' %}">Proveedores</a>
+                <a class="nav-link {% if request.path|slice:':21' == '/medicamentos/lotes/' %}active{% endif %}" href="{% url 'lote_list' %}">Lotes</a>
+                <a class="nav-link {% if request.path|slice:':13' == '/proveedores/' %}active{% endif %}" href="{% url 'proveedor_list' %}">Proveedores</a>
             {% endif %}
 
             {% if current_usuario_is_admin %}
-                <a class="nav-link" href="{% url 'cliente_list' %}">Clientes</a>
-                <a class="nav-link" href="{% url 'usuario_list' %}">Usuarios</a>
+                <a class="nav-link {% if request.path|slice:':10' == '/clientes/' %}active{% endif %}" href="{% url 'cliente_list' %}">Clientes</a>
+                <a class="nav-link {% if request.path|slice:':10' == '/usuarios/' %}active{% endif %}" href="{% url 'usuario_list' %}">Usuarios</a>
             {% endif %}
 
             {% if current_usuario_is_admin or current_usuario_role == 'cajero' %}
-                <a class="nav-link" href="{% url 'venta_list' %}">Ventas</a>
-                <a class="nav-link" href="{% url 'venta_create' %}">Venta</a>
+                <a class="nav-link {% if request.path|slice:':8' == '/ventas/' %}active{% endif %}" href="{% url 'venta_list' %}">Ventas</a>
+            {% endif %}
+
+            {% if current_usuario_is_admin or current_usuario_role == 'farmaceutico' %}
+                <a class="nav-link {% if request.path|slice:':10' == '/reportes/' %}active{% endif %}" href="{% url 'reportes_dashboard' %}">Reportes</a>
             {% endif %}
 
             <span class="nav-user">

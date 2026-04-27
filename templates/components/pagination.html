@@ -1,0 +1,29 @@
+{% if paginator.num_pages > 1 %}
+<div class="pagination">
+    {% if page_obj.has_previous %}
+        <a href="?page=1{{ query_params }}" class="btn btn-secondary btn-sm">« Primera</a>
+        <a href="?page={{ page_obj.previous_page_number }}{{ query_params }}" class="btn btn-secondary btn-sm">‹</a>
+    {% else %}
+        <button class="btn btn-secondary btn-sm" disabled>« Primera</button>
+        <button class="btn btn-secondary btn-sm" disabled>‹</button>
+    {% endif %}
+
+    {% for num in paginator.page_range %}
+        {% if page_obj.number == num %}
+            <button class="btn btn-primary btn-sm">{{ num }}</button>
+        {% elif num >= page_obj.number|add:'-2' and num <= page_obj.number|add:'2' %}
+            <a href="?page={{ num }}{{ query_params }}" class="btn btn-secondary btn-sm">{{ num }}</a>
+        {% endif %}
+    {% endfor %}
+
+    {% if page_obj.has_next %}
+        <a href="?page={{ page_obj.next_page_number }}{{ query_params }}" class="btn btn-secondary btn-sm">›</a>
+        <a href="?page={{ paginator.num_pages }}{{ query_params }}" class="btn btn-secondary btn-sm">Última »</a>
+    {% else %}
+        <button class="btn btn-secondary btn-sm" disabled>›</button>
+        <button class="btn btn-secondary btn-sm" disabled>Última »</button>
+    {% endif %}
+
+    <span class="pagination-info">Página {{ page_obj.number }} de {{ paginator.num_pages }}</span>
+</div>
+{% endif %}

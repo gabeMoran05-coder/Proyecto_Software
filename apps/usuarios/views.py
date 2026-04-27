@@ -67,6 +67,7 @@ def _usuario_list(request, ocultos=False):
     q = request.GET.get('q', '').strip()
     rol_filter = request.GET.get('rol', '').strip()
     orden_filter = request.GET.get('orden', 'nombre_asc').strip()
+    per_page = 10
 
     if q:
         usuarios = usuarios.filter(
@@ -85,10 +86,14 @@ def _usuario_list(request, ocultos=False):
         'usuario_desc': '-usuario',
         'nombre_asc': 'nombre',
         'nombre_desc': '-nombre',
+        'telefono_asc': 'telefono',
+        'telefono_desc': '-telefono',
         'puesto_asc': 'puesto',
         'puesto_desc': '-puesto',
         'rol_asc': 'rol',
         'rol_desc': '-rol',
+        'estado_asc': 'activo',
+        'estado_desc': '-activo',
         'contratacion_asc': 'fecha_contratacion',
         'contratacion_desc': '-fecha_contratacion',
         'conexion_asc': 'ultima_conexion',
@@ -101,8 +106,7 @@ def _usuario_list(request, ocultos=False):
     if rol_filter: query_params += f'&rol={rol_filter}'
     filter_query_params = query_params
     if orden_filter: query_params += f'&orden={orden_filter}'
-
-    paginator = Paginator(usuarios, 10)
+    paginator = Paginator(usuarios, per_page)
     try:
         page_obj = paginator.page(request.GET.get('page', 1))
     except Exception:
@@ -114,6 +118,10 @@ def _usuario_list(request, ocultos=False):
         'paginator': paginator,
         'is_paginated': paginator.num_pages > 1,
         'ocultos': ocultos,
+        'q': q,
+        'rol_filtro': rol_filter,
+        'roles': Usuario.ROL_CHOICES,
+        'orden': orden_filter,
         'orden_filter': orden_filter,
         'query_params': query_params,
         'filter_query_params': filter_query_params,

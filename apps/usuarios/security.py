@@ -26,6 +26,7 @@ ROLE_PATHS = {
     Usuario.ROL_FARMACEUTICO: (
         '/medicamentos/',
         '/proveedores/',
+        '/reportes/',
     ),
 }
 
