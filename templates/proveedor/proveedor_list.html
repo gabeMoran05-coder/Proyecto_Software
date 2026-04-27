@@ -9,11 +9,11 @@
             <h1>Proveedores</h1>
             <p class="page-subtitle">Directorio de proveedores de medicamentos</p>
         </div>
-        <a class="btn btn-primary" href="{% url 'proveedor_create' %}">+ Nuevo proveedor</a>
+        <a class="btn btn-primary btn-plus" href="{% url 'proveedor_create' %}" title="Nuevo proveedor" aria-label="Nuevo proveedor">+</a>
     </div>
 
     <div class="filter-bar">
-        <h4>Búsqueda</h4>
+        <h4>Busqueda</h4>
         <form method="get">
             <div class="filter-row">
                 <div class="form-group" style="flex:2;">
@@ -33,11 +33,51 @@
         <table>
             <thead>
                 <tr>
-                    <th>ID</th>
-                    <th>Nombre</th>
-                    <th>Teléfono</th>
-                    <th>Correo</th>
-                    <th>Dirección</th>
+                    <th>
+                        {% if orden_filter == 'id_asc' %}
+                            <a class="sort-link" href="?orden=id_desc{{ filter_query_params }}">ID <span class="sort-arrow">?</span></a>
+                        {% elif orden_filter == 'id_desc' %}
+                            <a class="sort-link" href="?orden=id_asc{{ filter_query_params }}">ID <span class="sort-arrow">?</span></a>
+                        {% else %}
+                            <a class="sort-link" href="?orden=id_asc{{ filter_query_params }}">ID</a>
+                        {% endif %}
+                    </th>
+                    <th>
+                        {% if orden_filter == 'nombre_asc' %}
+                            <a class="sort-link" href="?orden=nombre_desc{{ filter_query_params }}">Nombre <span class="sort-arrow">?</span></a>
+                        {% elif orden_filter == 'nombre_desc' %}
+                            <a class="sort-link" href="?orden=nombre_asc{{ filter_query_params }}">Nombre <span class="sort-arrow">?</span></a>
+                        {% else %}
+                            <a class="sort-link" href="?orden=nombre_asc{{ filter_query_params }}">Nombre</a>
+                        {% endif %}
+                    </th>
+                    <th>
+                        {% if orden_filter == 'telefono_asc' %}
+                            <a class="sort-link" href="?orden=telefono_desc{{ filter_query_params }}">Telefono <span class="sort-arrow">?</span></a>
+                        {% elif orden_filter == 'telefono_desc' %}
+                            <a class="sort-link" href="?orden=telefono_asc{{ filter_query_params }}">Telefono <span class="sort-arrow">?</span></a>
+                        {% else %}
+                            <a class="sort-link" href="?orden=telefono_asc{{ filter_query_params }}">Telefono</a>
+                        {% endif %}
+                    </th>
+                    <th>
+                        {% if orden_filter == 'correo_asc' %}
+                            <a class="sort-link" href="?orden=correo_desc{{ filter_query_params }}">Correo <span class="sort-arrow">?</span></a>
+                        {% elif orden_filter == 'correo_desc' %}
+                            <a class="sort-link" href="?orden=correo_asc{{ filter_query_params }}">Correo <span class="sort-arrow">?</span></a>
+                        {% else %}
+                            <a class="sort-link" href="?orden=correo_asc{{ filter_query_params }}">Correo</a>
+                        {% endif %}
+                    </th>
+                    <th>
+                        {% if orden_filter == 'direccion_asc' %}
+                            <a class="sort-link" href="?orden=direccion_desc{{ filter_query_params }}">Direccion <span class="sort-arrow">?</span></a>
+                        {% elif orden_filter == 'direccion_desc' %}
+                            <a class="sort-link" href="?orden=direccion_asc{{ filter_query_params }}">Direccion <span class="sort-arrow">?</span></a>
+                        {% else %}
+                            <a class="sort-link" href="?orden=direccion_asc{{ filter_query_params }}">Direccion</a>
+                        {% endif %}
+                    </th>
                     <th>Acciones</th>
                 </tr>
             </thead>
@@ -48,14 +88,19 @@
                     <td>
                         <a class="link" href="{% url 'proveedor_detail' prov.id_prov %}">{{ prov.nombre }}</a>
                     </td>
-                    <td>{{ prov.telefono|default:"—" }}</td>
-                    <td>{{ prov.correo|default:"—" }}</td>
-                    <td class="text-muted">{{ prov.direccion|default:"—"|truncatechars:40 }}</td>
+                    <td>{{ prov.telefono|default:"-" }}</td>
+                    <td>{{ prov.correo|default:"-" }}</td>
+                    <td class="text-muted">
+                        <span class="direccion-tooltip" tabindex="0">
+                            {{ prov.direccion|default:"-"|truncatechars:40 }}
+                            <span class="direccion-tooltip-content">{{ prov.direccion|default:"Sin direccion" }}</span>
+                        </span>
+                    </td>
                     <td>
                         <div class="btn-group">
                             <a class="btn btn-secondary btn-sm" href="{% url 'proveedor_detail' prov.id_prov %}">Ver</a>
                             <a class="btn btn-secondary btn-sm" href="{% url 'proveedor_update' prov.id_prov %}">Editar</a>
-                            <a class="btn btn-danger btn-sm" href="{% url 'proveedor_delete' prov.id_prov %}">Eliminar</a>
+                            <a class="btn btn-danger btn-sm" href="{% url 'proveedor_ocultar' prov.id_prov %}">Ocultar</a>
                         </div>
                     </td>
                 </tr>
@@ -63,7 +108,7 @@
                 <tr>
                     <td colspan="6">
                         <div class="empty-state">
-                            <div class="empty-icon">🏭</div>
+                            <div class="empty-icon">-</div>
                             <p>No hay proveedores registrados.</p>
                         </div>
                     </td>
@@ -73,5 +118,46 @@
         </table>
     </div>
 
+    {% include "components/pagination.html" %}
+
 </div>
+
+<style>
+.direccion-tooltip {
+    position: relative;
+    display: inline-block;
+    cursor: help;
+}
+
+.direccion-tooltip-content {
+    position: absolute;
+    left: 0;
+    bottom: calc(100% + 8px);
+    z-index: 20;
+    min-width: 240px;
+    max-width: 360px;
+    padding: 0.55rem 0.65rem;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: #fff;
+    color: var(--text);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.14);
+    font-size: 0.82rem;
+    line-height: 1.3;
+    white-space: normal;
+    word-break: break-word;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(4px);
+    transition: opacity 0.16s ease, transform 0.16s ease, visibility 0.16s ease;
+}
+
+.direccion-tooltip:hover .direccion-tooltip-content,
+.direccion-tooltip:focus .direccion-tooltip-content,
+.direccion-tooltip:focus-within .direccion-tooltip-content {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+</style>
 {% endblock %}

@@ -3,7 +3,6 @@
 
 {% block content %}
 <div class="card mt-2" style="max-width:600px; margin:0 auto;">
-
     <div class="page-header">
         <div>
             <h1>{% if proveedor %}Editar proveedor{% else %}Nuevo proveedor{% endif %}</h1>
@@ -22,33 +21,24 @@
         {% csrf_token %}
         <div class="form-group">
             <label for="nombre">Nombre *</label>
-            <input id="nombre" name="nombre" type="text"
-                value="{{ proveedor.nombre|default:'' }}" required
-                placeholder="Nombre del proveedor">
+            <input id="nombre" name="nombre" type="text" value="{{ proveedor.nombre|default:'' }}" required placeholder="Nombre del proveedor">
         </div>
         <div class="form-group">
-            <label for="telefono">Teléfono</label>
-            <input id="telefono" name="telefono" type="text"
-                value="{{ proveedor.telefono|default:'' }}"
-                placeholder="Ej: 312-123-4567">
+            <label for="telefono">Telefono</label>
+            <input id="telefono" name="telefono" type="text" value="{{ proveedor.telefono|default:'' }}" placeholder="Ej: 312-123-4567">
         </div>
         <div class="form-group">
-            <label for="correo">Correo electrónico</label>
-            <input id="correo" name="correo" type="email"
-                value="{{ proveedor.correo|default:'' }}"
-                placeholder="contacto@proveedor.com">
+            <label for="correo">Correo electronico</label>
+            <input id="correo" name="correo" type="email" value="{{ proveedor.correo|default:'' }}" placeholder="contacto@proveedor.com">
         </div>
         <div class="form-group">
-            <label for="direccion">Dirección</label>
-            <input id="direccion" name="direccion" type="text"
-                value="{{ proveedor.direccion|default:'' }}"
-                placeholder="Calle, número, colonia, ciudad">
+            <label for="direccion">Direccion</label>
+            <input id="direccion" name="direccion" type="text" value="{{ proveedor.direccion|default:'' }}" placeholder="Calle, numero, colonia, ciudad">
         </div>
         <div class="form-actions">
-            <button class="btn btn-primary" type="submit">💾 Guardar</button>
             <a class="btn btn-secondary" href="{% url 'proveedor_list' %}">Cancelar</a>
+            <button class="btn btn-primary" type="submit">Guardar</button>
         </div>
     </form>
-
 </div>
 {% endblock %}

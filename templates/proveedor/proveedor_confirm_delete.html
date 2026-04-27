@@ -1,16 +1,59 @@
-{% extends "base.html" %}
-{% block title %}Eliminar proveedor{% endblock %}
+{% extends 'base.html' %}
+
+{% block title %}Detalle: {{ object.nombre_metodo }} — Farmacia Inclusiva{% endblock %}
+
 {% block content %}
-<div class="card mt-2" style="max-width:520px; margin:0 auto;">
-    <h1>Confirmar eliminación</h1>
-    <div class="alert alert-error mt-2">
-        ¿Estás seguro de que deseas eliminar al proveedor <strong>{{ proveedor.nombre }}</strong>?
-        Esta acción eliminará también todos sus lotes asociados.
+<div class="page-header d-flex justify-content-between align-items-center">
+    <div>
+        <h2><i class="bi bi-credit-card-2-front me-2"></i>Detalle de Método de Pago</h2>
+        <p>Información completa del método registrado</p>
     </div>
-    <form method="post" class="form-actions mt-2">
-        {% csrf_token %}
-        <button class="btn btn-danger" type="submit">Sí, eliminar</button>
-        <a class="btn btn-secondary" href="{% url 'proveedor_list' %}">Cancelar</a>
-    </form>
+    <a href="{% url 'metodo_pago_list' %}" class="btn btn-outline-light">
+        <i class="bi bi-arrow-left me-1"></i>Volver al listado
+    </a>
+</div>
+
+<div class="row justify-content-center">
+    <div class="col-md-7 col-lg-6">
+        <div class="card">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center py-3">
+                <h6 class="mb-0">
+                    <i class="bi bi-info-circle me-1 text-primary"></i>
+                    Información del método
+                </h6>
+                <span class="badge bg-success">ID: {{ object.id_metPag }}</span>
+            </div>
+            <div class="card-body p-4">
+
+                <div class="mb-4 p-3 bg-light rounded">
+                    <div class="text-muted small fw-semibold text-uppercase mb-1">Nombre del método</div>
+                    <div class="fs-5 fw-bold text-dark">
+                        <i class="bi bi-credit-card text-success me-2"></i>
+                        {{ object.nombre_metodo }}
+                    </div>
+                </div>
+
+                <div class="mb-4 p-3 bg-light rounded">
+                    <div class="text-muted small fw-semibold text-uppercase mb-1">Descripción</div>
+                    <div class="text-dark">
+                        {% if object.descripcion %}
+                            {{ object.descripcion }}
+                        {% else %}
+                            <span class="text-muted fst-italic">Sin descripción registrada</span>
+                        {% endif %}
+                    </div>
+                </div>
+
+            </div>
+            <div class="card-footer bg-white d-flex justify-content-end gap-2 py-3">
+                <a href="{% url 'metodo_pago_update' object.id_metPag %}" class="btn btn-primary">
+                    <i class="bi bi-pencil me-1"></i>Editar
+                </a>
+                <a href="{% url 'metodo_pago_delete' object.id_metPag %}" class="btn btn-outline-danger">
+                    <i class="bi bi-trash me-1"></i>Eliminar
+                </a>
+            </div>
+        </div>
+    </div>
 </div>
 {% endblock %}
