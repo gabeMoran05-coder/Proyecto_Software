@@ -9,6 +9,7 @@
             <h1>Ventas</h1>
             <p class="page-subtitle">Registro de transacciones realizadas en la farmacia</p>
         </div>
+        <a class="venta-plus" href="{% url 'venta_create' %}" aria-label="Agregar venta" title="Agregar venta">+</a>
     </div>
 
     <form class="ventas-filters" method="get">
@@ -107,9 +108,33 @@
                             <a class="sort-link" href="?orden=fecha_desc{{ filter_query_params }}">Fecha</a>
                         {% endif %}
                     </th>
-                    <th>Vendedor</th>
-                    <th>Cliente</th>
-                    <th>Metodo de pago</th>
+                    <th>
+                        {% if orden_filter == 'vendedor_asc' %}
+                            <a class="sort-link" href="?orden=vendedor_desc{{ filter_query_params }}">Vendedor <span class="sort-arrow">↑</span></a>
+                        {% elif orden_filter == 'vendedor_desc' %}
+                            <a class="sort-link" href="?orden=vendedor_asc{{ filter_query_params }}">Vendedor <span class="sort-arrow">↓</span></a>
+                        {% else %}
+                            <a class="sort-link" href="?orden=vendedor_asc{{ filter_query_params }}">Vendedor</a>
+                        {% endif %}
+                    </th>
+                    <th>
+                        {% if orden_filter == 'cliente_asc' %}
+                            <a class="sort-link" href="?orden=cliente_desc{{ filter_query_params }}">Cliente <span class="sort-arrow">↑</span></a>
+                        {% elif orden_filter == 'cliente_desc' %}
+                            <a class="sort-link" href="?orden=cliente_asc{{ filter_query_params }}">Cliente <span class="sort-arrow">↓</span></a>
+                        {% else %}
+                            <a class="sort-link" href="?orden=cliente_asc{{ filter_query_params }}">Cliente</a>
+                        {% endif %}
+                    </th>
+                    <th>
+                        {% if orden_filter == 'metodo_asc' %}
+                            <a class="sort-link" href="?orden=metodo_desc{{ filter_query_params }}">Metodo de pago <span class="sort-arrow">↑</span></a>
+                        {% elif orden_filter == 'metodo_desc' %}
+                            <a class="sort-link" href="?orden=metodo_asc{{ filter_query_params }}">Metodo de pago <span class="sort-arrow">↓</span></a>
+                        {% else %}
+                            <a class="sort-link" href="?orden=metodo_asc{{ filter_query_params }}">Metodo de pago</a>
+                        {% endif %}
+                    </th>
                     <th class="text-right">
                         {% if orden_filter == 'total_asc' %}
                             <a class="sort-link" href="?orden=total_desc{{ filter_query_params }}">Total <span class="sort-arrow">↑</span></a>
@@ -156,9 +181,32 @@
         </table>
     </div>
 
+    {% include "components/pagination.html" %}
+
 </div>
 
 <style>
+.page-header {
+    align-items: center;
+}
+.venta-plus {
+    align-items: center;
+    background: var(--primary);
+    border-radius: 50%;
+    color: #fff;
+    display: inline-flex;
+    font-size: 1.75rem;
+    font-weight: 700;
+    height: 46px;
+    justify-content: center;
+    line-height: 1;
+    text-decoration: none;
+    width: 46px;
+}
+.venta-plus:hover {
+    background: var(--primary-dark);
+    color: #fff;
+}
 .ventas-filters {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));

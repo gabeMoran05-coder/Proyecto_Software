@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Reporte farmacia</title>
+    <style>
+        table { border-collapse: collapse; width: 100%; margin-bottom: 20px; }
+        th, td { border: 1px solid #c9d7c9; padding: 8px; text-align: left; }
+        th { background: #eaf4ed; }
+        h1, h2 { color: #1a6b3c; }
+        .muted { color: #5a7a5a; }
+    </style>
+</head>
+<body>
+    <h1>Reporte general de farmacia</h1>
+    <p class="muted">Periodo: {{ fecha_desde|date:'d/m/Y' }} - {{ fecha_hasta|date:'d/m/Y' }}</p>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Indicador</th>
+                <th>Valor</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr><td>Ventas</td><td>{{ total_ventas }}</td></tr>
+            <tr><td>Ingresos</td><td>${{ ingresos|floatformat:2 }}</td></tr>
+            <tr><td>Productos vendidos</td><td>{{ productos_vendidos }}</td></tr>
+            <tr><td>Ticket promedio</td><td>${{ ticket_promedio|floatformat:2 }}</td></tr>
+            <tr><td>Compra recibida</td><td>${{ total_compra_recibida|floatformat:2 }}</td></tr>
+        </tbody>
+    </table>
+
+    <h2>Top medicamentos</h2>
+    <table>
+        <thead>
+            <tr><th>Medicamento</th><th>Presentacion</th><th>Concentracion</th><th>Cantidad</th><th>Ingresos</th></tr>
+        </thead>
+        <tbody>
+            {% for item in top_medicamentos %}
+            <tr>
+                <td>{{ item.id_medicamento__nombre }}</td>
+                <td>{{ item.id_medicamento__presentacion|default:"-" }}</td>
+                <td>{{ item.id_medicamento__concentracion|default:"-" }}</td>
+                <td>{{ item.cantidad }}</td>
+                <td>${{ item.ingresos|floatformat:2 }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="5">Sin datos.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <h2>Top vendedores</h2>
+    <table>
+        <thead>
+            <tr><th>Vendedor</th><th>Ventas</th><th>Ingresos</th></tr>
+        </thead>
+        <tbody>
+            {% for item in top_vendedores %}
+            <tr>
+                <td>{{ item.id_usuario__nombre }} {{ item.id_usuario__ap_pat|default:"" }} {{ item.id_usuario__ap_mat|default:"" }}</td>
+                <td>{{ item.ventas }}</td>
+                <td>${{ item.ingresos|floatformat:2 }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="3">Sin datos.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <h2>Metodos de pago</h2>
+    <table>
+        <thead>
+            <tr><th>Metodo</th><th>Ventas</th><th>Ingresos</th></tr>
+        </thead>
+        <tbody>
+            {% for item in metodos_pago %}
+            <tr>
+                <td>{{ item.id_metPag__nombre_metodo }}</td>
+                <td>{{ item.ventas }}</td>
+                <td>${{ item.ingresos|floatformat:2 }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="3">Sin datos.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <h2>Ventas por dia</h2>
+    <table>
+        <thead>
+            <tr><th>Dia</th><th>Ventas</th><th>Ingresos</th></tr>
+        </thead>
+        <tbody>
+            {% for item in ventas_por_dia %}
+            <tr>
+                <td>{{ item.dia|date:'d/m/Y' }}</td>
+                <td>{{ item.ventas }}</td>
+                <td>${{ item.ingresos|floatformat:2 }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="3">Sin datos.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+</html>

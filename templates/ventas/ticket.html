@@ -58,17 +58,17 @@
         <tbody>
             {% for detalle, qr in detalle_qrs %}
             <tr>
-                <td>
+                <td data-label="Medicamento">
                     <strong>{{ detalle.id_medicamento.nombre }}</strong>
                     <div class="text-muted small">
                         {{ detalle.id_medicamento.presentacion|default:"Sin presentacion" }}
                         · {{ detalle.id_medicamento.concentracion|default:"Sin concentracion" }}
                     </div>
                 </td>
-                <td>{{ detalle.cantidad }}</td>
-                <td>${{ detalle.precio_unitario|floatformat:2 }}</td>
-                <td>${{ detalle.subtotal|floatformat:2 }}</td>
-                <td>
+                <td data-label="Cant.">{{ detalle.cantidad }}</td>
+                <td data-label="Precio">${{ detalle.precio_unitario|floatformat:2 }}</td>
+                <td data-label="Subtotal">${{ detalle.subtotal|floatformat:2 }}</td>
+                <td data-label="QR medicamento">
                     <img class="med-qr" src="{% url 'qr_image' qr.id_qr %}" alt="QR {{ detalle.id_medicamento.nombre }}">
                     <div><a class="link small" href="{{ qr.url_qr }}" target="_blank">Ficha del medicamento</a></div>
                 </td>
@@ -169,6 +169,130 @@
     border: 1px solid var(--border);
     border-radius: 12px;
     padding: 0.85rem;
+    overflow-wrap: anywhere;
+}
+@media (max-width: 640px) {
+    main {
+        padding-top: 0.75rem;
+    }
+    main .container {
+        width: 100%;
+    }
+    .ticket-actions {
+        justify-content: flex-start;
+        padding: 0 0.75rem;
+    }
+    .ticket-actions .btn {
+        flex: 1 1 100%;
+        justify-content: center;
+    }
+    .ticket-card {
+        width: calc(100vw - 1rem);
+        margin: 0.5rem auto 1rem;
+        border-radius: 12px;
+        padding: 1rem;
+        overflow: hidden;
+    }
+    .ticket-head {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 0.75rem;
+        align-items: start;
+    }
+    .ticket-head h1 {
+        font-size: 1.55rem;
+        line-height: 1.08;
+    }
+    .ticket-kicker {
+        font-size: 0.72rem;
+        letter-spacing: 0.06em;
+    }
+    .ticket-qr {
+        width: 108px;
+        height: 108px;
+        border-radius: 10px;
+        padding: 0.3rem;
+    }
+    .ticket-grid {
+        grid-template-columns: 1fr;
+        gap: 0.55rem;
+    }
+    .ticket-grid div {
+        border-radius: 10px;
+        padding: 0.7rem;
+    }
+    .ticket-card h2 {
+        font-size: 1.25rem;
+        margin-bottom: 0.75rem;
+    }
+    .ticket-table,
+    .ticket-table tbody,
+    .ticket-table tfoot,
+    .ticket-table tr,
+    .ticket-table td {
+        display: block;
+        width: 100%;
+    }
+    .ticket-table thead {
+        display: none;
+    }
+    .ticket-table tbody tr {
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        margin-bottom: 0.75rem;
+        overflow: hidden;
+        background: #fff;
+    }
+    .ticket-table td {
+        align-items: start;
+        border-bottom: 1px solid var(--border);
+        display: grid;
+        gap: 0.5rem;
+        grid-template-columns: 96px minmax(0, 1fr);
+        padding: 0.65rem 0.75rem;
+    }
+    .ticket-table td::before {
+        color: var(--muted);
+        content: attr(data-label);
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+    }
+    .ticket-table td:first-child {
+        grid-template-columns: 1fr;
+    }
+    .ticket-table td:first-child::before {
+        margin-bottom: -0.2rem;
+    }
+    .ticket-table td:last-child {
+        border-bottom: 0;
+    }
+    .ticket-table tfoot tr {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        border-top: 2px solid var(--border);
+        padding-top: 0.5rem;
+    }
+    .ticket-table tfoot td {
+        border-bottom: 0;
+        display: block;
+        padding: 0.55rem 0.75rem;
+    }
+    .ticket-table tfoot td:first-child {
+        text-align: left;
+    }
+    .ticket-table tfoot td::before {
+        display: none;
+    }
+    .med-qr {
+        width: 92px;
+        height: 92px;
+    }
+    .ticket-note {
+        font-size: 0.82rem;
+        line-height: 1.35;
+    }
 }
 @media print {
     header, footer, .ticket-actions { display: none !important; }

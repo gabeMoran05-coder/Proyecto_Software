@@ -4,8 +4,7 @@ from apps.medicamentos.whatsapp import (
     WhatsAppIntegrationError,
     _absolute_url,
     _enviar_audio,
-    _enviar_imagen,
-    _enviar_texto,
+    _enviar_plantilla,
     _generar_audio_ia,
     _generar_qr_png,
     _subir_media,
@@ -26,10 +25,15 @@ def enviar_ticket_por_whatsapp(request, venta, telefono):
         f'ticket-venta-{venta.id_ventas}-qr.png',
     )
 
-    _enviar_texto(telefono, texto_ticket(request, venta))
-    _enviar_imagen(telefono, qr_media_id, f'QR del ticket de compra #{venta.id_ventas}.')
-
     from django.conf import settings
+    _enviar_plantilla(
+        telefono=telefono,
+        template_name=settings.WHATSAPP_TICKET_TEMPLATE_NAME,
+        language_code=settings.WHATSAPP_TICKET_TEMPLATE_LANGUAGE,
+        header_image_id=qr_media_id,
+        body_params=_ticket_template_params(request, venta, ticket_url),
+    )
+
     if settings.OPENAI_API_KEY:
         audio_texto = texto_audio_ticket(venta)
         audio_mp3 = _generar_audio_ia(audio_texto)
@@ -49,6 +53,19 @@ def construir_preview_ticket(request, venta):
 
 
 def texto_ticket(request, venta):
+    ticket_url = _ticket_url(request, venta)
+    cliente, folio, fecha, productos_count, total, url = _ticket_template_params(request, venta, ticket_url)
+    return (
+        f'Hola {cliente}, gracias por tu compra en Farmacia Inclusiva.\n\n'
+        f'Tu ticket #{folio} del {fecha} incluye {productos_count} producto(s).\n\n'
+        f'Total: ${total}\n\n'
+        f'Puedes consultar tu ticket y los QR de tus medicamentos aqui:\n'
+        f'{url}\n\n'
+        f'Gracias, buen dia'
+    )
+
+
+def texto_ticket_detallado(request, venta):
     detalles = _detalles(venta)
     productos = '\n'.join(
         f'- {det.cantidad} x {det.id_medicamento.nombre}: ${det.subtotal:.2f}'
@@ -111,3 +128,18 @@ def _detalles(venta):
     return venta.detalleventa_set.select_related(
         'id_medicamento__id_lote__id_prov'
     ).all()
+
+
+def _ticket_template_params(request, venta, ticket_url=None):
+    detalles = list(_detalles(venta))
+    productos_count = sum(det.cantidad or 0 for det in detalles)
+    fecha = venta.fecha_venta.strftime('%d/%m/%Y') if venta.fecha_venta else 'No registrada'
+    total = f'{venta.total_venta:.2f}' if venta.total_venta is not None else '0.00'
+    return [
+        venta.cliente_display(),
+        venta.id_ventas,
+        fecha,
+        productos_count,
+        total,
+        ticket_url or _ticket_url(request, venta),
+    ]

@@ -12,8 +12,8 @@
     </div>
     <form method="post" class="form-actions mt-2">
         {% csrf_token %}
-        <button class="btn btn-danger" type="submit">Sí, cancelar venta</button>
         <a class="btn btn-secondary" href="{% url 'venta_detail' venta.id_ventas %}">Volver</a>
+        <button class="btn btn-danger" type="submit">Sí, cancelar venta</button>
     </form>
 </div>
 {% endblock %}

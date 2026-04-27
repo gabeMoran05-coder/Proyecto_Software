@@ -2,4 +2,6 @@ from django.apps import AppConfig
 
 
 class ProveedoresConfig(AppConfig):
-    name = 'apps.proveedores'
+    default_auto_field = 'django.db.models.BigAutoField'
+    name               = 'apps.proveedores'
+    verbose_name       = 'Proveedores'

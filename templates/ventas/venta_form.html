@@ -64,8 +64,8 @@
                     </div>
                     <div class="form-group">
                         <label for="fecha_venta">Fecha y hora</label>
-                        <input id="fecha_venta" name="fecha_venta" type="datetime-local"
-                            value="{{ fecha_actual|default:'' }}">
+                        <input id="fecha_venta" name="fecha_venta" type="text"
+                            value="{{ fecha_actual|default:'' }}" readonly>
                     </div>
                 </div>
             </fieldset>
@@ -111,9 +111,15 @@
                                 data-stock="{{ med.stock_total }}"
                                 data-receta="{{ med.requiere_receta|yesno:'true,false' }}"
                                 data-lotes='{{ med.lotes_json|safe }}'>
-                                {{ med.nombre }} - Stock total: {{ med.stock_total }} - Desde ${{ med.precio_venta|floatformat:2|default:"S/P" }}
+                                {{ med.nombre }} | Stock {{ med.stock_total }} | Desde ${{ med.precio_venta|floatformat:2|default:"S/P" }}
                             </option>
                             {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group" style="flex:1.4;">
+                        <label for="selector-lote">Proveedor/lote</label>
+                        <select id="selector-lote" disabled>
+                            <option value="">Primero elige medicamento</option>
                         </select>
                     </div>
                     <div class="form-group" style="flex:0 0 120px;">
@@ -121,7 +127,7 @@
                         <input id="cantidad-agregar" type="number" min="1" value="1">
                     </div>
                     <div style="align-self:flex-end;">
-                        <button type="button" id="btn-agregar" class="btn btn-primary">+ Agregar</button>
+                        <button type="button" id="btn-agregar" class="btn btn-primary btn-plus" title="Agregar medicamento" aria-label="Agregar medicamento">+</button>
                     </div>
                 </div>
             </div>
@@ -156,10 +162,10 @@
         </fieldset>
 
         <div class="form-actions mt-2">
+            <a class="btn btn-secondary" href="{% url 'venta_list' %}">Cancelar</a>
             <button type="submit" class="btn btn-primary" id="btn-registrar" disabled>
                 ✅ Registrar venta
             </button>
-            <a class="btn btn-secondary" href="{% url 'venta_list' %}">Cancelar</a>
         </div>
     </form>
 </div>
@@ -169,6 +175,82 @@ const productos = {};
 
 function formatCurrency(n) {
     return '$' + parseFloat(n).toFixed(2);
+}
+
+function lotesDelMedicamentoSeleccionado() {
+    const opt = document.getElementById('buscar-med').selectedOptions[0];
+    if (!opt || !opt.value) return [];
+    return JSON.parse(opt.dataset.lotes || '[]');
+}
+
+function stockDeLotes(lotes) {
+    return lotes.reduce((sum, lote) => sum + (parseInt(lote.stock) || 0), 0);
+}
+
+function precioInicial(lotes) {
+    return lotes.length ? (parseFloat(lotes[0].precio) || 0) : 0;
+}
+
+function agruparLotesPorProveedor(lotes) {
+    return lotes.reduce((grupos, lote) => {
+        const id = lote.proveedor_id || 'sin-proveedor';
+        if (!grupos[id]) {
+            grupos[id] = {
+                proveedor_id: id,
+                proveedor: lote.proveedor || 'Sin proveedor',
+                lotes: []
+            };
+        }
+        grupos[id].lotes.push(lote);
+        return grupos;
+    }, {});
+}
+
+function actualizarSelectorLote() {
+    const selMed = document.getElementById('buscar-med');
+    const selLote = document.getElementById('selector-lote');
+    const opt = selMed.selectedOptions[0];
+    selLote.innerHTML = '';
+
+    if (!opt || !opt.value) {
+        selLote.disabled = true;
+        selLote.innerHTML = '<option value="">Primero elige medicamento</option>';
+        return;
+    }
+
+    const lotes = lotesDelMedicamentoSeleccionado();
+    const stockTotal = stockDeLotes(lotes);
+    const auto = document.createElement('option');
+    auto.value = `auto-${opt.value}`;
+    auto.textContent = `Automatico | mas viejo vigente | Stock ${stockTotal} | ${formatCurrency(precioInicial(lotes))}`;
+    selLote.appendChild(auto);
+
+    Object.values(agruparLotesPorProveedor(lotes)).forEach(grupo => {
+        const option = document.createElement('option');
+        option.value = `prov-${opt.value}-${grupo.proveedor_id}`;
+        option.textContent = `${grupo.proveedor} | Stock ${stockDeLotes(grupo.lotes)} | desde ${formatCurrency(precioInicial(grupo.lotes))}`;
+        selLote.appendChild(option);
+    });
+
+    lotes.forEach(lote => {
+        const option = document.createElement('option');
+        option.value = `lote-${lote.med_id}`;
+        option.textContent = `Lote ${lote.numero} | ${lote.proveedor} | Stock ${lote.stock} | ${formatCurrency(lote.precio)} | Cad. ${lote.caducidad}`;
+        selLote.appendChild(option);
+    });
+
+    selLote.disabled = false;
+}
+
+function lotesParaSeleccion(lotes, seleccion) {
+    const partes = seleccion.split('-');
+    if (partes[0] === 'lote') {
+        return lotes.filter(lote => String(lote.med_id) === partes[1]);
+    }
+    if (partes[0] === 'prov') {
+        return lotes.filter(lote => String(lote.proveedor_id) === partes[2]);
+    }
+    return lotes;
 }
 
 function actualizarResumen() {
@@ -209,8 +291,9 @@ function renderTabla() {
         tr.innerHTML = `
             <td>
                 <strong>${p.nombre}</strong>${p.requiere_receta ? ' <span class="badge badge-yellow" style="font-size:0.7rem;">Receta</span>' : ''}
+                <div class="text-muted small">${p.seleccion_label}</div>
                 <div class="text-muted small" style="margin-top:0.35rem;">
-                    ${desglose.map(d => `${d.cantidad} de lote ${d.numero} a ${formatCurrency(d.precio)} = ${formatCurrency(d.subtotal)}`).join('<br>')}
+                    ${desglose.map(d => `${d.cantidad} de ${d.proveedor}, lote ${d.numero} a ${formatCurrency(d.precio)} = ${formatCurrency(d.subtotal)}`).join('<br>')}
                 </div>
                 ${p.requiere_receta ? `
                     <label class="small" style="display:block; margin-top:0.35rem;">
@@ -269,6 +352,7 @@ function desgloseLotes(producto) {
         const subtotal = cantidad * lote.precio;
         partes.push({
             numero: lote.numero,
+            proveedor: lote.proveedor || 'Sin proveedor',
             cantidad,
             precio: lote.precio,
             subtotal,
@@ -290,22 +374,28 @@ function confirmarReceta(id, checked) {
 
 document.getElementById('btn-agregar').addEventListener('click', function () {
     const sel = document.getElementById('buscar-med');
+    const selLote = document.getElementById('selector-lote');
     const cantInput = document.getElementById('cantidad-agregar');
     const opt = sel.selectedOptions[0];
     if (!opt || !opt.value) {
         alert('Selecciona un medicamento.');
         return;
     }
-    const id = opt.value;
+    if (!selLote.value) {
+        alert('Selecciona proveedor/lote.');
+        return;
+    }
+    const id = selLote.value;
     const nombre = opt.dataset.nombre;
-    const precio = parseFloat(opt.dataset.precio) || 0;
-    const stock = parseInt(opt.dataset.stock) || 0;
     const receta = opt.dataset.receta === 'true';
-    const lotes = JSON.parse(opt.dataset.lotes || '[]');
+    const lotes = lotesParaSeleccion(JSON.parse(opt.dataset.lotes || '[]'), id);
+    const precio = precioInicial(lotes);
+    const stock = stockDeLotes(lotes);
+    const seleccionLabel = selLote.selectedOptions[0].textContent;
     let cantidad = parseInt(cantInput.value) || 1;
 
     if (stock === 0) {
-        alert('Este medicamento no tiene stock disponible.');
+        alert('Esta seleccion no tiene stock disponible.');
         return;
     }
     if (cantidad > stock) {
@@ -316,13 +406,16 @@ document.getElementById('btn-agregar').addEventListener('click', function () {
     if (productos[id]) {
         productos[id].cantidad = Math.min(productos[id].cantidad + cantidad, stock);
     } else {
-        productos[id] = { nombre, precio, cantidad, stock, requiere_receta: receta, receta_confirmada: !receta, lotes };
+        productos[id] = { nombre, precio, cantidad, stock, requiere_receta: receta, receta_confirmada: !receta, lotes, seleccion_label: seleccionLabel };
     }
 
     renderTabla();
     sel.value = '';
+    actualizarSelectorLote();
     cantInput.value = 1;
 });
+
+document.getElementById('buscar-med').addEventListener('change', actualizarSelectorLote);
 </script>
 
 {% endblock %}

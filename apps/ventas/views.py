@@ -110,10 +110,16 @@ def venta_list(request):
         'folio_desc': '-id_ventas',
         'fecha_asc': 'fecha_venta',
         'fecha_desc': '-fecha_venta',
+        'vendedor_asc': 'id_usuario__nombre',
+        'vendedor_desc': '-id_usuario__nombre',
+        'cliente_asc': 'id_cliente__nombre',
+        'cliente_desc': '-id_cliente__nombre',
+        'metodo_asc': 'id_metPag__nombre_metodo',
+        'metodo_desc': '-id_metPag__nombre_metodo',
         'total_asc': 'total_venta',
         'total_desc': '-total_venta',
     }
-    ventas = ventas.order_by(ordenes.get(orden_filter, '-fecha_venta'))
+    ventas = ventas.order_by(ordenes.get(orden_filter, '-fecha_venta'), '-id_ventas')
     vendedor_groups = _agrupar_ventas_por_vendedor(ventas)
 
     # Stats del día
@@ -148,13 +154,14 @@ def venta_list(request):
         'ventas':          page_obj.object_list,
         'page_obj':        page_obj,
         'paginator':       paginator,
+        'is_paginated':    paginator.num_pages > 1,
         'total_ventas':    ventas_base_qs.count(),
         'ingresos_hoy':    ingresos_hoy,
         'ventas_mes':      ventas_mes_qs.count(),
         'ticket_promedio': round(ticket_promedio, 2),
         'vendedor_groups': vendedor_groups,
         'metodos_pago':    MetodoPago.objects.all(),
-        'usuarios':        Usuario.objects.all().order_by('nombre'),
+        'usuarios':        Usuario.objects.filter(rol=Usuario.ROL_CAJERO, activo=True).order_by('nombre', 'ap_pat'),
         'fecha_desde':     fecha_desde,
         'fecha_hasta':     fecha_hasta,
         'metodo_filter':   metodo_filter,
@@ -322,12 +329,13 @@ def venta_ticket_whatsapp(request, pk):
 # ═══════════════════════════════════════════════════════════════
 
 def venta_create(request):
+    fecha_servidor = timezone.localtime(timezone.now())
     context = {
-        'usuarios':     Usuario.objects.all().order_by('nombre'),
+        'usuarios':     Usuario.objects.filter(rol=Usuario.ROL_CAJERO, activo=True).order_by('nombre', 'ap_pat'),
         'metodos_pago': MetodoPago.objects.all(),
         'clientes':     Cliente.objects.all().order_by('nombre', 'ap_pat'),
         'medicamentos': _medicamentos_para_venta(),
-        'fecha_actual': timezone.now().strftime('%Y-%m-%dT%H:%M'),
+        'fecha_actual': fecha_servidor.strftime('%Y-%m-%d %H:%M'),
     }
 
     if request.method == 'POST':
@@ -353,13 +361,18 @@ def venta_create(request):
                 total  = Decimal('0.00')
                 lineas = []
 
-                for med_id, cant_str, precio_str in zip(med_ids, cantidades, precios):
+                for seleccion, cant_str, precio_str in zip(med_ids, cantidades, precios):
+                    tipo_seleccion, med_id, proveedor_id = _parsear_seleccion_medicamento(seleccion)
                     med      = get_object_or_404(Medicamento.objects.select_related('id_lote'), pk=med_id)
                     cantidad = int(cant_str)
-                    if med.requiere_receta and med_id not in recetas_confirmadas:
+                    if med.requiere_receta and seleccion not in recetas_confirmadas:
                         raise ValueError(f'Debes confirmar receta para {med.nombre}.')
 
-                    lotes_disponibles = _medicamentos_vigentes_mismo_grupo(med)
+                    lotes_disponibles = _medicamentos_para_descontar(
+                        med,
+                        tipo_seleccion=tipo_seleccion,
+                        proveedor_id=proveedor_id,
+                    )
                     stock_disponible = sum(item.id_lote.stock_actual or 0 for item in lotes_disponibles)
                     if cantidad > stock_disponible:
                         raise ValueError(
@@ -385,7 +398,7 @@ def venta_create(request):
                     id_usuario  = get_object_or_404(Usuario,     pk=usuario_id),
                     id_metPag   = get_object_or_404(MetodoPago,  pk=metpag_id),
                     id_cliente  = get_object_or_404(Cliente, pk=cliente_id) if cliente_id else None,
-                    fecha_venta = request.POST.get('fecha_venta') or timezone.now(),
+                    fecha_venta = timezone.now(),
                     total_venta = total,
                 )
 
@@ -557,7 +570,7 @@ def _clave_medicamento(med):
 
 
 def _medicamentos_para_venta():
-    meds = Medicamento.objects.select_related('id_lote').filter(
+    meds = Medicamento.objects.select_related('id_lote', 'id_lote__id_prov').filter(
         id_lote__activo=True,
         id_lote__oculto_por_caducidad=False,
         id_lote__stock_actual__gt=0,
@@ -581,6 +594,9 @@ def _medicamentos_para_venta():
         for med in grupo:
             lote = med.id_lote
             lotes.append({
+                'med_id': med.id_med,
+                'proveedor_id': lote.id_prov_id,
+                'proveedor': lote.id_prov.nombre,
                 'numero': lote.numero_lote,
                 'stock': lote.stock_actual or 0,
                 'precio': float(lote.precio_venta or Decimal('0.00')),
@@ -604,8 +620,34 @@ def _medicamentos_para_venta():
     return sorted(opciones, key=lambda med: med.nombre.lower())
 
 
+def _parsear_seleccion_medicamento(seleccion):
+    partes = str(seleccion).split('-')
+    if len(partes) >= 2 and partes[0] in {'auto', 'lote'}:
+        return partes[0], int(partes[1]), None
+    if len(partes) >= 3 and partes[0] == 'prov':
+        return 'prov', int(partes[1]), int(partes[2])
+    return 'auto', int(seleccion), None
+
+
+def _medicamentos_para_descontar(med, tipo_seleccion='auto', proveedor_id=None):
+    if tipo_seleccion == 'lote':
+        meds = [med]
+    else:
+        meds = _medicamentos_vigentes_mismo_grupo(med)
+        if tipo_seleccion == 'prov' and proveedor_id:
+            meds = [item for item in meds if item.id_lote.id_prov_id == proveedor_id]
+    meds = [
+        item for item in meds
+        if item.id_lote.activo
+        and not item.id_lote.oculto_por_caducidad
+        and (item.id_lote.stock_actual or 0) > 0
+        and item.id_lote.estado_caducidad != 'rojo'
+    ]
+    return _ordenar_medicamentos_para_venta(meds)
+
+
 def _medicamentos_vigentes_mismo_grupo(med):
-    meds = Medicamento.objects.select_related('id_lote').filter(
+    meds = Medicamento.objects.select_related('id_lote', 'id_lote__id_prov').filter(
         nombre__iexact=med.nombre,
         presentacion=med.presentacion,
         concentracion=med.concentracion,
