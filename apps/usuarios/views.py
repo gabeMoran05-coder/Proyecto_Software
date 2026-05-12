@@ -4,10 +4,11 @@ from django.contrib import messages
 from django.db.models.deletion import ProtectedError
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
+from django.utils.http import url_has_allowed_host_and_scheme
 
 from .forms import LoginForm, UsuarioForm
-from .models import Usuario
-from .security import SESSION_USER_ID, first_allowed_path
+from .models import NotificacionSistema, NotificacionSistemaDescartada, Usuario
+from .security import SESSION_USER_ID, first_allowed_path, get_current_usuario
 
 
 def home_redirect(request):
@@ -39,7 +40,7 @@ def usuario_login(request):
             usuario.save(update_fields=['ultima_conexion'])
             return redirect(next_url or first_allowed_path(usuario))
         else:
-            messages.error(request, 'Usuario o contrasena incorrectos.')
+            messages.error(request, 'Usuario o contraseña incorrectos.')
 
     return render(request, 'usuarios/login.html', {
         'form': form,
@@ -77,7 +78,10 @@ def _usuario_list(request, ocultos=False):
             | Q(usuario__icontains=q)
         )
     if rol_filter:
-        usuarios = usuarios.filter(rol=rol_filter)
+        if rol_filter == Usuario.ROL_ADMIN:
+            usuarios = usuarios.filter(rol__in=[Usuario.ROL_ADMIN, Usuario.ROL_ADMINISTRADOR])
+        else:
+            usuarios = usuarios.filter(rol=rol_filter)
 
     ordenes = {
         'id_asc': 'id_usuario',
@@ -120,7 +124,7 @@ def _usuario_list(request, ocultos=False):
         'ocultos': ocultos,
         'q': q,
         'rol_filtro': rol_filter,
-        'roles': Usuario.ROL_CHOICES,
+        'roles': Usuario.ROL_PUBLIC_CHOICES,
         'orden': orden_filter,
         'orden_filter': orden_filter,
         'query_params': query_params,
@@ -209,3 +213,23 @@ def usuario_restaurar(request, pk):
         usuario.save(update_fields=['activo', 'fecha_baja'])
         messages.success(request, f'{usuario.nombre_completo()} fue restaurado como usuario activo.')
     return redirect('usuario_ocultos')
+
+
+def notificacion_sistema_descartar(request, pk):
+    usuario = get_current_usuario(request)
+    if request.method == 'POST' and usuario:
+        notificacion = get_object_or_404(NotificacionSistema, pk=pk, activa=True)
+        NotificacionSistemaDescartada.objects.update_or_create(
+            id_usuario=usuario,
+            id_notificacion=notificacion,
+            defaults={'fecha_descartada': timezone.now()},
+        )
+
+    siguiente = request.POST.get('next') or request.META.get('HTTP_REFERER') or '/'
+    if not url_has_allowed_host_and_scheme(
+        siguiente,
+        allowed_hosts={request.get_host()},
+        require_https=request.is_secure(),
+    ):
+        siguiente = '/'
+    return redirect(siguiente)

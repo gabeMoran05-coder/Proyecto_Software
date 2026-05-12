@@ -11,6 +11,7 @@ PUBLIC_PATHS = (
     '/static/',
     '/medicamentos/qr/leer/',
     '/ventas/ticket/',
+    '/whatsapp/webhook/',
 )
 
 ROLE_PATHS = {
@@ -66,6 +67,8 @@ def can_access_path(usuario, path):
         return False
     if not usuario.activo:
         return False
+    if path.startswith('/usuarios/notificaciones/'):
+        return True
     if path == '/':
         return True
     if usuario.es_admin():

@@ -1,6 +1,7 @@
 from pathlib import Path
 import os
 
+from celery.schedules import crontab
 from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -72,6 +73,7 @@ TEMPLATES = [
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
                 'apps.usuarios.security.usuario_context',
+                'apps.medicamentos.context_processors.notificaciones_caducidad',
             ],
         },
     },
@@ -137,11 +139,76 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 SITE_PUBLIC_BASE_URL = os.environ.get('SITE_PUBLIC_BASE_URL', '').rstrip('/')
 
+EMAIL_BACKEND = os.environ.get(
+    'EMAIL_BACKEND',
+    'django.core.mail.backends.console.EmailBackend',
+)
+EMAIL_HOST = os.environ.get('EMAIL_HOST', '')
+EMAIL_PORT = int(os.environ.get('EMAIL_PORT', 587))
+EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '')
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
+EMAIL_USE_TLS = env_bool('EMAIL_USE_TLS', True)
+EMAIL_USE_SSL = env_bool('EMAIL_USE_SSL', False)
+DEFAULT_FROM_EMAIL = os.environ.get(
+    'DEFAULT_FROM_EMAIL',
+    EMAIL_HOST_USER or 'Farmacia Inclusiva <notificaciones@farmacia.local>',
+)
+
+CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL', 'redis://redis:6379/0')
+CELERY_RESULT_BACKEND = os.environ.get('CELERY_RESULT_BACKEND', 'redis://redis:6379/1')
+CELERY_TIMEZONE = TIME_ZONE
+CELERY_ENABLE_UTC = False
+CELERY_TASK_TIME_LIMIT = int(os.environ.get('CELERY_TASK_TIME_LIMIT', 300))
+CELERY_TASK_SOFT_TIME_LIMIT = int(os.environ.get('CELERY_TASK_SOFT_TIME_LIMIT', 240))
+CELERY_BEAT_SCHEDULE = {
+    'retirar-lotes-caducos-diario-0700': {
+        'task': 'apps.medicamentos.tasks.retirar_lotes_caducos_task',
+        'schedule': crontab(hour=7, minute=0),
+    },
+    'actualizar-estados-inventario-diario-0705': {
+        'task': 'apps.medicamentos.tasks.actualizar_estados_inventario_task',
+        'schedule': crontab(hour=7, minute=5),
+    },
+    'enviar-alertas-caducidad-diario-0730': {
+        'task': 'apps.medicamentos.tasks.enviar_alertas_caducidad_task',
+        'schedule': crontab(hour=7, minute=30),
+    },
+    'enviar-alertas-bajo-stock-diario-0735': {
+        'task': 'apps.medicamentos.tasks.enviar_alertas_bajo_stock_task',
+        'schedule': crontab(hour=7, minute=35),
+    },
+    'recordatorio-clientes-afectados-diario-0745': {
+        'task': 'apps.medicamentos.tasks.recordatorio_clientes_afectados_task',
+        'schedule': crontab(hour=7, minute=45),
+    },
+    'limpiar-notificaciones-descartadas-cada-hora': {
+        'task': 'apps.medicamentos.tasks.limpiar_notificaciones_descartadas_task',
+        'schedule': crontab(minute=15),
+    },
+    'enviar-resumen-ventas-diario-2100': {
+        'task': 'apps.ventas.tasks.enviar_resumen_ventas_diario_task',
+        'schedule': crontab(hour=21, minute=0),
+    },
+    'enviar-reporte-semanal-lunes-0800': {
+        'task': 'apps.ventas.tasks.enviar_reporte_semanal_task',
+        'schedule': crontab(hour=8, minute=0, day_of_week='monday'),
+    },
+    'enviar-reporte-mensual-dia-1-0815': {
+        'task': 'apps.ventas.tasks.enviar_reporte_mensual_task',
+        'schedule': crontab(hour=8, minute=15, day_of_month='1'),
+    },
+}
+
 WHATSAPP_GRAPH_API_VERSION = os.environ.get('WHATSAPP_GRAPH_API_VERSION', 'v21.0')
 WHATSAPP_PHONE_NUMBER_ID = os.environ.get('WHATSAPP_PHONE_NUMBER_ID', '')
 WHATSAPP_ACCESS_TOKEN = os.environ.get('WHATSAPP_ACCESS_TOKEN', '')
 WHATSAPP_TICKET_TEMPLATE_NAME = os.environ.get('WHATSAPP_TICKET_TEMPLATE_NAME', 'ticket_compra_farmacia')
 WHATSAPP_TICKET_TEMPLATE_LANGUAGE = os.environ.get('WHATSAPP_TICKET_TEMPLATE_LANGUAGE', 'es_MX')
+WHATSAPP_WEBHOOK_VERIFY_TOKEN = os.environ.get('WHATSAPP_WEBHOOK_VERIFY_TOKEN', '')
+WHATSAPP_TICKET_TEMPLATE_HEADER_IMAGE = os.environ.get(
+    'WHATSAPP_TICKET_TEMPLATE_HEADER_IMAGE',
+    'False',
+).lower() in {'1', 'true', 'yes', 'on'}
 
 OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY', '')
 OPENAI_TTS_MODEL = os.environ.get('OPENAI_TTS_MODEL', 'gpt-4o-mini-tts')

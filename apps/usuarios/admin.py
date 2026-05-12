@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.utils.html import format_html
 
-from .models import Usuario
+from .models import NotificacionSistema, Usuario
 
 
 @admin.register(Usuario)
@@ -75,3 +75,14 @@ class UsuarioAdmin(admin.ModelAdmin):
     @admin.display(description='# Ventas')
     def num_ventas(self, obj):
         return obj.total_ventas_registradas()
+
+
+@admin.register(NotificacionSistema)
+class NotificacionSistemaAdmin(admin.ModelAdmin):
+    list_display = [
+        'id_notificacion', 'titulo', 'categoria', 'nivel', 'activa',
+        'fecha_actualizacion',
+    ]
+    list_filter = ['categoria', 'nivel', 'activa']
+    search_fields = ['titulo', 'mensaje', 'clave']
+    readonly_fields = ['fecha_creacion', 'fecha_actualizacion']
