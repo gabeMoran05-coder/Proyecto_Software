@@ -1,0 +1,345 @@
+{% extends "base.html" %}
+{% block title %}Trazabilidad de medicamentos{% endblock %}
+
+{% block content %}
+<div class="card mt-2">
+    <div class="page-header">
+        <div>
+            <h1>Trazabilidad</h1>
+            <p class="page-subtitle">Rastreo de clientes y ventas afectadas por medicamento o lote</p>
+        </div>
+        <div class="btn-group">
+            <button class="btn btn-secondary" type="button" onclick="window.print()">Imprimir</button>
+            <a class="btn btn-secondary" href="{% url 'venta_list' %}">Volver</a>
+        </div>
+    </div>
+
+    <form class="trace-filters" method="get">
+        <div class="filter-field trace-field-wide">
+            <label for="medicamento">Medicamento</label>
+            <select id="medicamento" name="medicamento">
+                <option value="">Todos</option>
+                {% for med in medicamentos %}
+                    <option value="{{ med.id_med }}" data-trace-key="{{ med.trazabilidad_clave }}" {% if medicamento_id == med.id_med|stringformat:"s" %}selected{% endif %}>
+                        {{ med.nombre }}{% if med.detalle %} - {{ med.detalle }}{% endif %}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="filter-field trace-field-wide">
+            <label for="lote">Lote específico</label>
+            <select id="lote" name="lote">
+                <option value="">Todos</option>
+                {% for lote in lotes %}
+                    <option value="{{ lote.id_lote }}" data-trace-keys="{{ lote.trazabilidad_claves }}" {% if lote_id == lote.id_lote|stringformat:"s" %}selected{% endif %}>
+                        {{ lote.numero_lote }} - {{ lote.id_prov.nombre }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="filter-field">
+            <label for="fecha_desde">Desde</label>
+            <input id="fecha_desde" name="fecha_desde" type="date" value="{{ fecha_desde }}">
+        </div>
+        <div class="filter-field">
+            <label for="fecha_hasta">Hasta</label>
+            <input id="fecha_hasta" name="fecha_hasta" type="date" value="{{ fecha_hasta }}">
+        </div>
+        <div class="filter-field">
+            <label for="tipo_cliente">Cliente</label>
+            <select id="tipo_cliente" name="tipo_cliente">
+                <option value="" {% if not tipo_cliente %}selected{% endif %}>Todos</option>
+                <option value="registrados" {% if tipo_cliente == "registrados" %}selected{% endif %}>Registrados</option>
+                <option value="publico" {% if tipo_cliente == "publico" %}selected{% endif %}>Público general</option>
+            </select>
+        </div>
+        <div class="filter-actions">
+            <button class="btn btn-primary" type="submit">Rastrear</button>
+            <a class="btn btn-secondary" href="{% url 'venta_trazabilidad' %}">Limpiar</a>
+        </div>
+    </form>
+
+    {% if lote_seleccionado or medicamento_seleccionado %}
+        <section class="trace-notice">
+            <strong>Búsqueda activa</strong>
+            {% if lote_seleccionado %}
+                <span>Lote {{ lote_seleccionado.numero_lote }}</span>
+            {% elif medicamento_seleccionado %}
+                <span>{{ medicamento_seleccionado.nombre }}{% if medicamento_seleccionado.presentacion_completa %} - {{ medicamento_seleccionado.presentacion_completa }}{% endif %}{% if medicamento_seleccionado.concentracion %} - {{ medicamento_seleccionado.concentracion }}{% endif %}</span>
+            {% endif %}
+        </section>
+    {% endif %}
+
+    <div class="trace-kpis">
+        <section class="trace-kpi">
+            <span>Ventas afectadas</span>
+            <strong>{{ ventas_afectadas_total }}</strong>
+            <small>Folios distintos</small>
+        </section>
+        <section class="trace-kpi">
+            <span>Clientes rastreables</span>
+            <strong>{{ clientes_contactables_total }}</strong>
+            <small>Con registro en sistema</small>
+        </section>
+        <section class="trace-kpi">
+            <span>Público general</span>
+            <strong>{{ ventas_publico_general_total }}</strong>
+            <small>Lineas sin cliente</small>
+        </section>
+        <section class="trace-kpi">
+            <span>Unidades</span>
+            <strong>{{ unidades_afectadas_total }}</strong>
+            <small>Vendidas en resultados</small>
+        </section>
+    </div>
+
+    <div class="trace-panel">
+        <div class="trace-panel-head">
+            <h2>Compradores encontrados</h2>
+            {% if busqueda_activa %}
+                <span>{{ detalles|length }} registro(s)</span>
+            {% else %}
+                <span>Sin búsqueda</span>
+            {% endif %}
+        </div>
+
+        {% if busqueda_activa %}
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Venta</th>
+                            <th>Fecha</th>
+                            <th>Cliente</th>
+                            <th>Telefono</th>
+                            <th>Medicamento</th>
+                            <th>Lote</th>
+                            <th>Cant.</th>
+                            <th>Estado</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for det in detalles %}
+                            <tr>
+                                <td><a class="link text-mono" href="{% url 'venta_detail' det.id_ventas.id_ventas %}">#{{ det.id_ventas.id_ventas }}</a></td>
+                                <td>{{ det.id_ventas.fecha_venta|date:'d/m/Y H:i'|default:"-" }}</td>
+                                <td>
+                                    {% if det.id_ventas.id_cliente %}
+                                        <a class="link" href="{% url 'cliente_detail' det.id_ventas.id_cliente.id_cliente %}">
+                                            {{ det.id_ventas.id_cliente.nombre_completo }}
+                                        </a>
+                                    {% else %}
+                                        <span class="text-muted">Público general</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ det.id_ventas.id_cliente.telefono|default:"-" }}</td>
+                                <td>
+                                    <a class="link" href="{% url 'medicamento_detail' det.id_medicamento.id_med %}">{{ det.id_medicamento.nombre }}</a>
+                                    <div class="text-muted small">
+                                        {{ det.id_medicamento.presentacion_completa|default:"Sin presentación" }}
+                                        {% if det.id_medicamento.concentracion %} - {{ det.id_medicamento.concentracion }}{% endif %}
+                                    </div>
+                                </td>
+                                <td>
+                                    {% if det.id_medicamento.id_lote %}
+                                        <a class="link text-mono" href="{% url 'lote_detail' det.id_medicamento.id_lote.id_lote %}">
+                                            {{ det.id_medicamento.id_lote.numero_lote }}
+                                        </a>
+                                    {% else %}
+                                        <span class="text-muted">Sin lote</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-mono fw-600">{{ det.cantidad }}</td>
+                                <td>
+                                    {% if det.id_ventas.id_cliente %}
+                                        <span class="badge badge-green">Contactable</span>
+                                    {% else %}
+                                        <span class="badge badge-yellow">No rastreable</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% empty %}
+                            <tr>
+                                <td colspan="8">
+                                    <div class="empty-state">
+                                        <p>No se encontraron ventas con esos filtros.</p>
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="empty-state trace-empty">
+                <p>Selecciona un medicamento o lote para iniciar el rastreo.</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<style>
+.trace-filters {
+    display: grid;
+    gap: 0.75rem;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    margin: 1rem 0 1.15rem;
+}
+.trace-field-wide {
+    grid-column: span 2;
+}
+.filter-field label {
+    color: var(--muted);
+    display: block;
+    font-size: 0.78rem;
+    font-weight: 700;
+    margin-bottom: 0.35rem;
+    text-transform: uppercase;
+}
+.filter-field input,
+.filter-field select {
+    width: 100%;
+}
+.filter-actions {
+    align-items: end;
+    display: flex;
+    gap: 0.5rem;
+}
+.trace-notice {
+    align-items: center;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    display: flex;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+    padding: 0.8rem 1rem;
+}
+.trace-notice strong {
+    color: var(--primary);
+    text-transform: uppercase;
+}
+.trace-kpis {
+    display: grid;
+    gap: 0.85rem;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    margin-bottom: 1rem;
+}
+.trace-kpi,
+.trace-panel {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1rem;
+}
+.trace-kpi span {
+    color: var(--muted);
+    display: block;
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    margin-bottom: 0.45rem;
+    text-transform: uppercase;
+}
+.trace-kpi strong {
+    color: var(--primary);
+    display: block;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 1.7rem;
+}
+.trace-kpi small {
+    color: var(--muted);
+}
+.trace-panel-head {
+    align-items: center;
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 0.85rem;
+}
+.trace-panel-head h2 {
+    color: var(--primary);
+    font-size: 1rem;
+    letter-spacing: 0.04em;
+    margin: 0;
+    text-transform: uppercase;
+}
+.trace-panel-head span {
+    color: var(--muted);
+    font-weight: 700;
+}
+.trace-empty {
+    padding: 2rem;
+}
+@media print {
+    header,
+    footer,
+    .trace-filters,
+    .btn-group {
+        display: none !important;
+    }
+    body,
+    .card,
+    .trace-kpi,
+    .trace-panel,
+    .table-wrap {
+        background: #fff !important;
+        color: #000 !important;
+        box-shadow: none !important;
+    }
+    .trace-kpi,
+    .trace-panel {
+        border-color: #9ca3af !important;
+    }
+}
+@media (max-width: 980px) {
+    .trace-filters,
+    .trace-kpis {
+        grid-template-columns: 1fr;
+    }
+    .trace-field-wide {
+        grid-column: auto;
+    }
+    .filter-actions,
+    .trace-notice,
+    .trace-panel-head {
+        align-items: stretch;
+        flex-direction: column;
+    }
+}
+</style>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        var medicamentoSelect = document.getElementById('medicamento');
+        var loteSelect = document.getElementById('lote');
+        if (!medicamentoSelect || !loteSelect) return;
+
+        function filtrarLotesPorMedicamento() {
+            var selectedOption = medicamentoSelect.options[medicamentoSelect.selectedIndex];
+            var traceKey = selectedOption ? selectedOption.dataset.traceKey : '';
+            var selectedLoteVisible = false;
+
+            Array.prototype.forEach.call(loteSelect.options, function (option) {
+                if (!option.value || !traceKey) {
+                    option.hidden = false;
+                    option.disabled = false;
+                    if (option.selected) selectedLoteVisible = true;
+                    return;
+                }
+
+                var loteKeys = option.dataset.traceKeys || '';
+                var visible = loteKeys.split('||').indexOf(traceKey) !== -1;
+                option.hidden = !visible;
+                option.disabled = !visible;
+                if (option.selected && visible) selectedLoteVisible = true;
+            });
+
+            if (!selectedLoteVisible) {
+                loteSelect.value = '';
+            }
+        }
+
+        medicamentoSelect.addEventListener('change', filtrarLotesPorMedicamento);
+        filtrarLotesPorMedicamento();
+    });
+</script>
+{% endblock %}

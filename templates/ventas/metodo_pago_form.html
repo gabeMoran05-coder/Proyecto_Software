@@ -1,10 +1,10 @@
-{% extends "base.html" %}
-{% block title %}{% if metodo %}Editar metodo{% else %}Nuevo metodo{% endif %}{% endblock %}
+﻿{% extends "base.html" %}
+{% block title %}{% if metodo %}Editar método{% else %}Método{% endif %}{% endblock %}
 
 {% block content %}
 <div class="card mt-2" style="max-width:520px; margin:0 auto;">
     <div class="page-header">
-        <h1>{% if metodo %}Editar metodo de pago{% else %}Nuevo metodo de pago{% endif %}</h1>
+        <h1>{% if metodo %}Editar método de pago{% else %}Método de pago{% endif %}</h1>
     </div>
 
     {% if errors %}
@@ -18,12 +18,12 @@
     <form method="post" class="form-grid">
         {% csrf_token %}
         <div class="form-group">
-            <label for="nombre_metodo">Nombre del metodo *</label>
-            <input id="nombre_metodo" name="nombre_metodo" type="text" value="{{ metodo.nombre_metodo|default:'' }}" required placeholder="Ej: Efectivo, Tarjeta, Transferencia">
+            <label for="nombre_metodo">Nombre del método *</label>
+            <input id="nombre_metodo" name="nombre_metodo" type="text" value="{{ metodo.nombre_metodo|default:'' }}" required placeholder="Ej: Efectivo, Tarjeta, Transferencia" data-capitalize-first>
         </div>
         <div class="form-group">
-            <label for="descripcion">Descripcion</label>
-            <input id="descripcion" name="descripcion" type="text" value="{{ metodo.descripcion|default:'' }}" placeholder="Descripcion opcional">
+            <label for="descripcion">Descripción</label>
+            <input id="descripcion" name="descripcion" type="text" value="{{ metodo.descripcion|default:'' }}" placeholder="Descripción opcional" data-capitalize-first>
         </div>
         <div class="form-actions">
             <a class="btn btn-secondary" href="{% url 'metodo_pago_list' %}">Cancelar</a>

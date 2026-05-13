@@ -4,11 +4,13 @@ import secrets
 from collections import defaultdict
 from datetime import datetime
 from types import SimpleNamespace
+from urllib.parse import quote
 import json
 
 import qrcode
+from django.conf import settings
 from django.contrib import messages # pyright: ignore[reportMissingModuleSource]
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from django.db import transaction
 from django.shortcuts import get_object_or_404, redirect, render
 from django.core.paginator import Paginator
@@ -20,7 +22,7 @@ from .models import MetodoPago, Venta, DetalleVenta
 from apps.clientes.models import Cliente
 from apps.usuarios.models import Usuario
 from apps.usuarios.security import get_current_usuario
-from apps.medicamentos.models import Medicamento, CodigoQR
+from apps.medicamentos.models import Lote, Medicamento, CodigoQR
 from .whatsapp import (
     WhatsAppIntegrationError,
     construir_preview_ticket,
@@ -30,6 +32,7 @@ from apps.medicamentos.whatsapp import (
     normalizar_telefono_con_pais,
     telefono_form_context,
 )
+from apps.text_utils import first_upper, first_upper_or_none
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -43,14 +46,14 @@ def metodo_pago_list(request):
 
 def metodo_pago_create(request):
     if request.method == 'POST':
-        nombre = request.POST.get('nombre_metodo', '').strip()
+        nombre = first_upper(request.POST.get('nombre_metodo'))
         if not nombre:
             return render(request, 'ventas/metodo_pago_form.html', {
                 'errors': ['El nombre del método de pago es obligatorio.'],
             })
         MetodoPago.objects.create(
             nombre_metodo = nombre,
-            descripcion   = request.POST.get('descripcion', '').strip() or None,
+            descripcion   = first_upper_or_none(request.POST.get('descripcion')),
         )
         return redirect('metodo_pago_list')
     return render(request, 'ventas/metodo_pago_form.html')
@@ -59,14 +62,14 @@ def metodo_pago_create(request):
 def metodo_pago_update(request, pk):
     metodo = get_object_or_404(MetodoPago, pk=pk)
     if request.method == 'POST':
-        nombre = request.POST.get('nombre_metodo', '').strip()
+        nombre = first_upper(request.POST.get('nombre_metodo'))
         if not nombre:
             return render(request, 'ventas/metodo_pago_form.html', {
                 'errors': ['El nombre del método de pago es obligatorio.'],
                 'metodo': metodo,
             })
         metodo.nombre_metodo = nombre
-        metodo.descripcion   = request.POST.get('descripcion', '').strip() or None
+        metodo.descripcion   = first_upper_or_none(request.POST.get('descripcion'))
         metodo.save()
         return redirect('metodo_pago_list')
     return render(request, 'ventas/metodo_pago_form.html', {'metodo': metodo})
@@ -101,8 +104,11 @@ def venta_list(request):
 
     if es_cajero:
         ventas = ventas.filter(id_usuario=usuario_actual)
-    if fecha_desde:    ventas = ventas.filter(fecha_venta__date__gte=fecha_desde)
-    if fecha_hasta:    ventas = ventas.filter(fecha_venta__date__lte=fecha_hasta)
+    if fecha_desde and not fecha_hasta:
+        ventas = ventas.filter(fecha_venta__date=fecha_desde)
+    else:
+        if fecha_desde: ventas = ventas.filter(fecha_venta__date__gte=fecha_desde)
+        if fecha_hasta: ventas = ventas.filter(fecha_venta__date__lte=fecha_hasta)
     if metodo_filter:  ventas = ventas.filter(id_metPag__id_metPag=metodo_filter)
     if usuario_filter: ventas = ventas.filter(id_usuario__id_usuario=usuario_filter)
     ordenes = {
@@ -200,10 +206,87 @@ def venta_detail(request, pk):
         venta_qs = venta_qs.filter(id_usuario=usuario_actual)
     venta    = get_object_or_404(venta_qs, pk=pk)
     venta.ensure_ticket_token()
-    detalles = venta.detalleventa_set.select_related('id_medicamento').all()
+    detalles = venta.detalleventa_set.select_related(
+        'id_medicamento__id_lote__id_prov'
+    ).all()
     return render(request, 'ventas/venta_detail.html', {
         'venta':    venta,
         'detalles': detalles,
+    })
+
+
+def venta_trazabilidad(request):
+    medicamento_id = request.GET.get('medicamento', '').strip()
+    lote_id = request.GET.get('lote', '').strip()
+    fecha_desde = request.GET.get('fecha_desde', '').strip()
+    fecha_hasta = request.GET.get('fecha_hasta', '').strip()
+    tipo_cliente = request.GET.get('tipo_cliente', '').strip()
+    busqueda_activa = any([medicamento_id, lote_id, fecha_desde, fecha_hasta, tipo_cliente])
+
+    detalles = DetalleVenta.objects.none()
+    medicamento_seleccionado = None
+    lote_seleccionado = None
+
+    if busqueda_activa:
+        detalles = DetalleVenta.objects.select_related(
+            'id_ventas',
+            'id_ventas__id_cliente',
+            'id_ventas__id_usuario',
+            'id_medicamento',
+            'id_medicamento__id_lote',
+            'id_medicamento__id_lote__id_prov',
+        )
+
+        if lote_id:
+            lote_seleccionado = get_object_or_404(Lote, pk=lote_id)
+            detalles = detalles.filter(id_medicamento__id_lote=lote_seleccionado)
+        elif medicamento_id:
+            medicamento_seleccionado = get_object_or_404(Medicamento, pk=medicamento_id)
+            detalles = detalles.filter(
+                id_medicamento__nombre__iexact=medicamento_seleccionado.nombre,
+                id_medicamento__presentacion=medicamento_seleccionado.presentacion,
+                id_medicamento__tamano_presentacion=medicamento_seleccionado.tamano_presentacion,
+                id_medicamento__concentracion=medicamento_seleccionado.concentracion,
+                id_medicamento__requiere_receta=medicamento_seleccionado.requiere_receta,
+            )
+
+        if fecha_desde:
+            detalles = detalles.filter(id_ventas__fecha_venta__date__gte=fecha_desde)
+        if fecha_hasta:
+            detalles = detalles.filter(id_ventas__fecha_venta__date__lte=fecha_hasta)
+        if tipo_cliente == 'registrados':
+            detalles = detalles.filter(id_ventas__id_cliente__isnull=False)
+        elif tipo_cliente == 'publico':
+            detalles = detalles.filter(id_ventas__id_cliente__isnull=True)
+
+        detalles = detalles.order_by('-id_ventas__fecha_venta', '-id_ventas__id_ventas')
+
+    detalles_lista = list(detalles)
+    ventas_afectadas = {detalle.id_ventas_id for detalle in detalles_lista}
+    clientes_contactables = {
+        detalle.id_ventas.id_cliente_id
+        for detalle in detalles_lista
+        if detalle.id_ventas.id_cliente_id
+    }
+    ventas_publico_general = sum(1 for detalle in detalles_lista if not detalle.id_ventas.id_cliente_id)
+    unidades_afectadas = sum(detalle.cantidad or 0 for detalle in detalles_lista)
+
+    return render(request, 'ventas/trazabilidad.html', {
+        'detalles': detalles_lista,
+        'medicamentos': _medicamentos_catalogo_trazabilidad(),
+        'lotes': _lotes_catalogo_trazabilidad(),
+        'medicamento_id': medicamento_id,
+        'lote_id': lote_id,
+        'fecha_desde': fecha_desde,
+        'fecha_hasta': fecha_hasta,
+        'tipo_cliente': tipo_cliente,
+        'busqueda_activa': busqueda_activa,
+        'medicamento_seleccionado': medicamento_seleccionado,
+        'lote_seleccionado': lote_seleccionado,
+        'ventas_afectadas_total': len(ventas_afectadas),
+        'clientes_contactables_total': len(clientes_contactables),
+        'ventas_publico_general_total': ventas_publico_general,
+        'unidades_afectadas_total': unidades_afectadas,
     })
 
 
@@ -277,7 +360,9 @@ def venta_ticket_image(request, token):
         Venta.objects.select_related('id_usuario', 'id_metPag', 'id_cliente'),
         ticket_token=token,
     )
-    detalles = venta.detalleventa_set.select_related('id_medicamento').all()
+    detalles = venta.detalleventa_set.select_related(
+        'id_medicamento__id_lote__id_prov'
+    ).all()
     img = _ticket_png(request, venta, detalles)
     buffer = BytesIO()
     img.save(buffer, format='PNG')
@@ -315,13 +400,20 @@ def venta_ticket_whatsapp(request, pk):
             enviar_ticket_por_whatsapp(request, venta, telefono)
         except WhatsAppIntegrationError as exc:
             context.update(telefono_form_context(country_code, telefono_local))
+            context['wa_me_url'] = _wa_me_ticket_url(request, venta, country_code, telefono_local)
             context['errors'] = [str(exc)]
             return render(request, 'ventas/ticket_whatsapp_form.html', context)
 
-        messages.success(request, f'Ticket enviado a WhatsApp {telefono}.')
+        messages.success(request, f'WhatsApp acepto el ticket para entrega a {telefono}.')
         return redirect('venta_detail', pk=venta.pk)
 
     return render(request, 'ventas/ticket_whatsapp_form.html', context)
+
+
+def _wa_me_ticket_url(request, venta, country_code, telefono_local):
+    telefono = normalizar_telefono_con_pais(country_code, telefono_local)
+    preview = construir_preview_ticket(request, venta)
+    return f'https://wa.me/{telefono}?text={quote(preview["texto"])}'
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -359,7 +451,8 @@ def venta_create(request):
         try:
             with transaction.atomic():
                 total  = Decimal('0.00')
-                lineas = []
+                lineas_por_medicamento = {}
+                stock_reservado_por_lote = defaultdict(int)
 
                 for seleccion, cant_str, precio_str in zip(med_ids, cantidades, precios):
                     tipo_seleccion, med_id, proveedor_id = _parsear_seleccion_medicamento(seleccion)
@@ -373,7 +466,10 @@ def venta_create(request):
                         tipo_seleccion=tipo_seleccion,
                         proveedor_id=proveedor_id,
                     )
-                    stock_disponible = sum(item.id_lote.stock_actual or 0 for item in lotes_disponibles)
+                    stock_disponible = sum(
+                        max((item.id_lote.stock_actual or 0) - stock_reservado_por_lote[item.id_lote_id], 0)
+                        for item in lotes_disponibles
+                    )
                     if cantidad > stock_disponible:
                         raise ValueError(
                             f'Stock insuficiente para {med.nombre}. '
@@ -385,12 +481,23 @@ def venta_create(request):
                         if restante <= 0:
                             break
                         lote = med_lote.id_lote
-                        cantidad_lote = min(restante, lote.stock_actual or 0)
+                        disponible_lote = max((lote.stock_actual or 0) - stock_reservado_por_lote[lote.id_lote], 0)
+                        cantidad_lote = min(restante, disponible_lote)
                         if cantidad_lote <= 0:
                             continue
                         precio = lote.precio_venta if lote.precio_venta is not None else Decimal(precio_str)
                         subtotal = precio * cantidad_lote
-                        lineas.append((med_lote, cantidad_lote, precio, subtotal))
+                        if med_lote.id_med in lineas_por_medicamento:
+                            lineas_por_medicamento[med_lote.id_med]['cantidad'] += cantidad_lote
+                            lineas_por_medicamento[med_lote.id_med]['subtotal'] += subtotal
+                        else:
+                            lineas_por_medicamento[med_lote.id_med] = {
+                                'med': med_lote,
+                                'cantidad': cantidad_lote,
+                                'precio': precio,
+                                'subtotal': subtotal,
+                            }
+                        stock_reservado_por_lote[lote.id_lote] += cantidad_lote
                         total += subtotal
                         restante -= cantidad_lote
 
@@ -402,7 +509,11 @@ def venta_create(request):
                     total_venta = total,
                 )
 
-                for med, cantidad, precio, subtotal in lineas:
+                for linea in lineas_por_medicamento.values():
+                    med = linea['med']
+                    cantidad = linea['cantidad']
+                    precio = linea['precio']
+                    subtotal = linea['subtotal']
                     DetalleVenta.objects.create(
                         id_ventas       = venta,
                         id_medicamento  = med,
@@ -411,7 +522,7 @@ def venta_create(request):
                         subtotal        = subtotal,
                     )
                     lote              = med.id_lote
-                    lote.stock_actual -= cantidad
+                    lote.stock_actual = max((lote.stock_actual or 0) - cantidad, 0)
                     lote.save()
                     _actualizar_colorimetria(med, lote.stock_actual)
 
@@ -424,6 +535,40 @@ def venta_create(request):
             context['errors'] = [f'Error inesperado: {e}']
 
     return render(request, 'ventas/venta_form.html', context)
+
+
+def venta_cliente_rapido(request):
+    if request.method != 'POST':
+        return JsonResponse({'ok': False, 'errors': ['Método no permitido.']}, status=405)
+
+    nombre = request.POST.get('nombre', '').strip()
+    ap_pat = request.POST.get('ap_pat', '').strip()
+    ap_mat = request.POST.get('ap_mat', '').strip()
+    telefono = request.POST.get('telefono', '').strip()
+
+    errors = []
+    if not nombre:
+        errors.append('El nombre es obligatorio.')
+    if telefono and (not telefono.isdigit() or len(telefono) > 15):
+        errors.append('El teléfono debe tener solo números y máximo 15 dígitos.')
+    if errors:
+        return JsonResponse({'ok': False, 'errors': errors}, status=400)
+
+    cliente = Cliente.objects.create(
+        nombre=first_upper(nombre),
+        ap_pat=first_upper_or_none(ap_pat),
+        ap_mat=first_upper_or_none(ap_mat),
+        telefono=telefono or None,
+        fecha_registro=timezone.localdate(),
+    )
+    return JsonResponse({
+        'ok': True,
+        'cliente': {
+            'id': cliente.id_cliente,
+            'nombre': cliente.nombre_completo(),
+            'telefono': cliente.telefono or '',
+        },
+    })
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -457,21 +602,25 @@ def venta_delete(request, pk):
 
 def _ticket_context(request, venta, public=False):
     venta.ensure_ticket_token()
-    detalles = venta.detalleventa_set.select_related('id_medicamento__id_lote').all()
+    detalles = venta.detalleventa_set.select_related(
+        'id_medicamento__id_lote__id_prov'
+    ).all()
     detalle_qrs = [(detalle, _qr_medicamento(detalle.id_medicamento)) for detalle in detalles]
     return {
         'venta': venta,
         'detalle_qrs': detalle_qrs,
         'ticket_url': _ticket_public_url(request, venta),
         'public': public,
+        'public_page': public,
     }
 
 
 def _ticket_public_url(request, venta):
     venta.ensure_ticket_token()
-    return request.build_absolute_uri(
-        reverse('venta_ticket_public', kwargs={'token': venta.ticket_token})
-    )
+    path = reverse('venta_ticket_public', kwargs={'token': venta.ticket_token})
+    if settings.SITE_PUBLIC_BASE_URL:
+        return settings.SITE_PUBLIC_BASE_URL + path
+    return request.build_absolute_uri(path)
 
 
 def _qr_medicamento(medicamento):
@@ -493,57 +642,149 @@ def _qr_medicamento(medicamento):
 
 
 def _ticket_png(request, venta, detalles):
+    detalles = list(detalles)
     width = 760
-    line_height = 28
-    height = 430 + max(detalles.count(), 1) * 72
-    image = Image.new('RGB', (width, height), 'white')
+    margin = 62
+    row_height = 124
+    height = 850 + max(len(detalles), 1) * row_height
+    primary = '#1670A8'
+    primary_dark = '#0f547f'
+    ink = '#0f2533'
+    muted = '#5f7f95'
+    border = '#cfe3ef'
+    soft = '#eef7fc'
+    table_soft = '#f8fcff'
+    image = Image.new('RGB', (width, height), '#ffffff')
     draw = ImageDraw.Draw(image)
-    font_title = _font(30)
-    font_head = _font(20)
-    font_body = _font(17)
-    font_small = _font(14)
+    font_title = _font(36)
+    font_head = _font(19)
+    font_body = _font(16)
+    font_small = _font(13)
+    font_tiny = _font(11)
 
-    x = 34
-    y = 28
-    draw.text((x, y), 'Farmacia Inclusiva', fill='black', font=font_head)
-    y += 36
-    draw.text((x, y), f'Ticket de compra #{venta.id_ventas}', fill='black', font=font_title)
-    y += 48
+    def text(x, y, value, fill=ink, font=font_body):
+        draw.text((x, y), str(value), fill=fill, font=font)
+
+    def centered(x1, x2, y, value, fill=ink, font=font_body):
+        value = str(value)
+        bbox = draw.textbbox((0, 0), value, font=font)
+        text(x1 + (x2 - x1 - (bbox[2] - bbox[0])) / 2, y, value, fill, font)
+
+    x = margin
+    y = 58
+    text(x, y, 'FARMACIA INCLUSIVA', primary, font_small)
+    y += 24
+    text(x, y, 'Ticket de compra', ink, font_title)
+    y += 45
     fecha = venta.fecha_venta.strftime('%d/%m/%Y %H:%M') if venta.fecha_venta else 'No registrada'
-    draw.text((x, y), f'Fecha: {fecha}', fill='black', font=font_body)
-    y += line_height
-    draw.text((x, y), f'Cliente: {venta.cliente_display()}', fill='black', font=font_body)
-    y += line_height
-    draw.text((x, y), f'Cajero: {venta.id_usuario.nombre_completo()}', fill='black', font=font_body)
-    y += line_height
-    draw.text((x, y), f'Metodo de pago: {venta.id_metPag.nombre_metodo}', fill='black', font=font_body)
+    text(x, y, f'Folio #{venta.id_ventas} · {fecha}', muted, font_body)
 
-    qr = qrcode.make(_ticket_public_url(request, venta)).convert('RGB').resize((150, 150))
-    image.paste(qr, (width - 190, 34))
+    qr_size = 128
+    qr_x = width - margin - qr_size
+    qr_y = 54
+    qr = qrcode.make(_ticket_public_url(request, venta)).convert('RGB').resize((qr_size, qr_size))
+    draw.rounded_rectangle((qr_x - 10, qr_y - 10, qr_x + qr_size + 10, qr_y + qr_size + 10), radius=12, outline=border, width=2, fill='#ffffff')
+    image.paste(qr, (qr_x, qr_y))
 
-    y += 48
-    draw.line((x, y, width - x, y), fill='#222222', width=2)
-    y += 18
-    draw.text((x, y), 'Productos', fill='black', font=font_head)
+    y = 216
+    draw.line((margin, y, width - margin, y), fill=primary, width=3)
+    y += 20
+
+    card_gap = 10
+    card_w = (width - margin * 2 - card_gap * 2) // 3
+    cards = [
+        ('Cliente', venta.cliente_display()),
+        ('Cajero', venta.id_usuario.nombre_completo()),
+        ('Método de pago', venta.id_metPag.nombre_metodo),
+    ]
+    for index, (label, value) in enumerate(cards):
+        cx = margin + index * (card_w + card_gap)
+        draw.rounded_rectangle((cx, y, cx + card_w, y + 64), radius=9, fill=soft, outline=border, width=1)
+        text(cx + 12, y + 12, label, ink, font_small)
+        text(cx + 12, y + 34, _clip(value, 24), ink, font_small)
+
+    y += 78
+    draw.rounded_rectangle((margin, y, margin + card_w, y + 64), radius=9, fill=soft, outline=border, width=1)
+    text(margin + 12, y + 12, 'Total', ink, font_small)
+    text(margin + 12, y + 34, f'${venta.total_venta:.2f}', primary, font_head)
+
+    y += 90
+    text(margin, y, 'Productos comprados', ink, font_head)
     y += 38
 
-    for detalle in detalles:
-        draw.text((x, y), _clip(detalle.id_medicamento.nombre, 45), fill='black', font=font_body)
-        y += line_height
-        linea = (
-            f'{detalle.cantidad} x ${detalle.precio_unitario:.2f} = '
-            f'${detalle.subtotal:.2f}'
-        )
-        draw.text((x + 18, y), linea, fill='black', font=font_small)
-        y += line_height + 12
+    table_x = margin
+    table_w = width - margin * 2
+    col_med = 178
+    col_lote = 145
+    col_cant = 54
+    col_precio = 72
+    col_subtotal = 82
+    col_qr = table_w - col_med - col_lote - col_cant - col_precio - col_subtotal
+    col_x = [
+        table_x,
+        table_x + col_med,
+        table_x + col_med + col_lote,
+        table_x + col_med + col_lote + col_cant,
+        table_x + col_med + col_lote + col_cant + col_precio,
+        table_x + col_med + col_lote + col_cant + col_precio + col_subtotal,
+    ]
 
-    y += 6
-    draw.line((x, y, width - x, y), fill='#222222', width=2)
-    y += 24
-    draw.text((x, y), f'Total: ${venta.total_venta:.2f}', fill='black', font=font_title)
-    y += 48
-    draw.text((x, y), 'Escanea el QR para abrir el ticket digital.', fill='black', font=font_small)
-    return image
+    draw.rectangle((table_x, y, table_x + table_w, y + 36), fill=primary_dark)
+    headers = ['MEDICAMENTO', 'LOTE', 'CANT.', 'PRECIO', 'SUBTOTAL', 'QR MEDICAMENTO']
+    widths = [col_med, col_lote, col_cant, col_precio, col_subtotal, col_qr]
+    for hx, header in zip(col_x, headers):
+        text(hx + 8, y + 11, header, '#ffffff', font_tiny)
+    y += 36
+
+    for index, detalle in enumerate(detalles):
+        med = detalle.id_medicamento
+        lote = med.id_lote
+        row_top = y
+        row_fill = '#ffffff' if index % 2 == 0 else table_soft
+        draw.rectangle((table_x, row_top, table_x + table_w, row_top + row_height), fill=row_fill)
+        draw.line((table_x, row_top + row_height, table_x + table_w, row_top + row_height), fill=border, width=1)
+
+        text(col_x[0] + 8, y + 16, _clip(med.nombre, 23), ink, font_small)
+        presentacion = _clip(f'{med.presentacion_completa or "Sin presentación"} · {med.concentracion or "Sin concentración"}', 28)
+        text(col_x[0] + 8, y + 38, presentacion, muted, font_tiny)
+
+        if lote:
+            text(col_x[1] + 8, y + 16, _clip(lote.numero_lote, 15), ink, font_small)
+            text(col_x[1] + 8, y + 38, _clip(lote.id_prov.nombre, 21), muted, font_tiny)
+            caducidad = lote.fecha_caducidad.strftime('%d/%m/%Y') if lote.fecha_caducidad else 'Sin fecha'
+            text(col_x[1] + 8, y + 58, f'Cad. {caducidad}', muted, font_tiny)
+        else:
+            text(col_x[1] + 8, y + 16, 'Sin lote', muted, font_small)
+
+        centered(col_x[2], col_x[2] + col_cant, y + 16, detalle.cantidad, primary_dark, font_small)
+        text(col_x[3] + 8, y + 16, f'${detalle.precio_unitario:.2f}', primary_dark, font_small)
+        text(col_x[4] + 8, y + 16, f'${detalle.subtotal:.2f}', primary_dark, font_small)
+
+        qr = _qr_medicamento(med)
+        med_qr_size = 68
+        med_qr = qrcode.make(qr.url_qr).convert('RGB').resize((med_qr_size, med_qr_size))
+        med_qr_x = col_x[5] + 12
+        med_qr_y = y + 14
+        draw.rounded_rectangle((med_qr_x - 5, med_qr_y - 5, med_qr_x + med_qr_size + 5, med_qr_y + med_qr_size + 5), radius=8, fill='#ffffff', outline=border, width=1)
+        image.paste(med_qr, (med_qr_x, med_qr_y))
+        text(col_x[5] + 12, y + 90, 'Ficha del', primary, font_tiny)
+        text(col_x[5] + 12, y + 106, 'medicamento', primary, font_tiny)
+        y += row_height
+
+    draw.rectangle((table_x, y, table_x + table_w, y + 38), fill=primary)
+    text(table_x + table_w - 196, y + 11, 'Total', '#ffffff', font_small)
+    text(table_x + table_w - 116, y + 11, f'${venta.total_venta:.2f}', '#ffffff', font_small)
+    y += 54
+
+    note_h = 86
+    draw.rounded_rectangle((margin, y, width - margin, y + note_h), radius=9, fill=soft, outline=border, width=1)
+    text(margin + 12, y + 14, f'QR del ticket: {_clip(_ticket_public_url(request, venta), 80)}', ink, font_small)
+    text(margin + 12, y + 38, 'Este QR abre el resumen de la compra y muestra los QR individuales', ink, font_small)
+    text(margin + 12, y + 60, 'de cada medicamento adquirido.', ink, font_small)
+    y += note_h + 38
+
+    final_height = min(height, y)
+    return image.crop((0, 0, width, final_height))
 
 
 def _font(size):
@@ -564,6 +805,7 @@ def _clave_medicamento(med):
     return (
         (med.nombre or '').strip().casefold(),
         (med.presentacion or '').strip().casefold(),
+        (med.tamano_presentacion or '').strip().casefold(),
         (med.concentracion or '').strip().casefold(),
         bool(med.requiere_receta),
     )
@@ -595,6 +837,7 @@ def _medicamentos_para_venta():
             lote = med.id_lote
             lotes.append({
                 'med_id': med.id_med,
+                'lote_id': lote.id_lote,
                 'proveedor_id': lote.id_prov_id,
                 'proveedor': lote.id_prov.nombre,
                 'numero': lote.numero_lote,
@@ -618,6 +861,48 @@ def _medicamentos_para_venta():
         ))
 
     return sorted(opciones, key=lambda med: med.nombre.lower())
+
+
+def _medicamentos_catalogo_trazabilidad():
+    vistos = set()
+    catalogo = []
+    medicamentos = Medicamento.objects.select_related('id_lote').order_by(
+        'nombre',
+        'presentacion',
+        'tamano_presentacion',
+        'concentracion',
+        'id_med',
+    )
+    for med in medicamentos:
+        clave = _clave_medicamento(med)
+        if clave in vistos:
+            continue
+        vistos.add(clave)
+        nombre = med.nombre
+        detalles = []
+        if med.presentacion_completa:
+            detalles.append(med.presentacion_completa)
+        if med.concentracion:
+            detalles.append(med.concentracion)
+        catalogo.append(SimpleNamespace(
+            id_med=med.id_med,
+            nombre=nombre,
+            detalle=' - '.join(detalles),
+            trazabilidad_clave='|'.join(str(part) for part in clave),
+        ))
+    return catalogo
+
+
+def _lotes_catalogo_trazabilidad():
+    lotes = Lote.objects.select_related('id_prov').prefetch_related('medicamento_set').order_by('numero_lote')
+    catalogo = []
+    for lote in lotes:
+        claves = []
+        for med in lote.medicamento_set.all():
+            claves.append('|'.join(str(part) for part in _clave_medicamento(med)))
+        lote.trazabilidad_claves = '||'.join(claves)
+        catalogo.append(lote)
+    return catalogo
 
 
 def _parsear_seleccion_medicamento(seleccion):
@@ -675,9 +960,7 @@ def _ordenar_medicamentos_para_venta(meds):
 def _actualizar_colorimetria(medicamento, stock_actual):
     if stock_actual <= 0:
         estado = 'sin_stock'
-    elif stock_actual <= 5:
-        estado = 'rojo'
-    elif stock_actual <= 20:
+    elif stock_actual < 50:
         estado = 'amarillo'
     else:
         estado = 'verde'

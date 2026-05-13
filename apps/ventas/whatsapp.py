@@ -18,20 +18,24 @@ def enviar_ticket_por_whatsapp(request, venta, telefono):
     _validar_configuracion()
 
     ticket_url = _ticket_url(request, venta)
-    ticket_qr_png = _generar_qr_png(ticket_url)
-    qr_media_id = _subir_media(
-        ticket_qr_png,
-        'image/png',
-        f'ticket-venta-{venta.id_ventas}-qr.png',
-    )
+    qr_media_id = None
 
     from django.conf import settings
+    if settings.WHATSAPP_TICKET_TEMPLATE_HEADER_IMAGE:
+        ticket_qr_png = _generar_qr_png(ticket_url)
+        qr_media_id = _subir_media(
+            ticket_qr_png,
+            'image/png',
+            f'ticket-venta-{venta.id_ventas}-qr.png',
+        )
+
     _enviar_plantilla(
         telefono=telefono,
         template_name=settings.WHATSAPP_TICKET_TEMPLATE_NAME,
         language_code=settings.WHATSAPP_TICKET_TEMPLATE_LANGUAGE,
         header_image_id=qr_media_id,
         body_params=_ticket_template_params(request, venta, ticket_url),
+        button_url_param=venta.ticket_token,
     )
 
     if settings.OPENAI_API_KEY:
@@ -76,7 +80,7 @@ def texto_ticket_detallado(request, venta):
         f'Farmacia Inclusiva\n'
         f'Fecha: {venta.fecha_venta.strftime("%d/%m/%Y %H:%M") if venta.fecha_venta else "No registrada"}\n'
         f'Cliente: {venta.cliente_display()}\n'
-        f'Metodo de pago: {venta.id_metPag.nombre_metodo}\n\n'
+        f'Método de pago: {venta.id_metPag.nombre_metodo}\n\n'
         f'Productos:\n{productos}\n\n'
         f'Total: ${venta.total_venta:.2f}\n'
         f'Consulta tu ticket y los QR de tus medicamentos aqui:\n{_ticket_url(request, venta)}\n\n'
@@ -89,7 +93,7 @@ def texto_audio_ticket(venta):
         'Aviso: este audio fue generado por inteligencia artificial.',
         f'Ticket de compra numero {venta.id_ventas}.',
         f'Cliente: {venta.cliente_display()}.',
-        f'Metodo de pago: {venta.id_metPag.nombre_metodo}.',
+        f'Método de pago: {venta.id_metPag.nombre_metodo}.',
         'Productos comprados:',
     ]
 

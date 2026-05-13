@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+﻿{% extends "base.html" %}
 {% block title %}Métodos de pago{% endblock %}
 
 {% block content %}
@@ -7,9 +7,9 @@
     <div class="page-header">
         <div>
             <h1>Métodos de pago</h1>
-            <p class="page-subtitle">Formas de pago aceptadas en la farmacia</p>
+            <p class="page-subtitle">Formás de pago aceptadas en la farmacia</p>
         </div>
-        <a class="btn btn-primary btn-plus" href="{% url 'metodo_pago_create' %}" title="Nuevo metodo" aria-label="Nuevo metodo">+</a>
+        <a class="btn btn-primary btn-plus" href="{% url 'metodo_pago_create' %}" title="Nuevo método" aria-label="Nuevo método">+</a>
     </div>
 
     <div class="table-wrap">
@@ -43,7 +43,7 @@
                 <tr>
                     <td colspan="5">
                         <div class="empty-state">
-                            <div class="empty-icon">💳</div>
+                            <div class="empty-icon">ðŸ’³</div>
                             <p>No hay métodos de pago registrados.</p>
                         </div>
                     </td>

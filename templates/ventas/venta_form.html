@@ -2,6 +2,89 @@
 {% block title %}Venta{% endblock %}
 
 {% block content %}
+<style>
+    .quick-search {
+        align-items: stretch;
+        display: flex;
+        gap: 0.4rem;
+    }
+    .quick-search input { flex: 1; }
+    .icon-btn {
+        align-items: center;
+        aspect-ratio: 1;
+        background: var(--primary);
+        border: 1px solid var(--primary);
+        border-radius: 8px;
+        color: #fff;
+        cursor: pointer;
+        display: inline-flex;
+        flex: 0 0 42px;
+        font-size: 1.1rem;
+        font-weight: 700;
+        justify-content: center;
+        min-height: 42px;
+    }
+    .icon-btn:hover { background: var(--primary-dark); }
+    .icon-btn.secondary {
+        background: #fff;
+        border-color: var(--border);
+        color: var(--primary);
+    }
+    .icon-btn.secondary:hover { background: var(--surface-2); }
+    .icon-search {
+        position: relative;
+    }
+    .icon-search::before {
+        border: 2px solid currentColor;
+        border-radius: 999px;
+        content: "";
+        height: 13px;
+        left: 12px;
+        position: absolute;
+        top: 10px;
+        width: 13px;
+    }
+    .icon-search::after {
+        background: currentColor;
+        border-radius: 999px;
+        content: "";
+        height: 2px;
+        left: 25px;
+        position: absolute;
+        top: 25px;
+        transform: rotate(45deg);
+        width: 8px;
+    }
+    .select-actions {
+        display: grid;
+        gap: 0.45rem;
+    }
+    .quick-client-panel {
+        background: var(--surface-2);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        display: none;
+        gap: 0.55rem;
+        margin-top: 0.35rem;
+        padding: 0.75rem;
+    }
+    .quick-client-panel.open { display: grid; }
+    .quick-client-grid {
+        display: grid;
+        gap: 0.5rem;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .field-note {
+        color: var(--muted);
+        font-size: 0.78rem;
+        min-height: 1rem;
+    }
+    .field-note.warning { color: #8a5e0a; }
+    .field-note.success { color: var(--primary); }
+    @media (max-width: 700px) {
+        .quick-client-grid { grid-template-columns: 1fr; }
+    }
+</style>
 <div class="card mt-2">
 
     <div class="page-header">
@@ -53,6 +136,12 @@
                     </div>
                     <div class="form-group">
                         <label for="id_cliente">Cliente (opcional)</label>
+                        <div class="select-actions">
+                            <div class="quick-search">
+                                <input id="buscar-cliente-text" type="search" placeholder="Buscar cliente por nombre...">
+                                <button type="button" id="btn-buscar-cliente" class="icon-btn icon-search" title="Buscar cliente" aria-label="Buscar cliente"></button>
+                                <button type="button" id="btn-toggle-cliente" class="icon-btn secondary" title="Agregar cliente" aria-label="Agregar cliente">+</button>
+                            </div>
                         <select id="id_cliente" name="id_cliente">
                             <option value="">Público en general</option>
                             {% for cli in clientes %}
@@ -61,6 +150,21 @@
                             </option>
                             {% endfor %}
                         </select>
+                            <div id="cliente-feedback" class="field-note"></div>
+                            <div id="cliente-rapido-panel" class="quick-client-panel">
+                                <div class="quick-client-grid">
+                                    <input id="cliente-rapido-nombre" type="text" placeholder="Nombre *">
+                                    <input id="cliente-rapido-ap-pat" type="text" placeholder="Apellido paterno">
+                                    <input id="cliente-rapido-ap-mat" type="text" placeholder="Apellido materno">
+                                    <input id="cliente-rapido-telefono" type="tel" placeholder="Teléfono">
+                                </div>
+                                <div class="btn-group">
+                                    <button type="button" id="btn-guardar-cliente" class="btn btn-primary btn-sm">Guardar cliente</button>
+                                    <button type="button" id="btn-cancelar-cliente" class="btn btn-secondary btn-sm">Cancelar</button>
+                                </div>
+                                <div id="cliente-rapido-feedback" class="field-note"></div>
+                            </div>
+                        </div>
                     </div>
                     <div class="form-group">
                         <label for="fecha_venta">Fecha y hora</label>
@@ -102,11 +206,16 @@
                 <div class="filter-row">
                     <div class="form-group" style="flex:2;">
                         <label for="buscar-med">Agregar medicamento</label>
+                        <div class="quick-search" style="margin-bottom:0.45rem;">
+                            <input id="buscar-med-text" type="search" placeholder="Buscar medicamento manualmente...">
+                            <button type="button" id="btn-buscar-med" class="icon-btn icon-search" title="Buscar medicamento" aria-label="Buscar medicamento"></button>
+                        </div>
                         <select id="buscar-med">
                             <option value="">— Seleccione medicamento —</option>
                             {% for med in medicamentos %}
                             <option value="{{ med.id_med }}"
                                 data-nombre="{{ med.nombre }}"
+                                data-search="{{ med.nombre }} {{ med.presentacion_completa|default:'' }} {{ med.concentracion|default:'' }}"
                                 data-precio="{{ med.precio_venta|default:0 }}"
                                 data-stock="{{ med.stock_total }}"
                                 data-receta="{{ med.requiere_receta|yesno:'true,false' }}"
@@ -115,6 +224,7 @@
                             </option>
                             {% endfor %}
                         </select>
+                        <div id="med-feedback" class="field-note"></div>
                     </div>
                     <div class="form-group" style="flex:1.4;">
                         <label for="selector-lote">Proveedor/lote</label>
@@ -148,7 +258,7 @@
                         <tr id="fila-vacia">
                             <td colspan="5">
                                 <div class="empty-state" style="padding:1.5rem;">
-                                    <div class="empty-icon">💊</div>
+                                    <div class="empty-icon">ðŸ’Š</div>
                                     <p>Aún no hay productos. Usa el selector de arriba para agregar.</p>
                                 </div>
                             </td>
@@ -164,7 +274,7 @@
         <div class="form-actions mt-2">
             <a class="btn btn-secondary" href="{% url 'venta_list' %}">Cancelar</a>
             <button type="submit" class="btn btn-primary" id="btn-registrar" disabled>
-                ✅ Registrar venta
+                ✓ Registrar venta
             </button>
         </div>
     </form>
@@ -175,6 +285,116 @@ const productos = {};
 
 function formatCurrency(n) {
     return '$' + parseFloat(n).toFixed(2);
+}
+
+function normalizarTexto(valor) {
+    return (valor || '')
+        .toString()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .trim();
+}
+
+function textoOpcion(option) {
+    return normalizarTexto((option.dataset.search || '') + ' ' + option.textContent);
+}
+
+function filtrarSelector(selectId, query, feedbackId, emptyMessage) {
+    const select = document.getElementById(selectId);
+    const feedback = document.getElementById(feedbackId);
+    const term = normalizarTexto(query);
+    let visibles = 0;
+
+    Array.from(select.options).forEach((option, index) => {
+        const visible = index === 0 || !term || textoOpcion(option).includes(term);
+        option.hidden = !visible;
+        if (visible && index !== 0) visibles += 1;
+    });
+
+    if (feedback) {
+        feedback.textContent = term && visibles === 0 ? emptyMessage : '';
+        feedback.className = term && visibles === 0 ? 'field-note warning' : 'field-note';
+    }
+    return visibles;
+}
+
+function seleccionarPrimeraCoincidencia(selectId) {
+    const select = document.getElementById(selectId);
+    const match = Array.from(select.options).find((option, index) => index !== 0 && !option.hidden);
+    if (match) {
+        select.value = match.value;
+        select.dispatchEvent(new Event('change'));
+        return true;
+    }
+    return false;
+}
+
+function limpiarClienteRapido() {
+    ['cliente-rapido-nombre', 'cliente-rapido-ap-pat', 'cliente-rapido-ap-mat', 'cliente-rapido-telefono'].forEach(id => {
+        document.getElementById(id).value = '';
+    });
+    document.getElementById('cliente-rapido-feedback').textContent = '';
+}
+
+function mostrarClienteRapido(open, focus = true) {
+    const panel = document.getElementById('cliente-rapido-panel');
+    panel.classList.toggle('open', open);
+    if (open && focus) {
+        document.getElementById('cliente-rapido-nombre').focus();
+    }
+    if (!open) {
+        limpiarClienteRapido();
+    }
+}
+
+function guardarClienteRapido() {
+    const feedback = document.getElementById('cliente-rapido-feedback');
+    const btn = document.getElementById('btn-guardar-cliente');
+    const data = new FormData();
+    data.append('nombre', document.getElementById('cliente-rapido-nombre').value);
+    data.append('ap_pat', document.getElementById('cliente-rapido-ap-pat').value);
+    data.append('ap_mat', document.getElementById('cliente-rapido-ap-mat').value);
+    data.append('telefono', document.getElementById('cliente-rapido-telefono').value);
+
+    btn.disabled = true;
+    feedback.textContent = 'Guardando...';
+    feedback.className = 'field-note';
+
+    fetch("{% url 'venta_cliente_rapido' %}", {
+        method: 'POST',
+        headers: { 'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value },
+        body: data
+    })
+        .then(response => response.json().then(body => ({ ok: response.ok, body })))
+        .then(({ ok, body }) => {
+            if (!ok || !body.ok) {
+                throw new Error((body.errors || ['No se pudo guardar el cliente.']).join(' '));
+            }
+
+            const select = document.getElementById('id_cliente');
+            const option = document.createElement('option');
+            option.value = body.cliente.id;
+            option.textContent = body.cliente.nombre;
+            option.dataset.search = `${body.cliente.nombre} ${body.cliente.telefono || ''}`;
+            select.appendChild(option);
+            select.value = body.cliente.id;
+
+            const search = document.getElementById('buscar-cliente-text');
+            search.value = body.cliente.nombre;
+            filtrarSelector('id_cliente', '', 'cliente-feedback', '');
+
+            feedback.textContent = 'Cliente guardado y seleccionado.';
+            feedback.className = 'field-note success';
+            setTimeout(() => mostrarClienteRapido(false), 650);
+        })
+        .catch(error => {
+            feedback.textContent = error.message;
+            feedback.className = 'field-note warning';
+        })
+        .finally(() => {
+            btn.disabled = false;
+        });
 }
 
 function lotesDelMedicamentoSeleccionado() {
@@ -253,6 +473,49 @@ function lotesParaSeleccion(lotes, seleccion) {
     return lotes;
 }
 
+function labelLote(lote) {
+    return `Lote ${lote.numero} | ${lote.proveedor} | Stock ${lote.stock} | ${formatCurrency(lote.precio)} | Cad. ${lote.caducidad}`;
+}
+
+function distribuirCantidadEnLotes(lotes, cantidad) {
+    let restante = cantidad;
+    const partes = [];
+    lotes.forEach(lote => {
+        if (restante <= 0) return;
+        const disponible = parseInt(lote.stock) || 0;
+        const cantidadLote = Math.min(restante, disponible);
+        if (cantidadLote <= 0) return;
+        partes.push({ lote, cantidad: cantidadLote });
+        restante -= cantidadLote;
+    });
+    return partes;
+}
+
+function agregarLineaDeLote(lote, cantidad, nombre, requiereReceta) {
+    const id = `lote-${lote.med_id}`;
+    const stock = parseInt(lote.stock) || 0;
+    const precio = parseFloat(lote.precio) || 0;
+    const cantidadActual = productos[id] ? productos[id].cantidad : 0;
+    const nuevaCantidad = Math.min(cantidadActual + cantidad, stock);
+
+    if (productos[id]) {
+        productos[id].cantidad = nuevaCantidad;
+        productos[id].receta_confirmada = productos[id].receta_confirmada && !requiereReceta ? true : productos[id].receta_confirmada;
+        return;
+    }
+
+    productos[id] = {
+        nombre,
+        precio,
+        cantidad: nuevaCantidad,
+        stock,
+        requiere_receta: requiereReceta,
+        receta_confirmada: !requiereReceta,
+        lotes: [lote],
+        seleccion_label: labelLote(lote),
+    };
+}
+
 function actualizarResumen() {
     let total = 0;
     let cantTotal = 0;
@@ -312,7 +575,7 @@ function renderTabla() {
                     onchange="cambiarCantidad('${id}', this.value)">
             </td>
             <td class="text-right text-mono fw-600">${formatCurrency(subtotal)}</td>
-            <td><button type="button" class="btn btn-danger btn-sm" onclick="eliminarProducto('${id}')">✕</button></td>
+            <td><button type="button" class="btn btn-danger btn-sm" onclick="eliminarProducto('${id}')">×</button></td>
         `;
         tbody.appendChild(tr);
 
@@ -403,16 +666,76 @@ document.getElementById('btn-agregar').addEventListener('click', function () {
         cantidad = stock;
     }
 
-    if (productos[id]) {
-        productos[id].cantidad = Math.min(productos[id].cantidad + cantidad, stock);
-    } else {
-        productos[id] = { nombre, precio, cantidad, stock, requiere_receta: receta, receta_confirmada: !receta, lotes, seleccion_label: seleccionLabel };
-    }
+    distribuirCantidadEnLotes(lotes, cantidad).forEach(parte => {
+        agregarLineaDeLote(parte.lote, parte.cantidad, nombre, receta);
+    });
 
     renderTabla();
     sel.value = '';
     actualizarSelectorLote();
     cantInput.value = 1;
+});
+
+document.getElementById('buscar-cliente-text').addEventListener('input', function () {
+    const encontrados = filtrarSelector(
+        'id_cliente',
+        this.value,
+        'cliente-feedback',
+        'No aparece en la lista. Usa + para registrarlo aqui.'
+    );
+    if (normalizarTexto(this.value) && encontrados === 0) {
+        mostrarClienteRapido(true, false);
+        document.getElementById('cliente-rapido-nombre').value = this.value;
+    }
+});
+
+document.getElementById('btn-buscar-cliente').addEventListener('click', function () {
+    if (!seleccionarPrimeraCoincidencia('id_cliente')) {
+        mostrarClienteRapido(true);
+        document.getElementById('cliente-rapido-nombre').value = document.getElementById('buscar-cliente-text').value;
+    }
+});
+
+document.getElementById('btn-toggle-cliente').addEventListener('click', function () {
+    const panel = document.getElementById('cliente-rapido-panel');
+    mostrarClienteRapido(!panel.classList.contains('open'));
+});
+
+document.getElementById('btn-cancelar-cliente').addEventListener('click', function () {
+    mostrarClienteRapido(false);
+});
+
+document.getElementById('btn-guardar-cliente').addEventListener('click', guardarClienteRapido);
+
+['cliente-rapido-nombre', 'cliente-rapido-ap-pat', 'cliente-rapido-ap-mat', 'cliente-rapido-telefono'].forEach(id => {
+    document.getElementById(id).addEventListener('keydown', function (event) {
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            guardarClienteRapido();
+        }
+    });
+});
+
+document.getElementById('buscar-med-text').addEventListener('input', function () {
+    filtrarSelector(
+        'buscar-med',
+        this.value,
+        'med-feedback',
+        'No aparece en la lista. Revisa el catalogo de medicamentos.'
+    );
+});
+
+document.getElementById('btn-buscar-med').addEventListener('click', function () {
+    seleccionarPrimeraCoincidencia('buscar-med');
+});
+
+['buscar-cliente-text', 'buscar-med-text'].forEach(id => {
+    document.getElementById(id).addEventListener('keydown', function (event) {
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            document.getElementById(id === 'buscar-cliente-text' ? 'btn-buscar-cliente' : 'btn-buscar-med').click();
+        }
+    });
 });
 
 document.getElementById('buscar-med').addEventListener('change', actualizarSelectorLote);

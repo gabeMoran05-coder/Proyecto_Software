@@ -23,9 +23,9 @@
             <form method="post" class="form-grid">
                 {% csrf_token %}
                 <div class="form-group">
-                    <label for="telefono-local">Numero de WhatsApp</label>
+                    <label for="telefono-local">Número de WhatsApp</label>
                     <div class="phone-row">
-                        <select id="pais-codigo" name="pais_codigo" aria-label="Pais">
+                        <select id="pais-codigo" name="pais_codigo" aria-label="País">
                             {% for country in country_codes %}
                                 <option value="{{ country.code }}" data-placeholder="{{ country.placeholder }}" {% if country_code == country.code %}selected{% endif %}>
                                     {{ country.flag }} +{{ country.code }}
@@ -42,10 +42,11 @@
                             autocomplete="tel-national"
                             required>
                     </div>
-                    <p class="text-muted">Elige el pais y escribe el numero con espacios, por ejemplo: 312 198 1722.</p>
+                    <p class="text-muted">Elige el país y escribe el número con espacios, por ejemplo: 312 198 1722.</p>
                 </div>
                 <div class="form-actions">
                     <button class="btn btn-primary" type="submit">Enviar ticket</button>
+                    <a class="btn btn-secondary" id="wa-fallback-link" href="#" target="_blank" rel="noopener">Abrir WhatsApp Web</a>
                     <a class="btn btn-secondary" href="{% url 'venta_ticket' venta.id_ventas %}" target="_blank">Ver ticket</a>
                 </div>
             </form>
@@ -82,9 +83,12 @@
 }
 </style>
 
+{{ preview.texto|json_script:"ticket-message-text" }}
 <script>
 const countrySelect = document.getElementById('pais-codigo');
 const phoneInput = document.getElementById('telefono-local');
+const fallbackLink = document.getElementById('wa-fallback-link');
+const ticketMessage = JSON.parse(document.getElementById('ticket-message-text').textContent);
 
 function formatPhone(value) {
     const digits = value.replace(/\D/g, '').slice(0, 14);
@@ -96,11 +100,28 @@ function formatPhone(value) {
 
 phoneInput.addEventListener('input', () => {
     phoneInput.value = formatPhone(phoneInput.value);
+    updateFallbackLink();
 });
 
 countrySelect.addEventListener('change', () => {
     const option = countrySelect.selectedOptions[0];
     phoneInput.placeholder = option.dataset.placeholder || '312 198 1722';
+    updateFallbackLink();
 });
+
+function updateFallbackLink() {
+    const countryCode = countrySelect.value.replace(/\D/g, '');
+    const localNumber = phoneInput.value.replace(/\D/g, '');
+    if (!countryCode || localNumber.length < 7) {
+        fallbackLink.href = '#';
+        fallbackLink.classList.add('disabled');
+        return;
+    }
+    const fullNumber = localNumber.startsWith(countryCode) ? localNumber : `${countryCode}${localNumber}`;
+    fallbackLink.href = `https://wa.me/${fullNumber}?text=${encodeURIComponent(ticketMessage)}`;
+    fallbackLink.classList.remove('disabled');
+}
+
+updateFallbackLink();
 </script>
 {% endblock %}

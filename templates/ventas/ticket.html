@@ -2,18 +2,16 @@
 {% block title %}Ticket venta #{{ venta.id_ventas }}{% endblock %}
 
 {% block content %}
+{% if not public %}
 <div class="ticket-actions">
-    {% if not public %}
         <a class="btn btn-secondary" href="{% url 'venta_detail' venta.id_ventas %}">Volver a venta</a>
-    {% endif %}
     <button class="btn btn-primary" type="button" onclick="window.print()">Imprimir / guardar PDF</button>
     <a class="btn btn-secondary" href="{% url 'venta_ticket_image' venta.ticket_token %}?download=1">Descargar ticket PNG</a>
-    {% if not public %}
-        <a class="btn btn-primary" href="{% url 'venta_ticket_whatsapp' venta.id_ventas %}">Enviar WhatsApp</a>
-    {% endif %}
+    <a class="btn btn-primary" href="{% url 'venta_ticket_whatsapp' venta.id_ventas %}">Enviar WhatsApp</a>
     <a class="btn btn-secondary" href="{% url 'venta_ticket_qr_image' venta.ticket_token %}?download=1">Descargar QR PNG</a>
     <a class="btn btn-secondary" href="{% url 'venta_ticket_qr_pdf' venta.ticket_token %}">Descargar QR PDF</a>
 </div>
+{% endif %}
 
 <div class="ticket-card">
     <div class="ticket-head">
@@ -35,7 +33,7 @@
             <p>{{ venta.id_usuario.nombre_completo }}</p>
         </div>
         <div>
-            <strong>Metodo de pago</strong>
+            <strong>Método de pago</strong>
             <p>{{ venta.id_metPag.nombre_metodo }}</p>
         </div>
         <div>
@@ -49,6 +47,7 @@
         <thead>
             <tr>
                 <th>Medicamento</th>
+                <th>Lote</th>
                 <th>Cant.</th>
                 <th>Precio</th>
                 <th>Subtotal</th>
@@ -61,9 +60,20 @@
                 <td data-label="Medicamento">
                     <strong>{{ detalle.id_medicamento.nombre }}</strong>
                     <div class="text-muted small">
-                        {{ detalle.id_medicamento.presentacion|default:"Sin presentacion" }}
-                        · {{ detalle.id_medicamento.concentracion|default:"Sin concentracion" }}
+                        {{ detalle.id_medicamento.presentacion_completa|default:"Sin presentación" }}
+                        · {{ detalle.id_medicamento.concentracion|default:"Sin concentración" }}
                     </div>
+                </td>
+                <td data-label="Lote">
+                    {% if detalle.id_medicamento.id_lote %}
+                        <strong class="text-mono">{{ detalle.id_medicamento.id_lote.numero_lote }}</strong>
+                        <div class="text-muted small">{{ detalle.id_medicamento.id_lote.id_prov.nombre }}</div>
+                        <div class="text-muted small">
+                            Cad. {{ detalle.id_medicamento.id_lote.fecha_caducidad|date:"d/m/Y"|default:"Sin fecha" }}
+                        </div>
+                    {% else %}
+                        <span class="text-muted">Sin lote</span>
+                    {% endif %}
                 </td>
                 <td data-label="Cant.">{{ detalle.cantidad }}</td>
                 <td data-label="Precio">${{ detalle.precio_unitario|floatformat:2 }}</td>
@@ -77,7 +87,7 @@
         </tbody>
         <tfoot>
             <tr>
-                <td colspan="3" class="text-right fw-600">Total</td>
+                <td colspan="4" class="text-right fw-600">Total</td>
                 <td colspan="2" class="fw-600">${{ venta.total_venta|floatformat:2 }}</td>
             </tr>
         </tfoot>
@@ -98,25 +108,56 @@
     margin: 0 0 1rem;
 }
 .ticket-card {
+    --ticket-primary: #1670A8;
+    --ticket-primary-dark: #0f547f;
+    --ticket-ink: #0f2533;
+    --ticket-muted: #5f7f95;
+    --ticket-border: #cfe3ef;
+    --ticket-soft: #eef7fc;
+    --ticket-table: #f8fcff;
     width: min(860px, 100%);
     margin: 0 auto;
     background: #fff;
-    border: 1px solid var(--border);
+    border: 1px solid var(--ticket-border);
     border-radius: 18px;
+    color: var(--ticket-ink);
     padding: 1.5rem;
-    box-shadow: var(--shadow);
+    box-shadow: 0 18px 42px rgba(15, 37, 51, 0.16);
+}
+.ticket-card a {
+    color: var(--ticket-primary);
+}
+.ticket-card .text-muted {
+    color: var(--ticket-muted) !important;
+}
+.ticket-card .small {
+    color: var(--ticket-muted);
+}
+.ticket-card .text-mono {
+    color: var(--ticket-ink);
+}
+.ticket-card h1 {
+    color: var(--ticket-ink);
+    font-size: 2.25rem;
+    line-height: 1.05;
+    margin: 0.25rem 0 0.25rem;
+}
+.ticket-card h2 {
+    color: var(--ticket-ink);
+    font-size: 1.45rem;
+    margin: 1.25rem 0 0.65rem;
 }
 .ticket-head {
     display: flex;
     justify-content: space-between;
     gap: 1rem;
     align-items: flex-start;
-    border-bottom: 2px dashed var(--border);
+    border-bottom: 2px dashed var(--ticket-primary);
     padding-bottom: 1rem;
     margin-bottom: 1rem;
 }
 .ticket-kicker {
-    color: var(--primary);
+    color: var(--ticket-primary);
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.08em;
@@ -125,7 +166,8 @@
 .ticket-qr {
     width: 150px;
     height: 150px;
-    border: 1px solid var(--border);
+    background: #fff;
+    border: 1px solid var(--ticket-border);
     border-radius: 12px;
     padding: 0.4rem;
 }
@@ -136,13 +178,20 @@
     margin-bottom: 1.25rem;
 }
 .ticket-grid div {
-    background: var(--surface-2);
-    border: 1px solid var(--border);
+    background: linear-gradient(180deg, #ffffff 0%, var(--ticket-soft) 100%);
+    border: 1px solid var(--ticket-border);
     border-radius: 12px;
     padding: 0.85rem;
 }
+.ticket-grid strong {
+    color: var(--ticket-ink);
+}
+.ticket-grid p {
+    color: var(--ticket-ink);
+    margin: 0.2rem 0 0;
+}
 .ticket-total {
-    color: var(--primary);
+    color: var(--ticket-primary) !important;
     font-size: 1.25rem;
     font-weight: 700;
 }
@@ -152,22 +201,55 @@
 }
 .ticket-table th,
 .ticket-table td {
-    border-bottom: 1px solid var(--border);
+    border-bottom: 1px solid var(--ticket-border);
     padding: 0.7rem;
     vertical-align: top;
+}
+.ticket-table th {
+    background: var(--ticket-primary-dark);
+    color: #fff;
+    font-size: 0.78rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+.ticket-table tbody tr:nth-child(even) {
+    background: var(--ticket-table);
+}
+.ticket-table tbody tr:nth-child(odd) {
+    background: #fff;
+}
+.ticket-table tbody strong,
+.ticket-table td {
+    color: var(--ticket-ink);
+}
+.ticket-table td[data-label="Precio"],
+.ticket-table td[data-label="Subtotal"],
+.ticket-table td[data-label="Cant."] {
+    color: var(--ticket-primary-dark);
+    font-weight: 700;
+}
+.ticket-table tfoot td {
+    background: var(--ticket-primary);
+    color: #fff;
+}
+.ticket-table tfoot .fw-600,
+.ticket-table tfoot td {
+    color: #fff;
 }
 .med-qr {
     width: 86px;
     height: 86px;
-    border: 1px solid var(--border);
+    background: #fff;
+    border: 1px solid var(--ticket-border);
     border-radius: 10px;
     padding: 0.25rem;
 }
 .ticket-note {
     margin-top: 1rem;
-    background: var(--primary-light);
-    border: 1px solid var(--border);
+    background: var(--ticket-soft);
+    border: 1px solid var(--ticket-border);
     border-radius: 12px;
+    color: var(--ticket-ink);
     padding: 0.85rem;
     overflow-wrap: anywhere;
 }
@@ -237,7 +319,7 @@
         display: none;
     }
     .ticket-table tbody tr {
-        border: 1px solid var(--border);
+        border: 1px solid var(--ticket-border);
         border-radius: 10px;
         margin-bottom: 0.75rem;
         overflow: hidden;
@@ -245,14 +327,14 @@
     }
     .ticket-table td {
         align-items: start;
-        border-bottom: 1px solid var(--border);
+        border-bottom: 1px solid var(--ticket-border);
         display: grid;
         gap: 0.5rem;
         grid-template-columns: 96px minmax(0, 1fr);
         padding: 0.65rem 0.75rem;
     }
     .ticket-table td::before {
-        color: var(--muted);
+        color: var(--ticket-muted);
         content: attr(data-label);
         font-size: 0.72rem;
         font-weight: 700;
@@ -271,7 +353,7 @@
     .ticket-table tfoot tr {
         display: grid;
         grid-template-columns: 1fr auto;
-        border-top: 2px solid var(--border);
+        border-top: 2px solid var(--ticket-border);
         padding-top: 0.5rem;
     }
     .ticket-table tfoot td {
@@ -298,7 +380,13 @@
     header, footer, .ticket-actions { display: none !important; }
     body { background: #fff; }
     main { padding: 0; }
-    .ticket-card { border: 0; box-shadow: none; width: 100%; }
+    .ticket-card {
+        border: 0;
+        box-shadow: none;
+        width: 100%;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
 }
 </style>
 {% endblock %}

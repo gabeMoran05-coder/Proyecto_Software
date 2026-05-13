@@ -1,19 +1,32 @@
 {% extends "base.html" %}
-{% block title %}Proveedores{% endblock %}
+{% block title %}{% if ocultos %}Proveedores ocultos{% else %}Proveedores{% endif %}{% endblock %}
 
 {% block content %}
 <div class="card mt-2">
 
     <div class="page-header">
         <div>
-            <h1>Proveedores</h1>
-            <p class="page-subtitle">Directorio de proveedores de medicamentos</p>
+            <h1>{% if ocultos %}Proveedores ocultos{% else %}Proveedores{% endif %}</h1>
+            <p class="page-subtitle">
+                {% if ocultos %}
+                    Proveedores retirados del directorio operativo.
+                {% else %}
+                    Directorio de proveedores de medicamentos
+                {% endif %}
+            </p>
         </div>
-        <a class="btn btn-primary btn-plus" href="{% url 'proveedor_create' %}" title="Nuevo proveedor" aria-label="Nuevo proveedor">+</a>
+        <div class="btn-group">
+            {% if ocultos %}
+                <a class="btn btn-secondary" href="{% url 'proveedor_list' %}">Ver proveedores activos</a>
+            {% else %}
+                <a class="btn btn-secondary" href="{% url 'proveedor_ocultos' %}">Ver proveedores ocultos</a>
+                <a class="btn btn-primary btn-plus" href="{% url 'proveedor_create' %}" title="Nuevo proveedor" aria-label="Nuevo proveedor">+</a>
+            {% endif %}
+        </div>
     </div>
 
     <div class="filter-bar">
-        <h4>Busqueda</h4>
+        <h4>Búsqueda</h4>
         <form method="get">
             <div class="filter-row">
                 <div class="form-group" style="flex:2;">
@@ -23,7 +36,7 @@
                 </div>
                 <div class="btn-group" style="align-self:flex-end;">
                     <button type="submit" class="btn btn-primary">Buscar</button>
-                    <a href="{% url 'proveedor_list' %}" class="btn btn-secondary">Limpiar</a>
+                    <a href="{% if ocultos %}{% url 'proveedor_ocultos' %}{% else %}{% url 'proveedor_list' %}{% endif %}" class="btn btn-secondary">Limpiar</a>
                 </div>
             </div>
         </form>
@@ -35,47 +48,47 @@
                 <tr>
                     <th>
                         {% if orden_filter == 'id_asc' %}
-                            <a class="sort-link" href="?orden=id_desc{{ filter_query_params }}">ID <span class="sort-arrow">?</span></a>
+                            <a class="sort-link" href="?orden=id_desc{{ filter_query_params }}">ID <span class="sort-arrow">↑</span></a>
                         {% elif orden_filter == 'id_desc' %}
-                            <a class="sort-link" href="?orden=id_asc{{ filter_query_params }}">ID <span class="sort-arrow">?</span></a>
+                            <a class="sort-link" href="?orden=id_asc{{ filter_query_params }}">ID <span class="sort-arrow">↓</span></a>
                         {% else %}
                             <a class="sort-link" href="?orden=id_asc{{ filter_query_params }}">ID</a>
                         {% endif %}
                     </th>
                     <th>
                         {% if orden_filter == 'nombre_asc' %}
-                            <a class="sort-link" href="?orden=nombre_desc{{ filter_query_params }}">Nombre <span class="sort-arrow">?</span></a>
+                            <a class="sort-link" href="?orden=nombre_desc{{ filter_query_params }}">Nombre <span class="sort-arrow">↑</span></a>
                         {% elif orden_filter == 'nombre_desc' %}
-                            <a class="sort-link" href="?orden=nombre_asc{{ filter_query_params }}">Nombre <span class="sort-arrow">?</span></a>
+                            <a class="sort-link" href="?orden=nombre_asc{{ filter_query_params }}">Nombre <span class="sort-arrow">↓</span></a>
                         {% else %}
                             <a class="sort-link" href="?orden=nombre_asc{{ filter_query_params }}">Nombre</a>
                         {% endif %}
                     </th>
                     <th>
                         {% if orden_filter == 'telefono_asc' %}
-                            <a class="sort-link" href="?orden=telefono_desc{{ filter_query_params }}">Telefono <span class="sort-arrow">?</span></a>
+                            <a class="sort-link" href="?orden=telefono_desc{{ filter_query_params }}">Teléfono <span class="sort-arrow">↑</span></a>
                         {% elif orden_filter == 'telefono_desc' %}
-                            <a class="sort-link" href="?orden=telefono_asc{{ filter_query_params }}">Telefono <span class="sort-arrow">?</span></a>
+                            <a class="sort-link" href="?orden=telefono_asc{{ filter_query_params }}">Teléfono <span class="sort-arrow">↓</span></a>
                         {% else %}
-                            <a class="sort-link" href="?orden=telefono_asc{{ filter_query_params }}">Telefono</a>
+                            <a class="sort-link" href="?orden=telefono_asc{{ filter_query_params }}">Teléfono</a>
                         {% endif %}
                     </th>
                     <th>
                         {% if orden_filter == 'correo_asc' %}
-                            <a class="sort-link" href="?orden=correo_desc{{ filter_query_params }}">Correo <span class="sort-arrow">?</span></a>
+                            <a class="sort-link" href="?orden=correo_desc{{ filter_query_params }}">Correo <span class="sort-arrow">↑</span></a>
                         {% elif orden_filter == 'correo_desc' %}
-                            <a class="sort-link" href="?orden=correo_asc{{ filter_query_params }}">Correo <span class="sort-arrow">?</span></a>
+                            <a class="sort-link" href="?orden=correo_asc{{ filter_query_params }}">Correo <span class="sort-arrow">↓</span></a>
                         {% else %}
                             <a class="sort-link" href="?orden=correo_asc{{ filter_query_params }}">Correo</a>
                         {% endif %}
                     </th>
                     <th>
                         {% if orden_filter == 'direccion_asc' %}
-                            <a class="sort-link" href="?orden=direccion_desc{{ filter_query_params }}">Direccion <span class="sort-arrow">?</span></a>
+                            <a class="sort-link" href="?orden=direccion_desc{{ filter_query_params }}">Dirección <span class="sort-arrow">↑</span></a>
                         {% elif orden_filter == 'direccion_desc' %}
-                            <a class="sort-link" href="?orden=direccion_asc{{ filter_query_params }}">Direccion <span class="sort-arrow">?</span></a>
+                            <a class="sort-link" href="?orden=direccion_asc{{ filter_query_params }}">Dirección <span class="sort-arrow">↓</span></a>
                         {% else %}
-                            <a class="sort-link" href="?orden=direccion_asc{{ filter_query_params }}">Direccion</a>
+                            <a class="sort-link" href="?orden=direccion_asc{{ filter_query_params }}">Dirección</a>
                         {% endif %}
                     </th>
                     <th>Acciones</th>
@@ -93,14 +106,21 @@
                     <td class="text-muted">
                         <span class="direccion-tooltip" tabindex="0">
                             {{ prov.direccion|default:"-"|truncatechars:40 }}
-                            <span class="direccion-tooltip-content">{{ prov.direccion|default:"Sin direccion" }}</span>
+                            <span class="direccion-tooltip-content">{{ prov.direccion|default:"Sin dirección" }}</span>
                         </span>
                     </td>
                     <td>
                         <div class="btn-group">
                             <a class="btn btn-secondary btn-sm" href="{% url 'proveedor_detail' prov.id_prov %}">Ver</a>
-                            <a class="btn btn-secondary btn-sm" href="{% url 'proveedor_update' prov.id_prov %}">Editar</a>
-                            <a class="btn btn-danger btn-sm" href="{% url 'proveedor_ocultar' prov.id_prov %}">Ocultar</a>
+                            {% if ocultos %}
+                                <form method="post" action="{% url 'proveedor_restaurar' prov.id_prov %}">
+                                    {% csrf_token %}
+                                    <button class="btn btn-primary btn-sm" type="submit">Restaurar</button>
+                                </form>
+                            {% else %}
+                                <a class="btn btn-secondary btn-sm" href="{% url 'proveedor_update' prov.id_prov %}">Editar</a>
+                                <a class="btn btn-danger btn-sm" href="{% url 'proveedor_ocultar' prov.id_prov %}">Ocultar</a>
+                            {% endif %}
                         </div>
                     </td>
                 </tr>
@@ -109,7 +129,7 @@
                     <td colspan="6">
                         <div class="empty-state">
                             <div class="empty-icon">-</div>
-                            <p>No hay proveedores registrados.</p>
+                            <p>{% if ocultos %}No hay proveedores ocultos.{% else %}No hay proveedores registrados.{% endif %}</p>
                         </div>
                     </td>
                 </tr>
@@ -139,9 +159,9 @@
     padding: 0.55rem 0.65rem;
     border-radius: 8px;
     border: 1px solid var(--border);
-    background: #fff;
+    background: var(--surface);
     color: var(--text);
-    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.14);
+    box-shadow: var(--shadow);
     font-size: 0.82rem;
     line-height: 1.3;
     white-space: normal;
@@ -150,6 +170,12 @@
     visibility: hidden;
     transform: translateY(4px);
     transition: opacity 0.16s ease, transform 0.16s ease, visibility 0.16s ease;
+}
+
+html[data-theme="dark"] .direccion-tooltip-content {
+    background: var(--surface-2);
+    border-color: var(--border);
+    color: var(--text);
 }
 
 .direccion-tooltip:hover .direccion-tooltip-content,

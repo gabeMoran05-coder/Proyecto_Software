@@ -3,6 +3,8 @@ import secrets
 from django.db import models # pyright: ignore[reportMissingModuleSource]
 from django.core.validators import MinValueValidator
 
+from apps.text_utils import first_upper, first_upper_or_none
+
 
 class MetodoPago(models.Model):
     id_metPag    = models.AutoField(primary_key=True)
@@ -19,6 +21,11 @@ class MetodoPago(models.Model):
 
     def __str__(self):
         return self.nombre_metodo
+
+    def save(self, *args, **kwargs):
+        self.nombre_metodo = first_upper(self.nombre_metodo)
+        self.descripcion = first_upper_or_none(self.descripcion)
+        super().save(*args, **kwargs)
 
 
 class Venta(models.Model):

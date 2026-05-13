@@ -9,7 +9,12 @@
             <h1>Ventas</h1>
             <p class="page-subtitle">Registro de transacciones realizadas en la farmacia</p>
         </div>
-        <a class="venta-plus" href="{% url 'venta_create' %}" aria-label="Agregar venta" title="Agregar venta">+</a>
+        <div class="btn-group">
+            {% if current_usuario_is_admin %}
+                <a class="btn btn-secondary" href="{% url 'venta_trazabilidad' %}">Trazabilidad</a>
+            {% endif %}
+            <a class="venta-plus" href="{% url 'venta_create' %}" aria-label="Agregar venta" title="Agregar venta">+</a>
+        </div>
     </div>
 
     <form class="ventas-filters" method="get">
@@ -35,7 +40,7 @@
         </div>
         {% endif %}
         <div class="filter-field">
-            <label>Metodo de pago</label>
+            <label>Método de pago</label>
             <select name="metodo_pago">
                 <option value="">Todos</option>
                 {% for metodo in metodos_pago %}
@@ -128,11 +133,11 @@
                     </th>
                     <th>
                         {% if orden_filter == 'metodo_asc' %}
-                            <a class="sort-link" href="?orden=metodo_desc{{ filter_query_params }}">Metodo de pago <span class="sort-arrow">↑</span></a>
+                            <a class="sort-link" href="?orden=metodo_desc{{ filter_query_params }}">Método de pago <span class="sort-arrow">↑</span></a>
                         {% elif orden_filter == 'metodo_desc' %}
-                            <a class="sort-link" href="?orden=metodo_asc{{ filter_query_params }}">Metodo de pago <span class="sort-arrow">↓</span></a>
+                            <a class="sort-link" href="?orden=metodo_asc{{ filter_query_params }}">Método de pago <span class="sort-arrow">↓</span></a>
                         {% else %}
-                            <a class="sort-link" href="?orden=metodo_asc{{ filter_query_params }}">Metodo de pago</a>
+                            <a class="sort-link" href="?orden=metodo_asc{{ filter_query_params }}">Método de pago</a>
                         {% endif %}
                     </th>
                     <th class="text-right">
@@ -159,7 +164,7 @@
                                 {{ venta.id_cliente.nombre }}{% if venta.id_cliente.ap_pat %} {{ venta.id_cliente.ap_pat }}{% endif %}
                             </a>
                         {% else %}
-                            <span class="text-muted">Publico general</span>
+                            <span class="text-muted">Público general</span>
                         {% endif %}
                     </td>
                     <td>{{ venta.id_metPag.nombre_metodo }}</td>
