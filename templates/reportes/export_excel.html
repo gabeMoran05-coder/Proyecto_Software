@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Reportes</title>
+    <style>
+        body {
+            background: #07131b;
+            color: #edf7fc;
+            font-family: "IBM Plex Sans", Arial, sans-serif;
+        }
+        .sheet {
+            background: #0f202b;
+            border: 1px solid #274657;
+            border-radius: 14px;
+            padding: 22px;
+        }
+        h1 {
+            color: #ffffff;
+            font-size: 28px;
+            margin: 0 0 4px;
+        }
+        h2 {
+            color: #a9c3d1;
+            font-size: 15px;
+            letter-spacing: 1px;
+            margin: 0;
+            text-transform: uppercase;
+        }
+        .subtitle {
+            color: #a9c3d1;
+            font-size: 16px;
+            margin: 0 0 24px;
+        }
+        table {
+            border-collapse: separate;
+            border-spacing: 12px;
+            width: 100%;
+        }
+        .panel,
+        .kpi,
+        .feature {
+            background: #0f202b;
+            border: 1px solid #274657;
+            border-radius: 10px;
+            padding: 16px;
+            vertical-align: top;
+        }
+        .filter {
+            background: #142b38;
+            color: #55b0df;
+            font-weight: 700;
+        }
+        .label {
+            color: #a9c3d1;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+        .value {
+            color: #1670a8;
+            font-family: "IBM Plex Mono", Consolas, monospace;
+            font-size: 28px;
+            font-weight: 700;
+            line-height: 1.25;
+        }
+        .small {
+            color: #55b0df;
+            font-size: 14px;
+        }
+        .muted {
+            color: #a9c3d1;
+        }
+        .bar-track {
+            background: #102a3a;
+            border-radius: 12px;
+            height: 11px;
+            overflow: hidden;
+            width: 100%;
+        }
+        .bar-fill {
+            background: #55b0df;
+            border-radius: 12px;
+            height: 11px;
+        }
+        .bar-warning { background: #f0a83a; }
+        .bar-danger { background: #e45a4f; }
+        .data-table {
+            border-collapse: collapse;
+            border-spacing: 0;
+            margin-top: 8px;
+            width: 100%;
+        }
+        .data-table th {
+            background: #142b38;
+            border: 1px solid #274657;
+            color: #a9c3d1;
+            font-size: 12px;
+            letter-spacing: 1px;
+            padding: 8px;
+            text-align: left;
+            text-transform: uppercase;
+        }
+        .data-table td {
+            background: #0f202b;
+            border: 1px solid #274657;
+            color: #edf7fc;
+            padding: 8px;
+        }
+        .money,
+        .number {
+            color: #1670a8;
+            font-family: "IBM Plex Mono", Consolas, monospace;
+            font-weight: 700;
+        }
+    </style>
+</head>
+<body>
+    <div class="sheet">
+        <h1>Reportes</h1>
+        <p class="subtitle">Indicadores de ventas, medicamentos e inventario</p>
+
+        <table>
+            <tr>
+                <td class="panel filter" colspan="5">
+                    Periodo&nbsp;&nbsp;&nbsp; Desde&nbsp; {{ fecha_desde|date:'d/m/Y' }}
+                    &nbsp;&nbsp;&nbsp; Hasta&nbsp; {{ fecha_hasta|date:'d/m/Y' }}
+                </td>
+            </tr>
+            <tr>
+                <td class="kpi">
+                    <div class="label">Ventas</div>
+                    <div class="value">{{ total_ventas }}</div>
+                    <div class="small">{{ fecha_desde|date:'d/m/Y' }} - {{ fecha_hasta|date:'d/m/Y' }}</div>
+                </td>
+                <td class="kpi">
+                    <div class="label">Ingresos</div>
+                    <div class="value">${{ ingresos|floatformat:2 }}</div>
+                    <div class="small">Total vendido</div>
+                </td>
+                <td class="kpi">
+                    <div class="label">Productos</div>
+                    <div class="value">{{ productos_vendidos }}</div>
+                    <div class="small">Unidades vendidas</div>
+                </td>
+                <td class="kpi">
+                    <div class="label">Ticket promedio</div>
+                    <div class="value">${{ ticket_promedio|floatformat:2 }}</div>
+                    <div class="small">Promedio por venta</div>
+                </td>
+                <td class="kpi">
+                    <div class="label">Compra recibida</div>
+                    <div class="value">${{ total_compra_recibida|floatformat:2 }}</div>
+                    <div class="small">Total a precio de compra</div>
+                </td>
+            </tr>
+        </table>
+
+        <table>
+            <tr>
+                <td class="feature" colspan="2">
+                    <div class="label">Utilidad estimada</div>
+                    <div class="value">${{ utilidad_estimada|floatformat:2 }}</div>
+                    <div class="small">Costo vendido: ${{ costo_vendido|floatformat:2 }}</div>
+                    <div class="small">Margen: {{ margen_estimado|floatformat:0 }}%</div>
+                </td>
+                <td class="feature">
+                    <div class="label">Inventario activo</div>
+                    <div class="value">{{ lotes_activos_total }}</div>
+                    <div class="small">{{ stock_total_unidades }} unidades disponibles</div>
+                    <div class="small">{{ lotes_bajo_stock_total }} bajo stock | {{ lotes_sin_stock_total }} sin stock</div>
+                </td>
+                <td class="feature" colspan="2">
+                    <div class="label">Alertas de caducidad</div>
+                    <div class="value">{{ lotes_caducos_total|add:lotes_proximos_total }}</div>
+                    <div class="small">{{ lotes_caducos_total }} caducos | {{ lotes_proximos_total }} próximos</div>
+                </td>
+            </tr>
+        </table>
+
+        <table>
+            <tr>
+                <td class="panel" colspan="3">
+                    <h2>Ventas por día</h2>
+                    <div class="money">${{ ingresos|floatformat:2 }}</div>
+                    <table class="data-table">
+                        <thead>
+                            <tr><th>Día</th><th>Ventas</th><th>Ingresos</th></tr>
+                        </thead>
+                        <tbody>
+                            {% for item in ventas_por_dia %}
+                            <tr>
+                                <td>{{ item.dia|date:'d/m/Y' }}</td>
+                                <td class="number">{{ item.ventas }}</td>
+                                <td class="money">${{ item.ingresos|floatformat:2 }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="3" class="muted">Sin datos.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </td>
+                <td class="panel" colspan="2">
+                    <h2>Salud de inventario</h2>
+                    <div class="money">{{ lotes_activos_total }} lotes</div>
+                    <table class="data-table">
+                        <tbody>
+                            {% for item in inventario_salud %}
+                            <tr>
+                                <td>{{ item.label }}</td>
+                                <td class="number">{{ item.value }}</td>
+                                <td style="width: 55%;">
+                                    <div class="bar-track">
+                                        <div class="bar-fill {% if item.class == 'warning' %}bar-warning{% elif item.class == 'danger' %}bar-danger{% endif %}" style="width: {{ item.percent }}%;"></div>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </td>
+            </tr>
+        </table>
+
+        <table>
+            <tr>
+                <td class="feature" colspan="2">
+                    <h2>Medicamento mas vendido</h2>
+                    {% if medicamento_mas_vendido %}
+                        <div class="value">{{ medicamento_mas_vendido.id_medicamento__nombre }}</div>
+                        <div class="small">
+                            {{ medicamento_mas_vendido.id_medicamento__presentacion|default:"Sin presentación" }}
+                            {% if medicamento_mas_vendido.id_medicamento__tamano_presentacion %} {{ medicamento_mas_vendido.id_medicamento__tamano_presentacion }}{% endif %}
+                            {% if medicamento_mas_vendido.id_medicamento__concentracion %} - {{ medicamento_mas_vendido.id_medicamento__concentracion }}{% endif %}
+                        </div>
+                        <div class="small">{{ medicamento_mas_vendido.cantidad }} unidades | ${{ medicamento_mas_vendido.ingresos|floatformat:2 }}</div>
+                    {% else %}
+                        <div class="muted">Sin ventas en el periodo.</div>
+                    {% endif %}
+                </td>
+                <td class="feature" colspan="3">
+                    <h2>Vendedor del mes</h2>
+                    {% if vendedor_del_mes %}
+                        <div class="value">{{ vendedor_del_mes.id_usuario__nombre }} {{ vendedor_del_mes.id_usuario__ap_pat|default:"" }} {{ vendedor_del_mes.id_usuario__ap_mat|default:"" }}</div>
+                        <div class="small">{{ vendedor_del_mes.ventas }} venta(s) | ${{ vendedor_del_mes.ingresos|floatformat:2 }}</div>
+                    {% else %}
+                        <div class="muted">Sin ventas en el periodo.</div>
+                    {% endif %}
+                </td>
+            </tr>
+        </table>
+
+        <table>
+            <tr>
+                <td class="kpi">
+                    <div class="label">Clientes nuevos</div>
+                    <div class="value">{{ total_clientes_nuevos }}</div>
+                    <div class="small">Altas en el periodo</div>
+                </td>
+                <td class="kpi">
+                    <div class="label">Con compra</div>
+                    <div class="value">{{ clientes_nuevos_con_compra_total }}</div>
+                    <div class="small">Nuevos que ya compraron</div>
+                </td>
+                <td class="kpi">
+                    <div class="label">Sin compra</div>
+                    <div class="value">{{ clientes_nuevos_sin_compra_total }}</div>
+                    <div class="small">Pendientes de primera compra</div>
+                </td>
+                <td class="kpi" colspan="2">
+                    <div class="label">Clientes activos</div>
+                    <div class="value">{{ clientes_con_compra_total }}</div>
+                    <div class="small">Con compra en el periodo</div>
+                </td>
+            </tr>
+        </table>
+
+        <table>
+            <tr>
+                <td class="panel" colspan="5">
+                    <h2>Altas de clientes</h2>
+                    <table class="data-table">
+                        <thead><tr><th>Cliente</th><th>Teléfono</th><th>Alta</th><th>Compras</th><th>Ingresos</th></tr></thead>
+                        <tbody>
+                            {% for cliente in clientes_nuevos_detalle %}
+                            <tr>
+                                <td>{{ cliente.nombre_completo }}</td>
+                                <td>{{ cliente.telefono|default:"-" }}</td>
+                                <td>{{ cliente.fecha_registro|date:'d/m/Y' }}</td>
+                                <td class="number">{{ cliente.compras_periodo }}</td>
+                                <td class="money">${{ cliente.ingresos_periodo|floatformat:2 }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="5" class="muted">Sin clientes nuevos en el periodo.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </td>
+            </tr>
+        </table>
+
+        <table>
+            <tr>
+                <td class="panel" colspan="3">
+                    <h2>Top medicamentos</h2>
+                    <table class="data-table">
+                        <thead><tr><th>Medicamento</th><th>Cant.</th><th>Ingresos</th></tr></thead>
+                        <tbody>
+                            {% for item in top_medicamentos %}
+                            <tr>
+                                <td>
+                                    {{ item.id_medicamento__nombre }}
+                                    <div class="small">
+                                        {{ item.id_medicamento__presentacion|default:"-" }}{% if item.id_medicamento__tamano_presentacion %} {{ item.id_medicamento__tamano_presentacion }}{% endif %}
+                                        {% if item.id_medicamento__concentracion %} - {{ item.id_medicamento__concentracion }}{% endif %}
+                                    </div>
+                                </td>
+                                <td class="number">{{ item.cantidad }}</td>
+                                <td class="money">${{ item.ingresos|floatformat:2 }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="3" class="muted">Sin datos.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </td>
+                <td class="panel" colspan="2">
+                    <h2>Top vendedores</h2>
+                    <table class="data-table">
+                        <thead><tr><th>Vendedor</th><th>Ventas</th><th>Ingresos</th></tr></thead>
+                        <tbody>
+                            {% for item in top_vendedores %}
+                            <tr>
+                                <td>{{ item.id_usuario__nombre }} {{ item.id_usuario__ap_pat|default:"" }}</td>
+                                <td class="number">{{ item.ventas }}</td>
+                                <td class="money">${{ item.ingresos|floatformat:2 }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="3" class="muted">Sin datos.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </td>
+            </tr>
+        </table>
+
+        <table>
+            <tr>
+                <td class="panel" colspan="2">
+                    <h2>Métodos de pago</h2>
+                    <table class="data-table">
+                        <thead><tr><th>Método</th><th>Ventas</th><th>Ingresos</th></tr></thead>
+                        <tbody>
+                            {% for item in metodos_pago %}
+                            <tr>
+                                <td>{{ item.id_metPag__nombre_metodo }}</td>
+                                <td class="number">{{ item.ventas }}</td>
+                                <td class="money">${{ item.ingresos|floatformat:2 }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="3" class="muted">Sin datos.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </td>
+                <td class="panel">
+                    <h2>Bajo stock</h2>
+                    <table class="data-table">
+                        <thead><tr><th>Lote</th><th>Medicamento</th><th>Stock</th></tr></thead>
+                        <tbody>
+                            {% for lote in lotes_bajo_stock %}
+                            <tr>
+                                <td>{{ lote.numero_lote }}</td>
+                                <td>
+                                    {% for med in lote.medicamento_set.all %}{{ med.nombre }}{% if not forloop.last %}, {% endif %}{% empty %}Sin medicamento{% endfor %}
+                                </td>
+                                <td class="number">{{ lote.stock_actual }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="4" class="muted">Sin alertas.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </td>
+                <td class="panel" colspan="2">
+                    <h2>Caducidad según periodo</h2>
+                    <table class="data-table">
+                        <thead><tr><th>Lote</th><th>Medicamento</th><th>Caducidad</th><th>Estado</th></tr></thead>
+                        <tbody>
+                            {% for lote in lotes_caducidad_periodo %}
+                            <tr>
+                                <td>{{ lote.numero_lote }}</td>
+                                <td>
+                                    {% for med in lote.medicamento_set.all %}{{ med.nombre }}{% if not forloop.last %}, {% endif %}{% empty %}Sin medicamento{% endfor %}
+                                </td>
+                                <td>{{ lote.fecha_caducidad|date:'d/m/Y' }}</td>
+                                <td>{{ lote.alerta_periodo_estado }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="3" class="muted">Sin alertas.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </td>
+            </tr>
+        </table>
+    </div>
+</body>
+</html>
