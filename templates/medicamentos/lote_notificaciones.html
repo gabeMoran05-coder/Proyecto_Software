@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}Notificaciones de caducidad{% endblock %}
+
+{% block content %}
+<div class="card mt-2 notification-page">
+    <div class="page-header">
+        <div>
+            <h1>Notificaciones</h1>
+            <p class="page-subtitle">Medicamentos caducos o próximos a caducar por fecha de lote.</p>
+        </div>
+        <div class="btn-group">
+            <a class="btn btn-secondary" href="{% url 'lote_list' %}">Volver a lotes</a>
+        </div>
+    </div>
+
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-label">Total</div>
+            <div class="stat-value">{{ total }}</div>
+            <div class="stat-sub">notificaciones activas</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Caducos</div>
+            <div class="stat-value">{{ caducos_total }}</div>
+            <div class="stat-sub">fecha ya vencida</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Próximos</div>
+            <div class="stat-value">{{ proximos_total }}</div>
+            <div class="stat-sub">90 días o menos</div>
+        </div>
+    </div>
+
+    <div class="notification-full-list">
+        {% for lote in lotes %}
+            <div class="notification-full-item is-{{ lote.estado_caducidad }}">
+                <a class="notification-full-content" href="{% url 'lote_detail' lote.id_lote %}">
+                <div>
+                    <div class="notification-full-title">
+                        {% with med=lote.medicamento_set.all|first %}
+                            {% if med %}{{ med.nombre }}{% else %}Lote sin medicamento{% endif %}
+                        {% endwith %}
+                    </div>
+                    <div class="text-muted">
+                        Lote {{ lote.numero_lote }} · Proveedor {{ lote.id_prov.nombre }}
+                    </div>
+                </div>
+                <div class="notification-full-date">
+                    <div class="text-mono">{{ lote.fecha_caducidad|date:"d/m/Y" }}</div>
+                    <span class="badge color-{{ lote.estado_caducidad }}">{{ lote.estado_caducidad_display }}</span>
+                    <div class="text-muted small">{{ lote.dias_para_caducar }} días</div>
+                </div>
+                </a>
+                <form method="post" action="{% url 'lote_descartar_notificacion' lote.id_lote %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                    <button class="notification-dismiss notification-dismiss-full" type="submit" title="Borrar por 24 horas" aria-label="Borrar notificacion">&times;</button>
+                </form>
+            </div>
+        {% empty %}
+            <div class="empty-state">
+                <p>No hay medicamentos caducos ni próximos a caducar.</p>
+            </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

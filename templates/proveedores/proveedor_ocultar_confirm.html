@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Ocultar proveedor{% endblock %}
+
+{% block content %}
+<div class="card mt-2" style="max-width:560px; margin:0 auto;">
+    <h1>Ocultar proveedor</h1>
+    <div class="alert alert-warning mt-2">
+        El proveedor <strong>{{ proveedor.nombre }}</strong> dejara de aparecer en la lista principal.
+        Sus {{ lotes_count }} lote(s) relacionados tambien se ocultaran y quedaran inactivos.
+    </div>
+
+    <form method="post" class="form-actions mt-2">
+        {% csrf_token %}
+        <a class="btn btn-secondary" href="{% url 'proveedor_detail' proveedor.id_prov %}">Cancelar</a>
+        <button class="btn btn-danger" type="submit">Ocultar proveedor</button>
+    </form>
+</div>
+{% endblock %}

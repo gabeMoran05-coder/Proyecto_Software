@@ -1,0 +1,349 @@
+{% extends "base.html" %}
+{% block title %}Medicamentos{% endblock %}
+
+{% block content %}
+<style>
+    .lote-disclosure {
+        --lote-accent: #98a69b;
+        --lote-bg: #f4f6f4;
+        --lote-border: #d8e2d8;
+        color: var(--text);
+        position: relative;
+        width: max-content;
+        max-width: 170px;
+    }
+    .lote-disclosure.is-danger {
+        --lote-accent: var(--danger);
+        --lote-bg: #fff0f0;
+        --lote-border: #f0bbb7;
+    }
+    .lote-disclosure.is-warning {
+        --lote-accent: var(--warning);
+        --lote-bg: #fff7de;
+        --lote-border: #f1d493;
+    }
+    .lote-disclosure.is-ok {
+        --lote-accent: var(--accent);
+        --lote-bg: #eaf8ef;
+        --lote-border: #adddbf;
+    }
+    .lote-disclosure.is-empty {
+        --lote-accent: #7b8790;
+        --lote-bg: #eef1f3;
+        --lote-border: #cfd8dc;
+    }
+    .lote-disclosure summary {
+        align-items: center;
+        background: var(--lote-bg);
+        border: 1px solid var(--lote-border);
+        border-radius: 8px;
+        cursor: pointer;
+        display: flex;
+        gap: 0.5rem;
+        justify-content: space-between;
+        list-style: none;
+        min-height: 34px;
+        min-width: 132px;
+        padding: 0.35rem 0.55rem;
+        transition: background 0.18s, border-color 0.18s, box-shadow 0.18s;
+    }
+    .lote-disclosure summary::-webkit-details-marker { display: none; }
+    .lote-disclosure summary:hover,
+    .lote-disclosure[open] summary {
+        background: #fff;
+        border-color: var(--lote-accent);
+        box-shadow: 0 2px 8px rgba(22,112,168,0.08);
+    }
+    .lote-disclosure summary::after {
+        color: var(--lote-accent);
+        content: "+";
+        flex: 0 0 auto;
+        font-family: 'IBM Plex Mono', monospace;
+        font-weight: 600;
+    }
+    .lote-disclosure[open] summary::after { content: "-"; }
+    .lote-main {
+        align-items: center;
+        display: inline-flex;
+        gap: 0.4rem;
+        min-width: 0;
+    }
+    .lote-main::before {
+        background: var(--lote-accent);
+        border-radius: 999px;
+        content: "";
+        flex: 0 0 auto;
+        height: 0.45rem;
+        width: 0.45rem;
+    }
+    .lote-main span {
+        font-size: 0.8rem;
+        font-weight: 600;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .lote-panel {
+        background: #fff;
+        border: 1px solid var(--lote-border);
+        border-radius: 8px;
+        box-shadow: 0 8px 22px rgba(22,112,168,0.12);
+        margin-top: 0.35rem;
+        min-width: 158px;
+        padding: 0.45rem 0.55rem;
+        position: absolute;
+        z-index: 20;
+    }
+    .lote-panel-row {
+        align-items: center;
+        border-radius: 6px;
+        display: flex;
+        gap: 0.75rem;
+        justify-content: space-between;
+        padding: 0.28rem 0.35rem;
+    }
+    .lote-panel-row + .lote-panel-row { margin-top: 0.12rem; }
+    .lote-panel-total { background: #eef4f8; }
+    .lote-panel-empty { background: #eef1f3; }
+    .lote-panel-low { background: #fff7de; }
+    .lote-panel-soon { background: #fff1cc; }
+    .lote-panel-expired { background: #fff0f0; }
+    .lote-panel-row span {
+        color: var(--muted);
+        font-size: 0.76rem;
+    }
+    .lote-panel-row strong {
+        color: var(--text);
+        font-family: 'IBM Plex Mono', monospace;
+        font-size: 0.8rem;
+        font-weight: 600;
+    }
+    .lote-panel-low strong,
+    .lote-panel-soon strong { color: #8a5e0a; }
+    .lote-panel-empty strong { color: #546e7a; }
+    .lote-panel-expired strong { color: var(--danger); }
+    html[data-theme="dark"] .lote-disclosure {
+        --lote-accent: #8aa0ae;
+        --lote-bg: #172c38;
+        --lote-border: #315367;
+    }
+    html[data-theme="dark"] .lote-disclosure.is-danger {
+        --lote-accent: #ff7b72;
+        --lote-bg: #351b1f;
+        --lote-border: #7e3a3f;
+    }
+    html[data-theme="dark"] .lote-disclosure.is-warning {
+        --lote-accent: #f0b94a;
+        --lote-bg: #332812;
+        --lote-border: #796026;
+    }
+    html[data-theme="dark"] .lote-disclosure.is-ok {
+        --lote-accent: #67d39a;
+        --lote-bg: #153325;
+        --lote-border: #347552;
+    }
+    html[data-theme="dark"] .lote-disclosure.is-empty {
+        --lote-accent: #9fb0ba;
+        --lote-bg: #18262f;
+        --lote-border: #405461;
+    }
+    html[data-theme="dark"] .lote-disclosure summary:hover,
+    html[data-theme="dark"] .lote-disclosure[open] summary {
+        background: #102532;
+    }
+    html[data-theme="dark"] .lote-panel {
+        background: #0c1b24;
+        box-shadow: 0 12px 28px rgba(0,0,0,0.42);
+    }
+    html[data-theme="dark"] .lote-panel-total { background: #173044; }
+    html[data-theme="dark"] .lote-panel-empty { background: #1b2932; }
+    html[data-theme="dark"] .lote-panel-low { background: #3a2c12; }
+    html[data-theme="dark"] .lote-panel-soon { background: #423211; }
+    html[data-theme="dark"] .lote-panel-expired { background: #3a1b21; }
+    html[data-theme="dark"] .lote-panel-row span { color: #d5e7ef; }
+    html[data-theme="dark"] .lote-panel-row strong { color: #f3fbff; }
+    html[data-theme="dark"] .lote-panel-low strong,
+    html[data-theme="dark"] .lote-panel-soon strong { color: #ffd36e; }
+    html[data-theme="dark"] .lote-panel-empty strong { color: #c9d6dd; }
+    html[data-theme="dark"] .lote-panel-expired strong { color: #ff8a83; }
+</style>
+<div class="card mt-2">
+    <div class="page-header">
+        <div>
+            <h1>Medicamentos</h1>
+            <p class="page-subtitle">Catálogo de medicamentos registrados en el sistema</p>
+        </div>
+        {% if current_usuario_role != 'cajero' %}
+        <div class="btn-group">
+            <a class="btn btn-primary btn-plus" href="{% url 'medicamento_create' %}" title="Nuevo medicamento" aria-label="Nuevo medicamento">+</a>
+            <a class="btn btn-secondary" href="{% url 'lote_list' %}">Ver lotes</a>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="filter-bar">
+        <h4>Filtros</h4>
+        <form method="get">
+            <div class="filter-row">
+                <div class="form-group">
+                    <label for="nombre">Nombre</label>
+                    <input id="nombre" name="nombre" type="text" placeholder="Buscar por nombre..." value="{{ nombre_filter|default:'' }}">
+                </div>
+                <div class="form-group">
+                    <label for="estado">Estado de stock</label>
+                    <select id="estado" name="estado">
+                        <option value="">-- Todos --</option>
+                        <option value="verde" {% if estado_filter == 'verde' %}selected{% endif %}>Verde - stock OK</option>
+                        <option value="amarillo" {% if estado_filter == 'amarillo' %}selected{% endif %}>Amarillo - poco stock</option>
+                        <option value="sin_stock" {% if estado_filter == 'sin_stock' %}selected{% endif %}>Sin stock</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="caducidad">Estado de caducidad</label>
+                    <select id="caducidad" name="caducidad">
+                        <option value="">-- Todos --</option>
+                        <option value="verde" {% if caducidad_filter == 'verde' %}selected{% endif %}>Verde - vigente</option>
+                        <option value="amarillo" {% if caducidad_filter == 'amarillo' %}selected{% endif %}>Amarillo - próximo</option>
+                        <option value="rojo" {% if caducidad_filter == 'rojo' %}selected{% endif %}>Rojo - caduco</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="receta">Requiere receta</label>
+                    <select id="receta" name="receta">
+                        <option value="">-- Todos --</option>
+                        <option value="si" {% if receta_filter == 'si' %}selected{% endif %}>Si</option>
+                        <option value="no" {% if receta_filter == 'no' %}selected{% endif %}>No</option>
+                    </select>
+                </div>
+                <div class="btn-group" style="align-self:flex-end;">
+                    <button type="submit" class="btn btn-primary">Filtrar</button>
+                    <a href="{% url 'medicamento_list' %}" class="btn btn-secondary">Limpiar</a>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <p class="text-muted" style="margin-bottom:0.85rem;">
+        Mostrando {{ page_obj.start_index }}-{{ page_obj.end_index }} de {{ paginator.count }} medicamentos
+    </p>
+
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th><a class="sort-link" href="?orden={% if orden_filter == 'id_asc' %}id_desc{% else %}id_asc{% endif %}{{ filter_query_params }}">ID</a></th>
+                    <th>
+                        <a class="sort-link" href="?orden={% if orden_filter == 'nombre_asc' %}nombre_desc{% else %}nombre_asc{% endif %}{{ filter_query_params }}">
+                            Nombre {% if orden_filter == 'nombre_asc' %}↑{% elif orden_filter == 'nombre_desc' %}↓{% endif %}
+                        </a>
+                    </th>
+                    <th>
+                        <a class="sort-link" href="?orden={% if orden_filter == 'presentacion_asc' %}presentacion_desc{% else %}presentacion_asc{% endif %}{{ filter_query_params }}">
+                            Presentación {% if orden_filter == 'presentacion_asc' %}↑{% elif orden_filter == 'presentacion_desc' %}↓{% endif %}
+                        </a>
+                    </th>
+                    <th>
+                        <a class="sort-link" href="?orden={% if orden_filter == 'concentracion_asc' %}concentracion_desc{% else %}concentracion_asc{% endif %}{{ filter_query_params }}">
+                            Componentes activos y concentración {% if orden_filter == 'concentracion_asc' %}↑{% elif orden_filter == 'concentracion_desc' %}↓{% endif %}
+                        </a>
+                    </th>
+                    <th><a class="sort-link" href="?orden={% if orden_filter == 'stock_asc' %}stock_desc{% else %}stock_asc{% endif %}{{ filter_query_params }}">Stock total</a></th>
+                    <th><a class="sort-link" href="?orden={% if orden_filter == 'estado_asc' %}estado_desc{% else %}estado_asc{% endif %}{{ filter_query_params }}">Estado stock</a></th>
+                    <th>Lotes</th>
+                    <th>
+                        <a class="sort-link" href="?orden={% if orden_filter == 'receta_asc' %}receta_desc{% else %}receta_asc{% endif %}{{ filter_query_params }}">
+                            Receta {% if orden_filter == 'receta_asc' %}↑{% elif orden_filter == 'receta_desc' %}↓{% endif %}
+                        </a>
+                    </th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for med in medicamentos %}
+                <tr>
+                    <td class="text-mono">{{ med.id_med }}</td>
+                    <td><a class="link" href="{% url 'medicamento_detail' med.id_med %}">{{ med.nombre }}</a></td>
+                    <td>{{ med.presentacion_completa|default:"-" }}</td>
+                    <td>{{ med.concentracion|default:"-" }}</td>
+                    <td class="text-mono fw-600">{{ med.stock_total }}</td>
+                    <td>
+                        <span class="badge color-{{ med.estado_colorimetria }}">{{ med.estado_stock_display }}</span>
+                    </td>
+                    <td>
+                        <details class="lote-disclosure {% if med.stock_total <= 0 %}is-empty{% elif med.lotes_caducos %}is-danger{% elif med.lotes_proximos or med.lotes_bajo_stock %}is-warning{% elif med.lotes_count %}is-ok{% endif %}">
+                            <summary>
+                                <span class="lote-main">
+                                    <span>
+                                        {% if med.stock_total <= 0 %}
+                                            Sin stock
+                                        {% elif med.lotes_caducos %}
+                                            {{ med.lotes_caducos }} caduco(s)
+                                        {% elif med.lotes_proximos %}
+                                            {{ med.lotes_proximos }} próximo(s)
+                                        {% elif med.lotes_bajo_stock %}
+                                            {{ med.lotes_bajo_stock }} poco stock
+                                        {% elif med.lotes_count %}
+                                            {{ med.lotes_count }} lote(s)
+                                        {% else %}
+                                            Sin lotes
+                                        {% endif %}
+                                    </span>
+                                </span>
+                            </summary>
+                            <div class="lote-panel">
+                                <div class="lote-panel-row lote-panel-total">
+                                    <span>Total</span>
+                                    <strong>{{ med.lotes_count }}</strong>
+                                </div>
+                                <div class="lote-panel-row lote-panel-empty">
+                                    <span>Sin stock</span>
+                                    <strong>{{ med.lotes_sin_stock }}</strong>
+                                </div>
+                                <div class="lote-panel-row lote-panel-low">
+                                    <span>Poco stock</span>
+                                    <strong>{{ med.lotes_bajo_stock }}</strong>
+                                </div>
+                                <div class="lote-panel-row lote-panel-soon">
+                                    <span>Próximos</span>
+                                    <strong>{{ med.lotes_proximos }}</strong>
+                                </div>
+                                <div class="lote-panel-row lote-panel-expired">
+                                    <span>Caducos</span>
+                                    <strong>{{ med.lotes_caducos }}</strong>
+                                </div>
+                            </div>
+                        </details>
+                    </td>
+                    <td>
+                        {% if med.requiere_receta %}
+                            <span class="badge badge-yellow">Si</span>
+                        {% else %}
+                            <span class="badge badge-gray">No</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div class="btn-group">
+                            <a class="btn btn-secondary btn-sm" href="{% url 'medicamento_detail' med.id_med %}">Ver</a>
+                            {% if current_usuario_role != 'cajero' %}
+                            <a class="btn btn-secondary btn-sm" href="{% url 'medicamento_update' med.id_med %}">Editar</a>
+                            <a class="btn btn-danger btn-sm" href="{% url 'medicamento_delete' med.id_med %}">Eliminar</a>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="9">
+                        <div class="empty-state">
+                            <p>No se encontraron medicamentos con los filtros aplicados.</p>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% include "components/pagination.html" %}
+</div>
+{% endblock %}
