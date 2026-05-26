@@ -1,0 +1,50 @@
+﻿{% extends "base.html" %}
+{% block title %}{% if cliente %}Editar cliente{% else %}Cliente{% endif %}{% endblock %}
+
+{% block content %}
+<div class="card mt-2" style="max-width:600px; margin:0 auto;">
+    <div class="page-header">
+        <div>
+            <h1>{% if cliente %}Editar cliente{% else %}Cliente{% endif %}</h1>
+        </div>
+    </div>
+
+    {% if errors %}
+    <div class="alert alert-error">
+        <ul style="padding-left:1.2rem; margin:0;">
+            {% for e in errors %}<li>{{ e }}</li>{% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+
+    <form method="post" class="form-grid">
+        {% csrf_token %}
+        <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr; gap:0.85rem;">
+            <div class="form-group" style="grid-column:1/-1;">
+                <label for="nombre">Nombre(s) *</label>
+                <input id="nombre" name="nombre" type="text" value="{{ cliente.nombre|default:'' }}" required placeholder="Nombre(s)" data-capitalize-first>
+            </div>
+            <div class="form-group">
+                <label for="ap_pat">Apellido paterno</label>
+                <input id="ap_pat" name="ap_pat" type="text" value="{{ cliente.ap_pat|default:'' }}" placeholder="Apellido paterno" data-capitalize-first>
+            </div>
+            <div class="form-group">
+                <label for="ap_mat">Apellido materno</label>
+                <input id="ap_mat" name="ap_mat" type="text" value="{{ cliente.ap_mat|default:'' }}" placeholder="Apellido materno" data-capitalize-first>
+            </div>
+            <div class="form-group">
+                <label for="telefono">Teléfono</label>
+                <input id="telefono" name="telefono" type="text" value="{{ cliente.telefono|default:'' }}" placeholder="312-000-0000">
+            </div>
+            <div class="form-group">
+                <label>Fecha de registro</label>
+                <input type="text" value="{% if cliente.fecha_registro %}{{ cliente.fecha_registro|date:'d/m/Y' }}{% else %}Se asigna automáticamente al guardar{% endif %}" readonly>
+            </div>
+        </div>
+        <div class="form-actions">
+            <a class="btn btn-secondary" href="{% url 'cliente_list' %}">Cancelar</a>
+            <button class="btn btn-primary" type="submit">Guardar</button>
+        </div>
+    </form>
+</div>
+{% endblock %}

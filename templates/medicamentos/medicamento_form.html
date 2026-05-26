@@ -1,14 +1,51 @@
 {% extends "base.html" %}
-{% block title %}{% if medicamento %}Editar medicamento{% else %}Nuevo medicamento{% endif %}{% endblock %}
+{% block title %}{% if medicamento %}Editar medicamento{% else %}Medicamento{% endif %}{% endblock %}
 
 {% block content %}
+<style>
+    .recipe-toggle {
+        align-items: center;
+        background: transparent;
+        border: 0;
+        cursor: pointer;
+        display: inline-flex;
+        gap: 0.75rem;
+        min-height: 44px;
+        padding: 0;
+    }
+    .recipe-toggle-box {
+        align-items: center;
+        background: var(--input-bg);
+        border: 2px solid var(--border);
+        border-radius: 10px;
+        color: transparent;
+        display: inline-flex;
+        font-size: 1.25rem;
+        font-weight: 900;
+        height: 38px;
+        justify-content: center;
+        line-height: 1;
+        transition: background 0.18s ease, border-color 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
+        width: 38px;
+    }
+    .recipe-toggle-text {
+        color: var(--text);
+        font-weight: 700;
+    }
+    .recipe-toggle.is-active .recipe-toggle-box {
+        background: #fff;
+        border-color: #17a75b;
+        box-shadow: 0 0 0 3px rgba(23, 167, 91, 0.18);
+        color: #17a75b;
+    }
+</style>
 <div class="card mt-2" style="max-width:720px; margin-left:auto; margin-right:auto;">
 
     <div class="page-header">
         <div>
-            <h1>{% if medicamento %}Editar medicamento{% else %}Nuevo medicamento{% endif %}</h1>
+            <h1>{% if medicamento %}Editar medicamento{% else %}Medicamento{% endif %}</h1>
             <p class="page-subtitle">
-                {% if medicamento %}Modificar datos del medicamento #{{ medicamento.id_med }}{% else %}Registrar un nuevo medicamento en el catalogo{% endif %}
+                {% if medicamento %}Modificar datos del medicamento #{{ medicamento.id_med }}{% else %}Registrar medicamento en el catalogo{% endif %}
             </p>
         </div>
     </div>
@@ -31,31 +68,52 @@
                     <label for="nombre">Nombre *</label>
                     <input id="nombre" name="nombre" type="text"
                         value="{{ medicamento.nombre|default:'' }}" required
-                        placeholder="Ej: Paracetamol 500 mg">
+                        placeholder="Ej: Paracetamol 500 mg"
+                        data-capitalize-first>
                 </div>
                 <div class="form-group">
-                    <label for="presentacion">Presentacion</label>
+                    <label for="presentacion">Presentación</label>
                     <select id="presentacion" name="presentacion">
-                        <option value="">-- Seleccione presentacion --</option>
+                        <option value="" {% if not medicamento or not medicamento.presentacion %}selected{% endif %}>-- Seleccione presentacion --</option>
+                        {% if medicamento and medicamento.presentacion %}
+                        <option value="{{ medicamento.presentacion }}" selected>{{ medicamento.presentacion }}</option>
+                        {% endif %}
                         {% for presentacion in presentaciones %}
-                        <option value="{{ presentacion }}" {% if medicamento and medicamento.presentacion == presentacion %}selected{% endif %}>
+                        {% if not medicamento or medicamento.presentacion != presentacion %}
+                        <option value="{{ presentacion }}">
                             {{ presentacion }}
                         </option>
+                        {% endif %}
                         {% endfor %}
                     </select>
                 </div>
                 <div class="form-group">
-                    <label for="concentracion">Componentes activos y concentracion</label>
+                    <label for="tamano_presentacion">Tamaño de presentacion</label>
+                    <input id="tamano_presentacion" name="tamano_presentacion" type="text"
+                        value="{{ medicamento.tamano_presentacion|default:'' }}"
+                        placeholder="Ej: 120 ml, caja c/12"
+                        list="tamanos-presentacion-list"
+                        data-capitalize-first>
+                    <datalist id="tamanos-presentacion-list">
+                        {% for tamano in tamanos_presentacion %}
+                        <option value="{{ tamano }}"></option>
+                        {% endfor %}
+                    </datalist>
+                </div>
+                <div class="form-group">
+                    <label for="concentracion">Componentes activos y concentración</label>
                     <input id="concentracion" name="concentracion" type="text"
                         value="{{ medicamento.concentracion|default:'' }}"
-                        placeholder="Ej: Paracetamol 500 mg, Ambroxol 15 mg/5 ml">
+                        placeholder="Ej: Paracetamol 500 mg, Ambroxol 15 mg/5 ml"
+                        data-capitalize-first>
                 </div>
                 <div class="form-group">
                     <label for="requiere_receta">Requiere receta</label>
-                    <select id="requiere_receta" name="requiere_receta">
-                        <option value="false" {% if not medicamento or not medicamento.requiere_receta %}selected{% endif %}>No requiere receta</option>
-                        <option value="true" {% if medicamento and medicamento.requiere_receta %}selected{% endif %}>Si requiere receta</option>
-                    </select>
+                    <input id="requiere_receta" name="requiere_receta" type="hidden" value="{% if medicamento and medicamento.requiere_receta %}true{% else %}false{% endif %}">
+                    <button class="recipe-toggle {% if medicamento and medicamento.requiere_receta %}is-active{% endif %}" type="button" data-recipe-toggle aria-pressed="{% if medicamento and medicamento.requiere_receta %}true{% else %}false{% endif %}">
+                        <span class="recipe-toggle-box" aria-hidden="true">✓</span>
+                        <span class="recipe-toggle-text">Confirmar receta</span>
+                    </button>
                 </div>
                 <div class="form-group">
                     <label>Fecha de registro</label>
@@ -73,4 +131,18 @@
     </form>
 
 </div>
+<script>
+    (function () {
+        var toggle = document.querySelector('[data-recipe-toggle]');
+        var input = document.getElementById('requiere_receta');
+        if (!toggle || !input) return;
+
+        toggle.addEventListener('click', function () {
+            var active = input.value !== 'true';
+            input.value = active ? 'true' : 'false';
+            toggle.classList.toggle('is-active', active);
+            toggle.setAttribute('aria-pressed', active ? 'true' : 'false');
+        });
+    })();
+</script>
 {% endblock %}

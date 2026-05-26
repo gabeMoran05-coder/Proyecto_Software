@@ -1,7 +1,312 @@
-{% extends "base.html" %}
+﻿{% extends "base.html" %}
 {% block title %}{{ medicamento.nombre }}{% endblock %}
 
 {% block content %}
+<style>
+    .inventory-overview {
+        display: grid;
+        gap: 0.7rem;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+    .inventory-hero,
+    .inventory-metric,
+    .inventory-status-line {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 0.75rem;
+    }
+    .inventory-hero {
+        grid-column: span 3;
+    }
+    .inventory-hero span,
+    .inventory-metric span,
+    .inventory-status-line span {
+        color: var(--muted);
+        display: block;
+        font-size: 0.75rem;
+        font-weight: 800;
+        letter-spacing: 0.05em;
+        margin-bottom: 0.3rem;
+        text-transform: uppercase;
+    }
+    .inventory-hero strong {
+        color: var(--primary);
+        display: block;
+        font-family: 'IBM Plex Mono', monospace;
+        font-size: 2.2rem;
+        line-height: 1;
+        margin-bottom: 0.5rem;
+    }
+    .inventory-metric strong {
+        color: var(--text);
+        font-family: 'IBM Plex Mono', monospace;
+        font-size: 1.15rem;
+    }
+    .inventory-metric small {
+        color: var(--muted);
+        display: block;
+    }
+    .inventory-metric.is-warning {
+        border-color: rgba(240, 168, 58, 0.65);
+    }
+    .inventory-metric.is-warning strong {
+        color: var(--warning);
+    }
+    .inventory-status-line {
+        align-items: center;
+        display: flex;
+        justify-content: space-between;
+        margin-top: 0.7rem;
+    }
+    .inventory-status-line span {
+        margin: 0;
+    }
+    .inventory-status-line strong {
+        color: var(--primary);
+    }
+    .inventory-settings {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        margin-top: 0.8rem;
+        padding: 0.85rem;
+    }
+    .inventory-settings-header {
+        align-items: baseline;
+        display: flex;
+        gap: 0.75rem;
+        justify-content: space-between;
+        margin-bottom: 0.7rem;
+    }
+    .inventory-settings-header h4 {
+        color: var(--primary);
+        font-size: 0.82rem;
+        letter-spacing: 0.08em;
+        margin: 0;
+        text-transform: uppercase;
+    }
+    .inventory-settings-header small {
+        color: var(--muted);
+        font-size: 0.78rem;
+        text-align: right;
+    }
+    .inventory-settings-grid {
+        display: grid;
+        gap: 0.65rem;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .inventory-setting-card {
+        background: var(--surface-2);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 0.75rem;
+    }
+    .inventory-setting-card label {
+        color: var(--text);
+        display: block;
+        font-weight: 800;
+        margin-bottom: 0.2rem;
+    }
+    .inventory-setting-card p {
+        color: var(--muted);
+        font-size: 0.82rem;
+        line-height: 1.35;
+        margin: 0 0 0.65rem;
+    }
+    .inventory-setting-control {
+        align-items: center;
+        display: grid;
+        gap: 0.45rem;
+        grid-template-columns: minmax(0, 1fr) auto;
+    }
+    .inventory-input-wrap {
+        align-items: center;
+        background: var(--input-bg);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        display: flex;
+        overflow: hidden;
+    }
+    .inventory-input-wrap input {
+        border: 0;
+        border-radius: 0;
+        min-width: 0;
+        width: 100%;
+    }
+    .inventory-input-wrap input:focus {
+        box-shadow: none;
+    }
+    .inventory-input-wrap span {
+        color: var(--muted);
+        font-size: 0.78rem;
+        font-weight: 700;
+        padding: 0 0.75rem 0 0.15rem;
+        white-space: nowrap;
+    }
+    .qr-selector {
+        background: #fff;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        cursor: pointer;
+        display: inline-flex;
+        padding: 0.28rem;
+    }
+    .qr-selector:hover,
+    .qr-selector:focus-visible {
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px rgba(22,112,168,0.12);
+        outline: none;
+    }
+    .qr-thumb {
+        background: #fff;
+        display: block;
+        height: 68px;
+        width: 68px;
+    }
+    .qr-modal-overlay {
+        align-items: center;
+        background: rgba(0, 14, 24, 0.72);
+        display: none;
+        inset: 0;
+        justify-content: center;
+        padding: 1rem;
+        position: fixed;
+        z-index: 1000;
+    }
+    .qr-modal-overlay.is-open {
+        display: flex;
+    }
+    .qr-modal {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        box-shadow: 0 22px 60px rgba(0, 20, 34, 0.38);
+        max-width: 760px;
+        overflow: hidden;
+        width: min(100%, 760px);
+    }
+    .qr-modal-header {
+        align-items: center;
+        background: var(--surface-2);
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        justify-content: space-between;
+        padding: 1rem 1.1rem;
+    }
+    .qr-modal-header h4 {
+        color: var(--primary);
+        font-size: 0.82rem;
+        letter-spacing: 0.08em;
+        margin: 0;
+        text-transform: uppercase;
+    }
+    .qr-modal-close {
+        align-items: center;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        color: var(--text);
+        cursor: pointer;
+        display: inline-flex;
+        font-size: 1.25rem;
+        height: 2.1rem;
+        justify-content: center;
+        line-height: 1;
+        width: 2.1rem;
+    }
+    .qr-modal-body {
+        background: var(--surface);
+        display: grid;
+        gap: 1rem;
+        grid-template-columns: 280px minmax(0, 1fr);
+        padding: 1.1rem;
+    }
+    .qr-preview-box {
+        align-items: center;
+        background: #fff;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        display: flex;
+        justify-content: center;
+        min-height: 280px;
+        padding: 0.75rem;
+    }
+    .qr-preview-box img {
+        display: block;
+        height: 240px;
+        width: 240px;
+    }
+    .qr-preview-title {
+        color: var(--primary);
+        font-family: 'IBM Plex Mono', monospace;
+        font-size: 1.1rem;
+        font-weight: 800;
+        margin-bottom: 0.65rem;
+    }
+    .qr-preview-list {
+        display: grid;
+        gap: 0.45rem;
+        margin-bottom: 0.85rem;
+    }
+    .qr-preview-list div {
+        align-items: baseline;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        gap: 0.6rem;
+        justify-content: space-between;
+        padding-bottom: 0.4rem;
+    }
+    .qr-preview-list span {
+        color: var(--muted);
+        font-size: 0.72rem;
+        font-weight: 800;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+    }
+    .qr-preview-list strong {
+        color: var(--text);
+        font-size: 0.9rem;
+        text-align: right;
+    }
+    .qr-preview-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.45rem;
+        margin-top: 1rem;
+    }
+    html[data-theme="dark"] .qr-modal-overlay {
+        background: rgba(0, 0, 0, 0.72);
+    }
+    html[data-theme="dark"] .qr-modal {
+        box-shadow: 0 22px 60px rgba(0, 0, 0, 0.58);
+    }
+    html[data-theme="dark"] .qr-preview-box {
+        border-color: #d9e8f2;
+    }
+    @media (max-width: 700px) {
+        .inventory-overview {
+            grid-template-columns: 1fr;
+        }
+        .inventory-hero {
+            grid-column: auto;
+        }
+        .qr-modal-body {
+            grid-template-columns: 1fr;
+        }
+        .inventory-settings-grid,
+        .inventory-setting-control {
+            grid-template-columns: 1fr;
+        }
+        .inventory-settings-header {
+            align-items: flex-start;
+            flex-direction: column;
+        }
+        .inventory-settings-header small {
+            text-align: left;
+        }
+    }
+</style>
 <div class="card mt-2">
     <div class="page-header">
         <div>
@@ -9,6 +314,7 @@
             <p class="page-subtitle">ID #{{ medicamento.id_med }} - Detalle del medicamento</p>
         </div>
         <div class="btn-group">
+            <a class="btn btn-primary" href="{% url 'venta_trazabilidad' %}?medicamento={{ medicamento.id_med }}">Trazabilidad</a>
             {% if current_usuario_role != 'cajero' %}
                 <a class="btn btn-secondary" href="{% url 'medicamento_update' medicamento.id_med %}">Editar</a>
                 <a class="btn btn-danger" href="{% url 'medicamento_delete' medicamento.id_med %}">Eliminar</a>
@@ -19,12 +325,13 @@
 
     <div style="display:grid; grid-template-columns: 1fr 1fr; gap:1rem;">
         <div class="detail-section">
-            <h3>Informacion general</h3>
+            <h3>Información general</h3>
             <table class="detail-table">
                 <tr><td>ID principal</td><td class="text-mono">{{ medicamento.id_med }}</td></tr>
                 <tr><td>Nombre</td><td class="fw-600">{{ medicamento.nombre }}</td></tr>
-                <tr><td>Presentacion</td><td>{{ medicamento.presentacion|default:"-" }}</td></tr>
-                <tr><td>Componentes activos y concentracion</td><td>{{ medicamento.concentracion|default:"-" }}</td></tr>
+                <tr><td>Presentación</td><td>{{ medicamento.presentacion|default:"-" }}</td></tr>
+                <tr><td>Tamaño de presentación</td><td>{{ medicamento.tamano_presentacion|default:"-" }}</td></tr>
+                <tr><td>Componentes activos y concentración</td><td>{{ medicamento.concentracion|default:"-" }}</td></tr>
                 <tr><td>Requiere receta</td><td>
                     {% if medicamento.requiere_receta %}
                         <span class="badge badge-yellow">Si requiere</span>
@@ -38,19 +345,81 @@
 
         <div class="detail-section">
             <h3>Inventario agrupado</h3>
-            <table class="detail-table">
-                <tr><td>Stock total</td><td class="text-mono fw-600" style="font-size:1.1rem; color:var(--primary);">{{ stock_total }}</td></tr>
-                <tr><td>Estado stock</td><td><span class="badge color-{{ estado_stock }}">{{ estado_stock_display }}</span></td></tr>
-                <tr><td>Activo para venta</td><td>
-                    {% if lotes_activos_count > 0 %}
-                        <span class="fw-600">SI</span>
-                    {% else %}
-                        <span class="fw-600">NO</span>
-                    {% endif %}
-                </td></tr>
-                <tr><td>Lotes activos</td><td class="text-mono">{{ lotes_activos_count }}</td></tr>
-                <tr><td>Lotes no disponibles</td><td class="text-mono">{{ lotes_no_disponibles_count }}</td></tr>
-            </table>
+            <div class="inventory-overview">
+                <section class="inventory-hero">
+                    <span>Stock total</span>
+                    <strong>{{ stock_total }}</strong>
+                    <small><span class="badge color-{{ estado_stock }}">{{ estado_stock_display }}</span></small>
+                </section>
+                <section class="inventory-metric">
+                    <span>Stock mínimo</span>
+                    <strong>{{ stock_minimo }}</strong>
+                </section>
+                <section class="inventory-metric">
+                    <span>Venta semanal</span>
+                    <strong>{{ ventas_promedio_semanal }}</strong>
+                </section>
+                <section class="inventory-metric {% if sugerencia_compra > 0 %}is-warning{% endif %}">
+                    <span>Sugerencia compra</span>
+                    <strong>{{ sugerencia_compra }}</strong>
+                    <small>unidades</small>
+                </section>
+                <section class="inventory-metric">
+                    <span>Alerta caducidad</span>
+                    <strong>{{ dias_alerta_caducidad }}</strong>
+                    <small>días antes</small>
+                </section>
+                <section class="inventory-metric">
+                    <span>Lotes activos</span>
+                    <strong>{{ lotes_activos_count }}</strong>
+                </section>
+                <section class="inventory-metric">
+                    <span>No disponibles</span>
+                    <strong>{{ lotes_no_disponibles_count }}</strong>
+                </section>
+            </div>
+            <div class="inventory-status-line">
+                <span>Activo para venta</span>
+                {% if lotes_activos_count > 0 %}
+                    <strong>Si</strong>
+                {% else %}
+                    <strong>No</strong>
+                {% endif %}
+            </div>
+            {% if current_usuario_role != 'cajero' %}
+                <div class="inventory-settings">
+                    <div class="inventory-settings-header">
+                        <h4>Parámetros de alerta</h4>
+                        <small>Se aplican a este medicamento y a sus lotes asociados.</small>
+                    </div>
+                    <div class="inventory-settings-grid">
+                        <form method="post" action="{% url 'medicamento_stock_minimo' medicamento.id_med %}" class="inventory-setting-card">
+                            {% csrf_token %}
+                            <label for="stock_minimo">Stock mínimo</label>
+                            <p>Activa bajo stock cuando el total disponible cae por debajo de este número.</p>
+                            <div class="inventory-setting-control">
+                                <div class="inventory-input-wrap">
+                                    <input id="stock_minimo" name="stock_minimo" type="number" min="0" value="{{ stock_minimo }}">
+                                    <span>u.</span>
+                                </div>
+                                <button class="btn btn-secondary btn-sm" type="submit">Guardar</button>
+                            </div>
+                        </form>
+                        <form method="post" action="{% url 'medicamento_alerta_caducidad' medicamento.id_med %}" class="inventory-setting-card">
+                            {% csrf_token %}
+                            <label for="dias_alerta_caducidad">Próximo a caducar</label>
+                            <p>Marca los lotes como próximos cuando falten estos días para su vencimiento.</p>
+                            <div class="inventory-setting-control">
+                                <div class="inventory-input-wrap">
+                                    <input id="dias_alerta_caducidad" name="dias_alerta_caducidad" type="number" min="0" max="730" value="{{ dias_alerta_caducidad }}">
+                                    <span>días</span>
+                                </div>
+                                <button class="btn btn-secondary btn-sm" type="submit">Guardar</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            {% endif %}
         </div>
     </div>
 
@@ -79,7 +448,7 @@
                 <tbody>
                     {% for item in lote_items %}
                     {% with lote=item.lote qr=item.qr %}
-                    <tr>
+                    <tr {% if qr %}class="qr-row" data-lote="{{ lote.numero_lote }}" data-proveedor="{{ lote.id_prov.nombre }}" data-stock="{{ lote.stock_actual }}" data-activo="{% if lote.activo and lote.stock_actual > 0 %}Si{% else %}No{% endif %}" data-caducidad="{{ lote.fecha_caducidad|date:'d/m/Y'|default:'Sin fecha' }}" data-estado-caducidad="{{ lote.estado_caducidad_display }}" data-precio-venta="${{ lote.precio_venta|floatformat:2|default:'-' }}" data-qr-src="{% url 'qr_image' qr.id_qr %}" data-open-url="{% url 'qr_scan' qr.token %}" data-download-url="{% url 'qr_image' qr.id_qr %}?download=1" {% if current_usuario_role != 'cajero' %}data-regenerate-url="{% url 'qr_regenerar' qr.id_qr %}"{% endif %}{% endif %}>
                         <td>
                             {% if current_usuario_role == 'cajero' %}
                                 <span class="text-mono">{{ lote.numero_lote }}</span>
@@ -98,8 +467,7 @@
                         <td>
                             <span class="badge color-{{ lote.estado_stock }}">
                                 {% if lote.estado_stock == 'sin_stock' %}Sin stock
-                                {% elif lote.estado_stock == 'rojo' %}Rojo
-                                {% elif lote.estado_stock == 'amarillo' %}Amarillo
+                                {% elif lote.estado_stock == 'amarillo' %}Poco stock
                                 {% else %}Verde{% endif %}
                             </span>
                         </td>
@@ -115,15 +483,14 @@
                         <td>
                             <span class="badge color-{{ lote.estado_caducidad }}">{{ lote.estado_caducidad_display }}</span>
                             {% if lote.fecha_caducidad %}
-                                <div class="text-muted small">{{ lote.dias_para_caducar }} dias</div>
+                                <div class="text-muted small">{{ lote.dias_para_caducar }} días</div>
                             {% endif %}
                         </td>
                         <td>
                             {% if qr %}
-                                <a href="{% url 'qr_scan' qr.token %}" target="_blank">
-                                    <img src="{% url 'qr_image' qr.id_qr %}" alt="QR {{ lote.numero_lote }}"
-                                         style="width:76px;height:76px;border:1px solid var(--border);border-radius:10px;background:#fff;padding:0.25rem;">
-                                </a>
+                                <button class="qr-selector" type="button" aria-label="Ver QR del lote {{ lote.numero_lote }}">
+                                    <img class="qr-thumb" src="{% url 'qr_image' qr.id_qr %}" alt="QR {{ lote.numero_lote }}">
+                                </button>
                                 <div class="btn-group" style="margin-top:0.35rem;">
                                     <a class="btn btn-primary btn-sm" href="{% url 'qr_scan' qr.token %}" target="_blank">Abrir</a>
                                     <a class="btn btn-secondary btn-sm" href="{% url 'qr_image' qr.id_qr %}?download=1">Descargar</a>
@@ -146,7 +513,182 @@
             </table>
         </div>
     </div>
+
+    <div class="detail-section mt-2">
+        <h3>Kardex reciente</h3>
+        <div class="table-wrap">
+            <table class="kardex-table">
+                <thead><tr><th>Fecha</th><th>Lote</th><th>Movimiento</th><th>Cant.</th><th>Stock</th><th>Referencia</th><th>Responsable</th></tr></thead>
+                <tbody>
+                    {% for mov in movimientos %}
+                        <tr>
+                            <td>{{ mov.fecha|date:'d/m/Y H:i' }}</td>
+                            <td><a class="link text-mono" href="{% url 'lote_detail' mov.id_lote.id_lote %}">{{ mov.id_lote.numero_lote }}</a></td>
+                            <td>
+                                <strong>{{ mov.get_tipo_display }}</strong>
+                                <small>{{ mov.get_motivo_display }}</small>
+                            </td>
+                            <td class="text-mono fw-600 {% if mov.cantidad_kardex < 0 %}kardex-negative{% elif mov.cantidad_kardex > 0 %}kardex-positive{% endif %}">
+                                {% if mov.cantidad_kardex > 0 %}+{% endif %}{{ mov.cantidad_kardex }}
+                            </td>
+                            <td class="kardex-stock">
+                                <span>{{ mov.stock_total_antes }}</span>
+                                <b>→</b>
+                                <span>{{ mov.stock_total_despues }}</span>
+                                <small>Total medicamento</small>
+                            </td>
+                            <td>
+                                {{ mov.referencia|default:'-' }}
+                                {% if mov.notas %}<small>{{ mov.notas }}</small>{% endif %}
+                            </td>
+                            <td>
+                                {% if mov.id_usuario %}
+                                    {{ mov.id_usuario.nombre_completo }}
+                                {% else %}
+                                    Sistema
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr><td colspan="7"><div class="empty-state"><p>Sin movimientos registrados.</p></div></td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
 </div>
+<div class="qr-modal-overlay" id="qrModal" role="dialog" aria-modal="true" aria-labelledby="qrModalTitle">
+    <div class="qr-modal">
+        <div class="qr-modal-header">
+            <h4 id="qrModalTitle">QR del lote</h4>
+            <button class="qr-modal-close" type="button" data-qr-close aria-label="Cerrar">&times;</button>
+        </div>
+        <div class="qr-modal-body">
+            <div class="qr-preview-box">
+                <img id="qrPreviewImg" src="" alt="">
+            </div>
+            <div>
+                <div class="qr-preview-title" id="qrPreviewLote">-</div>
+                <div class="qr-preview-list">
+                    <div><span>Proveedor</span><strong id="qrPreviewProveedor">-</strong></div>
+                    <div><span>Stock</span><strong id="qrPreviewStock">-</strong></div>
+                    <div><span>Activo</span><strong id="qrPreviewActivo">-</strong></div>
+                    <div><span>Caducidad</span><strong id="qrPreviewCaducidad">-</strong></div>
+                    <div><span>Estado</span><strong id="qrPreviewEstado">-</strong></div>
+                    <div><span>Precio venta</span><strong id="qrPreviewPrecio">-</strong></div>
+                </div>
+                <div class="qr-preview-actions">
+                    <a class="btn btn-primary btn-sm" id="qrPreviewOpen" href="#" target="_blank" rel="noopener">Abrir ficha</a>
+                    <a class="btn btn-secondary btn-sm" id="qrPreviewDownload" href="#">Descargar QR</a>
+                    {% if current_usuario_role != 'cajero' %}
+                        <a class="btn btn-secondary btn-sm" id="qrPreviewRegenerate" href="#">Regenerar</a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<style>
+    .stock-min-form {
+        align-items: end;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        margin-top: 0.85rem;
+    }
+    .stock-min-form label {
+        color: var(--muted);
+        font-size: 0.78rem;
+        font-weight: 700;
+        width: 100%;
+    }
+    .stock-min-form input {
+        max-width: 140px;
+    }
+    .kardex-table td {
+        vertical-align: top;
+    }
+    .kardex-table td strong,
+    .kardex-table td small {
+        display: block;
+    }
+    .kardex-table td small {
+        color: var(--muted);
+        margin-top: 0.18rem;
+    }
+    .kardex-stock {
+        white-space: nowrap;
+    }
+    .kardex-stock b {
+        color: var(--primary);
+        margin: 0 0.25rem;
+    }
+    .kardex-negative {
+        color: var(--danger);
+    }
+    .kardex-positive {
+        color: #0f7a44;
+    }
+</style>
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const modal = document.getElementById('qrModal');
+        const img = document.getElementById('qrPreviewImg');
+        const fields = {
+            lote: document.getElementById('qrPreviewLote'),
+            proveedor: document.getElementById('qrPreviewProveedor'),
+            stock: document.getElementById('qrPreviewStock'),
+            activo: document.getElementById('qrPreviewActivo'),
+            caducidad: document.getElementById('qrPreviewCaducidad'),
+            estado: document.getElementById('qrPreviewEstado'),
+            precio: document.getElementById('qrPreviewPrecio'),
+            open: document.getElementById('qrPreviewOpen'),
+            download: document.getElementById('qrPreviewDownload'),
+            regenerate: document.getElementById('qrPreviewRegenerate'),
+        };
+        const rows = Array.from(document.querySelectorAll('.qr-row'));
+        if (!modal || !img || !rows.length) return;
+
+        const openQr = (row) => {
+            img.src = row.dataset.qrSrc;
+            img.alt = `QR ${row.dataset.lote}`;
+            fields.lote.textContent = row.dataset.lote || '-';
+            fields.proveedor.textContent = row.dataset.proveedor || '-';
+            fields.stock.textContent = row.dataset.stock || '-';
+            fields.activo.textContent = row.dataset.activo || '-';
+            fields.caducidad.textContent = row.dataset.caducidad || '-';
+            fields.estado.textContent = row.dataset.estadoCaducidad || '-';
+            fields.precio.textContent = row.dataset.precioVenta || '-';
+            fields.open.href = row.dataset.openUrl || '#';
+            fields.download.href = row.dataset.downloadUrl || '#';
+            if (fields.regenerate) {
+                fields.regenerate.href = row.dataset.regenerateUrl || '#';
+                fields.regenerate.style.display = row.dataset.regenerateUrl ? '' : 'none';
+            }
+            modal.classList.add('is-open');
+            document.body.style.overflow = 'hidden';
+        };
+
+        const closeQr = () => {
+            modal.classList.remove('is-open');
+            document.body.style.overflow = '';
+        };
+
+        rows.forEach((row) => {
+            row.querySelector('.qr-selector')?.addEventListener('click', () => openQr(row));
+        });
+        modal.addEventListener('click', (event) => {
+            if (event.target === modal || event.target.closest('[data-qr-close]')) {
+                closeQr();
+            }
+        });
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape' && modal.classList.contains('is-open')) {
+                closeQr();
+            }
+        });
+    });
+</script>
 {% endblock %}
 
 

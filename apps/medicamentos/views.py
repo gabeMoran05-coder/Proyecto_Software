@@ -5,15 +5,21 @@ from io import BytesIO
 from types import SimpleNamespace
 
 import qrcode
+from django.conf import settings
 from django.contrib import messages
 from django.http import HttpResponse
 from django.core.paginator import Paginator
-from django.db.models import Q
+from django.db.models import Q, Sum
+from django.db.models.functions import TruncDate
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils import timezone
 
-from .models import Medicamento, Lote, CodigoQR
+from .models import Medicamento, Lote, CodigoQR, MovimientoInventario, NotificacionCaducidadDescartada
+from .context_processors import lotes_con_alerta_caducidad, resumen_alertas_caducidad
+from apps.usuarios.security import get_current_usuario
+from apps.text_utils import first_upper, first_upper_or_none, upper_code
 from .whatsapp import (
     WhatsAppIntegrationError,
     construir_preview_whatsapp,
@@ -92,9 +98,10 @@ def medicamento_detail(request, pk):
         pk=pk,
     )
     medicamentos_grupo = _medicamentos_mismo_grupo(med)
+    medicamentos_grupo_kardex = _medicamentos_mismo_grupo(med, incluir_ocultos=True)
     lotes = [item.id_lote for item in medicamentos_grupo if item.id_lote]
     stock_total = sum(lote.stock_actual or 0 for lote in lotes if not lote.oculto_por_caducidad)
-    estado_stock = _estado_stock_total(stock_total)
+    estado_stock = _estado_stock_total(stock_total, med.stock_minimo)
     lotes_activos = [
         lote for lote in lotes
         if lote.activo
@@ -117,6 +124,12 @@ def medicamento_detail(request, pk):
         if item.id_lote
     ]
     lote_items = _ordenar_lote_items(lote_items, lote_orden)
+    movimientos = MovimientoInventario.objects.select_related('id_lote', 'id_usuario').filter(
+        id_medicamento__in=[item.id_med for item in medicamentos_grupo_kardex]
+    )[:20]
+    movimientos = _movimientos_kardex_agrupado(movimientos, stock_total)
+    ventas_30_dias = _ventas_promedio_semanal(medicamentos_grupo)
+    sugerencia_compra = max(0, int(round((ventas_30_dias * 2) - stock_total)))
     return render(request, 'medicamentos/medicamento_detail.html', {
         'medicamento': med,
         'medicamentos_grupo': medicamentos_grupo,
@@ -124,28 +137,37 @@ def medicamento_detail(request, pk):
         'lote_items':  lote_items,
         'stock_total': stock_total,
         'estado_stock': estado_stock,
-        'estado_stock_display': _estado_stock_display(stock_total),
+        'estado_stock_display': _estado_stock_display(stock_total, med.stock_minimo),
         'lotes_activos_count': len(lotes_activos),
         'lotes_no_disponibles_count': len(lotes_no_disponibles),
         'lote_orden': lote_orden,
         'qr_codes':    qr_codes,
+        'movimientos': movimientos,
+        'stock_minimo': med.stock_minimo,
+        'dias_alerta_caducidad': med.dias_alerta_caducidad,
+        'ventas_promedio_semanal': ventas_30_dias,
+        'sugerencia_compra': sugerencia_compra,
     })
 
 
 def medicamento_create(request):
-    context = {'presentaciones': _presentaciones()}
+    context = {'presentaciones': _presentaciones(), 'tamanos_presentacion': _tamanos_presentacion()}
 
     if request.method == 'POST':
         errors = _validar_medicamento(request.POST)
         if errors:
+            medicamento = _mock(request.POST)
             context['errors'] = errors
-            context['medicamento'] = _mock(request.POST)
+            context['medicamento'] = medicamento
+            context['presentaciones'] = _presentaciones(medicamento.presentacion)
+            context['tamanos_presentacion'] = _tamanos_presentacion(medicamento.tamano_presentacion)
             return render(request, 'medicamentos/medicamento_form.html', context)
 
         Medicamento.objects.create(
-            nombre              = request.POST.get('nombre', '').strip(),
-            presentacion        = request.POST.get('presentacion', '').strip() or None,
-            concentracion       = request.POST.get('concentracion', '').strip() or None,
+            nombre              = first_upper(request.POST.get('nombre')),
+            presentacion        = first_upper_or_none(request.POST.get('presentacion')),
+            tamano_presentacion = first_upper_or_none(request.POST.get('tamano_presentacion')),
+            concentracion       = first_upper_or_none(request.POST.get('concentracion')),
             requiere_receta     = request.POST.get('requiere_receta') == 'true',
         )
         return redirect('medicamento_list')
@@ -155,7 +177,11 @@ def medicamento_create(request):
 
 def medicamento_update(request, pk):
     med   = get_object_or_404(Medicamento, pk=pk)
-    context = {'medicamento': med, 'presentaciones': _presentaciones()}
+    context = {
+        'medicamento': med,
+        'presentaciones': _presentaciones(med.presentacion),
+        'tamanos_presentacion': _tamanos_presentacion(med.tamano_presentacion),
+    }
 
     if request.method == 'POST':
         errors = _validar_medicamento(request.POST)
@@ -163,14 +189,42 @@ def medicamento_update(request, pk):
             context['errors'] = errors
             return render(request, 'medicamentos/medicamento_form.html', context)
 
-        med.nombre              = request.POST.get('nombre', '').strip()
-        med.presentacion        = request.POST.get('presentacion', '').strip() or None
-        med.concentracion       = request.POST.get('concentracion', '').strip() or None
+        med.nombre              = first_upper(request.POST.get('nombre'))
+        med.presentacion        = first_upper_or_none(request.POST.get('presentacion'))
+        med.tamano_presentacion = first_upper_or_none(request.POST.get('tamano_presentacion'))
+        med.concentracion       = first_upper_or_none(request.POST.get('concentracion'))
         med.requiere_receta     = request.POST.get('requiere_receta') == 'true'
+        med.stock_minimo        = _parse_positive_int(request.POST.get('stock_minimo'), med.stock_minimo)
+        med.dias_alerta_caducidad = _parse_positive_int(request.POST.get('dias_alerta_caducidad'), med.dias_alerta_caducidad)
         med.save()
         return redirect('medicamento_detail', pk=pk)
 
     return render(request, 'medicamentos/medicamento_form.html', context)
+
+
+def medicamento_stock_minimo(request, pk):
+    med = get_object_or_404(Medicamento, pk=pk)
+    if request.method == 'POST':
+        nuevo_minimo = _parse_positive_int(request.POST.get('stock_minimo'), med.stock_minimo)
+        medicamentos_grupo = _medicamentos_mismo_grupo(med)
+        for item in medicamentos_grupo:
+            item.stock_minimo = nuevo_minimo
+            item.save(update_fields=['stock_minimo'])
+        messages.success(request, f'Stock mínimo actualizado a {nuevo_minimo} unidades.')
+    return redirect('medicamento_detail', pk=pk)
+
+
+def medicamento_alerta_caducidad(request, pk):
+    med = get_object_or_404(Medicamento, pk=pk)
+    if request.method == 'POST':
+        dias_alerta = _parse_positive_int(request.POST.get('dias_alerta_caducidad'), med.dias_alerta_caducidad)
+        dias_alerta = max(0, min(730, dias_alerta))
+        medicamentos_grupo = _medicamentos_mismo_grupo(med)
+        for item in medicamentos_grupo:
+            item.dias_alerta_caducidad = dias_alerta
+            item.save(update_fields=['dias_alerta_caducidad'])
+        messages.success(request, f'Alerta de caducidad actualizada a {dias_alerta} día(s).')
+    return redirect('medicamento_detail', pk=pk)
 
 
 def medicamento_delete(request, pk):
@@ -191,6 +245,38 @@ def lote_list(request):
 
 def lote_ocultos(request):
     return _lote_list(request, ocultos=True)
+
+
+def lote_notificaciones(request):
+    usuario = get_current_usuario(request)
+    lotes = lotes_con_alerta_caducidad(usuario)
+    caducos, proximos = resumen_alertas_caducidad(lotes)
+    return render(request, 'medicamentos/lote_notificaciones.html', {
+        'lotes': lotes,
+        'caducos_total': caducos,
+        'proximos_total': proximos,
+        'total': caducos + proximos,
+    })
+
+
+def lote_descartar_notificacion(request, pk):
+    usuario = get_current_usuario(request)
+    if request.method == 'POST' and usuario:
+        lote = get_object_or_404(Lote, pk=pk)
+        NotificacionCaducidadDescartada.objects.update_or_create(
+            id_usuario=usuario,
+            id_lote=lote,
+            defaults={'fecha_descartada': timezone.now()},
+        )
+
+    siguiente = request.POST.get('next') or request.META.get('HTTP_REFERER') or reverse('lote_notificaciones')
+    if not url_has_allowed_host_and_scheme(
+        siguiente,
+        allowed_hosts={request.get_host()},
+        require_https=request.is_secure(),
+    ):
+        siguiente = reverse('lote_notificaciones')
+    return redirect(siguiente)
 
 
 def _lote_list(request, ocultos=False):
@@ -253,10 +339,14 @@ def _lote_list(request, ocultos=False):
 def lote_detail(request, pk):
     lote = get_object_or_404(Lote, pk=pk)
     medicamentos = lote.medicamento_set.all().order_by('nombre')
+    movimientos = MovimientoInventario.objects.select_related('id_medicamento', 'id_usuario').filter(id_lote=lote)[:25]
     return render(request, 'medicamentos/lote_detail.html', {
         'lote':         lote,
         'medicamentos': medicamentos,
         'medicamentos_catalogo': _medicamentos_catalogo_para_asignar(),
+        'movimientos': movimientos,
+        'motivos_ajuste': MovimientoInventario.MOTIVO_CHOICES,
+        'motivos_ocultar': Lote.MOTIVO_OCULTAR_CHOICES,
     })
 
 
@@ -276,6 +366,7 @@ def lote_create(request):
         'proveedor_preseleccionado': proveedor_preseleccionado,
         'medicamento_preseleccionado': medicamento_preseleccionado,
         'volver_proveedor': request.GET.get('next') == 'proveedor_detail' or request.POST.get('next') == 'proveedor_detail',
+        'fecha_hoy': timezone.localdate().isoformat(),
     }
 
     if request.method == 'POST':
@@ -287,7 +378,7 @@ def lote_create(request):
 
         lote = Lote.objects.create(
             id_prov          = get_object_or_404(Proveedor, pk=request.POST['id_prov']),
-            numero_lote      = request.POST.get('numero_lote', '').strip(),
+            numero_lote      = upper_code(request.POST.get('numero_lote')),
             stock_actual     = int(request.POST.get('stock_actual', 0)),
             activo           = request.POST.get('activo') == 'true',
             precio_compra    = request.POST.get('precio_compra') or None,
@@ -315,6 +406,7 @@ def lote_update(request, pk):
         'proveedores': proveedores,
         'medicamentos_catalogo': _medicamentos_catalogo_para_asignar(),
         'medicamento_asociado': medicamento_asociado,
+        'fecha_hoy': timezone.localdate().isoformat(),
     }
 
     if request.method == 'POST':
@@ -324,7 +416,7 @@ def lote_update(request, pk):
             return render(request, 'medicamentos/lote_form.html', context)
 
         lote.id_prov           = get_object_or_404(Proveedor, pk=request.POST['id_prov'])
-        lote.numero_lote       = request.POST.get('numero_lote', '').strip()
+        lote.numero_lote       = upper_code(request.POST.get('numero_lote'))
         lote.stock_actual      = int(request.POST.get('stock_actual', lote.stock_actual))
         lote.activo            = request.POST.get('activo') == 'true'
         lote.precio_compra     = request.POST.get('precio_compra') or None
@@ -359,6 +451,7 @@ def lote_asignar_medicamento(request, pk):
     existente = lote.medicamento_set.filter(
         nombre__iexact=medicamento.nombre,
         presentacion=medicamento.presentacion,
+        tamano_presentacion=medicamento.tamano_presentacion,
         concentracion=medicamento.concentracion,
         requiere_receta=medicamento.requiere_receta,
     ).first()
@@ -371,14 +464,108 @@ def lote_asignar_medicamento(request, pk):
     return redirect('lote_detail', pk=pk)
 
 
+def lote_ajuste_inventario(request, pk):
+    lote = get_object_or_404(Lote, pk=pk)
+    if request.method != 'POST':
+        return redirect('lote_detail', pk=pk)
+
+    medicamento = lote.medicamento_set.order_by('id_med').first()
+    stock_antes = lote.stock_actual or 0
+    cantidad = _parse_positive_int(request.POST.get('cantidad'), 0)
+    tipo_ajuste = request.POST.get('tipo_ajuste', 'salida')
+    motivo = request.POST.get('motivo') or 'correccion'
+    notas = request.POST.get('notas', '').strip()
+
+    if cantidad <= 0:
+        messages.error(request, 'La cantidad del ajuste debe ser mayor a cero.')
+        return redirect('lote_detail', pk=pk)
+
+    if tipo_ajuste == 'entrada':
+        stock_despues = stock_antes + cantidad
+        movimiento_tipo = MovimientoInventario.TIPO_ENTRADA
+        cantidad_movimiento = cantidad
+    else:
+        stock_despues = max(stock_antes - cantidad, 0)
+        movimiento_tipo = MovimientoInventario.TIPO_AJUSTE
+        cantidad_movimiento = stock_despues - stock_antes
+
+    lote.stock_actual = stock_despues
+    lote.save(update_fields=['stock_actual'])
+    _registrar_movimiento_inventario(
+        lote=lote,
+        medicamento=medicamento,
+        usuario=get_current_usuario(request),
+        tipo=movimiento_tipo,
+        motivo=motivo,
+        cantidad=cantidad_movimiento,
+        stock_antes=stock_antes,
+        stock_despues=stock_despues,
+        referencia='Ajuste manual',
+        notas=notas,
+    )
+    messages.success(request, 'Ajuste de inventario registrado.')
+    return redirect('lote_detail', pk=pk)
+
+
+def lote_conteo_fisico(request, pk):
+    lote = get_object_or_404(Lote, pk=pk)
+    if request.method != 'POST':
+        return redirect('lote_detail', pk=pk)
+
+    medicamento = lote.medicamento_set.order_by('id_med').first()
+    stock_antes = lote.stock_actual or 0
+    stock_contado = _parse_positive_int(request.POST.get('stock_contado'), stock_antes)
+    notas = request.POST.get('notas', '').strip()
+    lote.stock_actual = stock_contado
+    lote.save(update_fields=['stock_actual'])
+    _registrar_movimiento_inventario(
+        lote=lote,
+        medicamento=medicamento,
+        usuario=get_current_usuario(request),
+        tipo=MovimientoInventario.TIPO_CONTEO,
+        motivo='conteo',
+        cantidad=stock_contado - stock_antes,
+        stock_antes=stock_antes,
+        stock_despues=stock_contado,
+        referencia='Conteo físico',
+        notas=notas,
+    )
+    messages.success(request, 'Conteo físico guardado y Kardex actualizado.')
+    return redirect('lote_detail', pk=pk)
+
+
 def lote_ocultar(request, pk):
     lote = get_object_or_404(Lote, pk=pk)
     if request.method == 'POST':
+        motivo = request.POST.get('motivo_oculto') or Lote.MOTIVO_INACTIVO
+        medicamento = lote.medicamento_set.order_by('id_med').first()
+        stock_antes = lote.stock_actual or 0
         lote.oculto_por_caducidad = True
         lote.activo = False
-        lote.save(update_fields=['oculto_por_caducidad', 'activo'])
+        lote.motivo_oculto = motivo
+        lote.detalle_oculto = request.POST.get('detalle_oculto', '').strip()
+        lote.fecha_oculto = timezone.now()
+        lote.save(update_fields=['oculto_por_caducidad', 'activo', 'motivo_oculto', 'detalle_oculto', 'fecha_oculto'])
+        _registrar_movimiento_inventario(
+            lote=lote,
+            medicamento=medicamento,
+            usuario=get_current_usuario(request),
+            tipo=MovimientoInventario.TIPO_OCULTAMIENTO,
+            motivo=motivo,
+            cantidad=-stock_antes,
+            stock_antes=stock_antes,
+            stock_despues=0,
+            referencia='Ocultamiento de lote',
+            notas=lote.detalle_oculto or 'Lote ocultado del inventario operativo.',
+        )
+        if motivo in {Lote.MOTIVO_DEFECTUOSO, Lote.MOTIVO_DANINO}:
+            messages.warning(request, 'Lote ocultado. Revisa trazabilidad para contactar clientes afectados.')
+            return redirect(f"{reverse('venta_trazabilidad')}?lote={lote.pk}&tipo_cliente=registrados")
         return redirect('lote_list')
-    return render(request, 'medicamentos/lote_ocultar_confirm.html', {'lote': lote})
+    return render(request, 'medicamentos/lote_ocultar_confirm.html', {
+        'lote': lote,
+        'motivos_ocultar': Lote.MOTIVO_OCULTAR_CHOICES,
+    })
 
 
 def lote_restaurar(request, pk):
@@ -386,7 +573,10 @@ def lote_restaurar(request, pk):
     if request.method == 'POST':
         lote.oculto_por_caducidad = False
         lote.activo = True
-        lote.save(update_fields=['oculto_por_caducidad', 'activo'])
+        lote.motivo_oculto = ''
+        lote.detalle_oculto = ''
+        lote.fecha_oculto = None
+        lote.save(update_fields=['oculto_por_caducidad', 'activo', 'motivo_oculto', 'detalle_oculto', 'fecha_oculto'])
     return redirect('lote_ocultos')
 
 
@@ -469,7 +659,7 @@ def qr_enviar_whatsapp(request, pk):
             context['errors'] = [str(exc)]
             return render(request, 'medicamentos/qr_whatsapp_form.html', context)
 
-        messages.success(request, f'QR, informacion y audio enviados a WhatsApp {telefono}.')
+        messages.success(request, f'QR, información y audio enviados a WhatsApp {telefono}.')
         return redirect('medicamento_detail', pk=qr.id_medicamento_id)
 
     return render(request, 'medicamentos/qr_whatsapp_form.html', context)
@@ -477,8 +667,9 @@ def qr_enviar_whatsapp(request, pk):
 
 def qr_image(request, pk):
     qr = get_object_or_404(CodigoQR, pk=pk)
-    target_url = request.build_absolute_uri(
-        reverse('qr_scan', kwargs={'token': qr.token})
+    target_url = _public_absolute_url(
+        request,
+        reverse('qr_scan', kwargs={'token': qr.token}),
     )
 
     img = qrcode.make(target_url)
@@ -504,12 +695,21 @@ def qr_scan(request, token):
     return render(request, 'medicamentos/qr_scan.html', {
         'qr': qr,
         'medicamento': qr.id_medicamento,
+        'public_page': True,
     })
 
 
 # ═══════════════════════════════════════════════════════════════
 # HELPERS
 # ═══════════════════════════════════════════════════════════════
+
+def _public_absolute_url(request, path):
+    if path.startswith(('http://', 'https://')):
+        return path
+    if settings.SITE_PUBLIC_BASE_URL:
+        return settings.SITE_PUBLIC_BASE_URL + path
+    return request.build_absolute_uri(path)
+
 
 def _validar_medicamento(data):
     errors = []
@@ -518,8 +718,59 @@ def _validar_medicamento(data):
     return errors
 
 
-def _presentaciones():
-    return [
+def _parse_positive_int(value, default=0):
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError):
+        return default
+    return max(parsed, 0)
+
+
+def _registrar_movimiento_inventario(lote, medicamento, usuario, tipo, motivo, cantidad, stock_antes, stock_despues, referencia='', notas=''):
+    return MovimientoInventario.objects.create(
+        id_lote=lote,
+        id_medicamento=medicamento,
+        id_usuario=usuario,
+        tipo=tipo,
+        motivo=motivo,
+        cantidad=cantidad,
+        stock_antes=stock_antes,
+        stock_despues=stock_despues,
+        referencia=referencia,
+        notas=notas,
+    )
+
+
+def _movimientos_kardex_agrupado(movimientos, stock_total_actual):
+    movimientos = list(movimientos)
+    stock_despues = stock_total_actual or 0
+
+    for movimiento in movimientos:
+        cantidad = movimiento.cantidad_kardex or 0
+        stock_antes = stock_despues - cantidad
+
+        movimiento.stock_total_antes = stock_antes
+        movimiento.stock_total_despues = stock_despues
+        stock_despues = stock_antes
+
+    return movimientos
+
+
+def _ventas_promedio_semanal(medicamentos_grupo):
+    from apps.ventas.models import DetalleVenta
+
+    desde = timezone.localdate() - timezone.timedelta(days=30)
+    total = (
+        DetalleVenta.objects.filter(
+            id_medicamento__in=medicamentos_grupo,
+            id_ventas__fecha_venta__date__gte=desde,
+        ).aggregate(total=Sum('cantidad'))['total'] or 0
+    )
+    return round(total / 30 * 7, 1)
+
+
+def _presentaciones(current_presentacion=None):
+    presentaciones = [
         'Tabletas',
         'Capsulas',
         'Jarabe',
@@ -538,25 +789,77 @@ def _presentaciones():
         'Sobre',
     ]
 
+    if current_presentacion:
+        current_presentacion = str(current_presentacion).strip()
+        if current_presentacion and current_presentacion not in presentaciones:
+            presentaciones.insert(0, current_presentacion)
+
+    return presentaciones
+
+
+def _tamanos_presentacion(current_tamano=None):
+    tamanos = [
+        '120 ml',
+        '100 ml',
+        '60 ml',
+        '30 ml',
+        '15 ml',
+        'Caja c/10',
+        'Caja c/12',
+        'Caja c/20',
+        'Caja c/30',
+        'C/10',
+        'C/12',
+        'C/20',
+        'C/30',
+    ]
+
+    existentes = (
+        Medicamento.objects.exclude(tamano_presentacion__isnull=True)
+        .exclude(tamano_presentacion='')
+        .values_list('tamano_presentacion', flat=True)
+        .distinct()
+        .order_by('tamano_presentacion')
+    )
+    tamanos.extend(str(item).strip() for item in existentes if str(item).strip())
+
+    if current_tamano:
+        current_tamano = str(current_tamano).strip()
+        if current_tamano:
+            tamanos.insert(0, current_tamano)
+
+    unicos = []
+    vistos = set()
+    for tamano in tamanos:
+        clave = tamano.casefold()
+        if clave not in vistos:
+            unicos.append(tamano)
+            vistos.add(clave)
+
+    return unicos
+
 
 def _clave_medicamento(med):
     return (
         (med.nombre or '').strip().casefold(),
         (med.presentacion or '').strip().casefold(),
+        (med.tamano_presentacion or '').strip().casefold(),
         (med.concentracion or '').strip().casefold(),
         bool(med.requiere_receta),
     )
 
 
-def _medicamentos_mismo_grupo(med):
-    return list(
-        Medicamento.objects.select_related('id_lote__id_prov').filter(
-            nombre__iexact=med.nombre,
-            presentacion=med.presentacion,
-            concentracion=med.concentracion,
-            requiere_receta=med.requiere_receta,
-        ).filter(Q(id_lote__isnull=True) | Q(id_lote__oculto_por_caducidad=False))
+def _medicamentos_mismo_grupo(med, incluir_ocultos=False):
+    queryset = Medicamento.objects.select_related('id_lote__id_prov').filter(
+        nombre__iexact=med.nombre,
+        presentacion=med.presentacion,
+        tamano_presentacion=med.tamano_presentacion,
+        concentracion=med.concentracion,
+        requiere_receta=med.requiere_receta,
     )
+    if not incluir_ocultos:
+        queryset = queryset.filter(Q(id_lote__isnull=True) | Q(id_lote__oculto_por_caducidad=False))
+    return list(queryset)
 
 
 def _agrupar_medicamentos(queryset):
@@ -570,19 +873,25 @@ def _agrupar_medicamentos(queryset):
         principal = grupo[0]
         lotes = [med.id_lote for med in grupo if med.id_lote and not med.id_lote.oculto_por_caducidad]
         stock_total = sum(lote.stock_actual or 0 for lote in lotes)
+        stock_minimo = principal.stock_minimo or 0
+        dias_alerta_caducidad = principal.dias_alerta_caducidad or 90
         medicamentos.append(SimpleNamespace(
             id_med=principal.id_med,
             nombre=principal.nombre,
             presentacion=principal.presentacion,
+            tamano_presentacion=principal.tamano_presentacion,
             concentracion=principal.concentracion,
+            presentacion_completa=principal.presentacion_completa,
             requiere_receta=principal.requiere_receta,
             fecha_registro=principal.fecha_registro,
-            estado_colorimetria=_estado_stock_total(stock_total),
-            estado_stock_display=_estado_stock_display(stock_total),
+            estado_colorimetria=_estado_stock_total(stock_total, stock_minimo),
+            estado_stock_display=_estado_stock_display(stock_total, stock_minimo),
             stock_total=stock_total,
+            dias_alerta_caducidad=dias_alerta_caducidad,
             lotes=lotes,
             lotes_count=len(lotes),
-            lotes_bajo_stock=sum(1 for lote in lotes if lote.estado_stock in ('rojo', 'sin_stock')),
+            lotes_sin_stock=sum(1 for lote in lotes if lote.estado_stock == 'sin_stock'),
+            lotes_bajo_stock=sum(1 for lote in lotes if lote.estado_stock == 'amarillo'),
             lotes_proximos=sum(1 for lote in lotes if lote.estado_caducidad == 'amarillo'),
             lotes_caducos=sum(1 for lote in lotes if lote.estado_caducidad == 'rojo'),
             precio_venta=_precio_venta_referencia(lotes),
@@ -607,8 +916,11 @@ def _crear_medicamento_para_lote(medicamento_base, lote):
         id_lote=lote,
         nombre=medicamento_base.nombre,
         presentacion=medicamento_base.presentacion,
+        tamano_presentacion=medicamento_base.tamano_presentacion,
         concentracion=medicamento_base.concentracion,
         requiere_receta=medicamento_base.requiere_receta,
+        stock_minimo=medicamento_base.stock_minimo,
+        dias_alerta_caducidad=medicamento_base.dias_alerta_caducidad,
     )
 
 
@@ -619,8 +931,11 @@ def _asignar_medicamento_a_lote(lote, medicamento_base):
 
     asociado.nombre = medicamento_base.nombre
     asociado.presentacion = medicamento_base.presentacion
+    asociado.tamano_presentacion = medicamento_base.tamano_presentacion
     asociado.concentracion = medicamento_base.concentracion
     asociado.requiere_receta = medicamento_base.requiere_receta
+    asociado.stock_minimo = medicamento_base.stock_minimo
+    asociado.dias_alerta_caducidad = medicamento_base.dias_alerta_caducidad
     asociado.save()
     return asociado
 
@@ -640,23 +955,25 @@ def _ordenar_medicamentos_agrupados(medicamentos, orden):
     return sorted(medicamentos, key=claves.get(campo, claves['nombre']), reverse=reverse)
 
 
-def _estado_stock_total(stock):
+def _estado_stock_total(stock, stock_minimo=50):
+    stock_minimo = stock_minimo or 0
     if stock <= 0:
         return 'sin_stock'
-    if stock <= 5:
-        return 'rojo'
-    if stock <= 20:
+    if stock_minimo and stock < stock_minimo:
+        return 'amarillo'
+    if not stock_minimo and stock < 50:
         return 'amarillo'
     return 'verde'
 
 
-def _estado_stock_display(stock):
+def _estado_stock_display(stock, stock_minimo=50):
+    stock_minimo = stock_minimo or 0
     if stock <= 0:
         return 'Sin stock'
-    if stock <= 5:
-        return 'Rojo'
-    if stock <= 20:
-        return 'Amarillo'
+    if stock_minimo and stock < stock_minimo:
+        return 'Bajo mínimo'
+    if not stock_minimo and stock < 50:
+        return 'Poco stock'
     return 'Verde'
 
 
@@ -721,7 +1038,40 @@ def _validar_lote(data):
         errors.append('El número de lote es obligatorio.')
     if not data.get('id_prov'):
         errors.append('Debes seleccionar un proveedor.')
+
+    hoy = timezone.localdate()
+    fecha_fabricacion = _parse_lote_date(data.get('fecha_fabricacion'), 'fecha de fabricación', errors)
+    fecha_caducidad = _parse_lote_date(data.get('fecha_caducidad'), 'fecha de vencimiento', errors)
+    fecha_compra = _parse_lote_date(data.get('fecha_compra'), 'fecha de compra', errors)
+
+    if fecha_fabricacion and fecha_fabricacion > hoy:
+        errors.append('La fecha de fabricación no puede ser posterior al día de hoy.')
+    if fecha_compra and fecha_compra > hoy:
+        errors.append('La fecha de compra no puede ser posterior al día de hoy.')
+    if fecha_fabricacion and fecha_compra and fecha_compra < fecha_fabricacion:
+        errors.append('La fecha de compra no puede ser anterior a la fecha de fabricación.')
+    if fecha_fabricacion and fecha_caducidad and fecha_caducidad < fecha_fabricacion:
+        errors.append('La fecha de vencimiento no puede ser anterior a la fecha de fabricación.')
+    if fecha_compra and fecha_caducidad and fecha_caducidad < fecha_compra:
+        errors.append('La fecha de vencimiento no puede ser anterior a la fecha de compra.')
+
+    try:
+        stock = int(data.get('stock_actual') or 0)
+        if stock < 0:
+            errors.append('El stock no puede ser negativo.')
+    except (TypeError, ValueError):
+        errors.append('El stock debe ser un número entero válido.')
     return errors
+
+
+def _parse_lote_date(value, label, errors):
+    if not value:
+        return None
+    try:
+        return datetime.strptime(value, '%Y-%m-%d').date()
+    except (TypeError, ValueError):
+        errors.append(f'La {label} no tiene un formato válido.')
+        return None
 
 
 def _primer_medicamento_nombre(lote):

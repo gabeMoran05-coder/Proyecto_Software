@@ -47,7 +47,7 @@ def construir_preview_whatsapp(request, qr):
 def normalizar_telefono(raw):
     telefono = ''.join(ch for ch in raw if ch.isdigit())
     if len(telefono) < 10:
-        raise WhatsAppIntegrationError('Ingresa un telefono con codigo de pais. Ejemplo: 5213312345678.')
+        raise WhatsAppIntegrationError('Ingresa un teléfono con código de país. Ejemplo: 5213312345678.')
     return telefono
 
 
@@ -56,7 +56,7 @@ def normalizar_telefono_con_pais(country_code, local_number):
     numero = ''.join(ch for ch in local_number if ch.isdigit())
 
     if not codigo:
-        raise WhatsAppIntegrationError('Selecciona el pais del numero de WhatsApp.')
+        raise WhatsAppIntegrationError('Selecciona el país del numero de WhatsApp.')
     if len(numero) < 7:
         raise WhatsAppIntegrationError('Ingresa un numero de WhatsApp valido.')
 
@@ -89,13 +89,15 @@ def _validar_configuracion():
 
 
 def _absolute_url(request, path):
+    if path.startswith(('http://', 'https://')):
+        return path
     if settings.SITE_PUBLIC_BASE_URL:
         return settings.SITE_PUBLIC_BASE_URL + path
     return request.build_absolute_uri(path)
 
 
 def _generar_qr_png(target_url):
-    img = qrcode.make(target_url)
+    img = qrcode.make(target_url).convert('RGB')
     buffer = BytesIO()
     img.save(buffer, format='PNG')
     return buffer.getvalue()
@@ -170,7 +172,14 @@ def _enviar_audio(telefono, media_id):
     })
 
 
-def _enviar_plantilla(telefono, template_name, language_code, body_params, header_image_id=None):
+def _enviar_plantilla(
+    telefono,
+    template_name,
+    language_code,
+    body_params,
+    header_image_id=None,
+    button_url_param=None,
+):
     components = []
     if header_image_id:
         components.append({
@@ -190,6 +199,16 @@ def _enviar_plantilla(telefono, template_name, language_code, body_params, heade
             for param in body_params
         ],
     })
+
+    if button_url_param:
+        components.append({
+            'type': 'button',
+            'sub_type': 'url',
+            'index': '0',
+            'parameters': [
+                {'type': 'text', 'text': str(button_url_param)},
+            ],
+        })
 
     _enviar_mensaje({
         'messaging_product': 'whatsapp',
@@ -230,9 +249,9 @@ def _texto_presentacion(medicamento, ficha_url):
     receta = 'Requiere receta medica' if medicamento.requiere_receta else 'No requiere receta medica'
     precio = f'${lote.precio_venta:.2f}' if lote.precio_venta is not None else 'No registrado'
     return (
-        f'Informacion de medicamento\n\n'
+        f'Información de medicamento\n\n'
         f'{medicamento.nombre}\n'
-        f'Presentacion: {medicamento.presentacion or "No registrada"}\n'
+        f'Presentación: {medicamento.presentacion_completa or "No registrada"}\n'
         f'Concentracion: {medicamento.concentracion or "No registrada"}\n'
         f'{receta}\n'
         f'Caducidad: {caducidad}\n'
@@ -246,7 +265,7 @@ def _texto_presentacion(medicamento, ficha_url):
 def _caption_qr(medicamento):
     return (
         f'QR de consulta para {medicamento.nombre}. '
-        f'Escanealo para ver la ficha publica del medicamento.'
+        f'Escanealo para ver la ficha pública del medicamento.'
     )
 
 
@@ -256,7 +275,7 @@ def _texto_audio(medicamento):
     receta = 'requiere receta medica' if medicamento.requiere_receta else 'no requiere receta medica'
     return (
         f'Aviso: este audio fue generado por inteligencia artificial. '
-        f'El medicamento {medicamento.nombre}, presentacion {medicamento.presentacion or "no registrada"}, '
+        f'El medicamento {medicamento.nombre}, presentacion {medicamento.presentacion_completa or "no registrada"}, '
         f'con concentracion {medicamento.concentracion or "no registrada"}, {receta}. '
         f'La fecha de caducidad es {caducidad}. '
         f'Proveedor: {lote.id_prov.nombre}. '
@@ -269,4 +288,19 @@ def _api_error(nombre, response):
         detalle = response.json()
     except ValueError:
         detalle = response.text[:500]
-    return f'{nombre} respondio con error {response.status_code}: {detalle}'
+
+    if nombre.startswith('WhatsApp') and response.status_code == 401:
+        return (
+            'WhatsApp rechazó la autenticación. Revisa que las credenciales '
+            'estén vigentes y pertenezcan al mismo número configurado en Meta.'
+        )
+
+    error = detalle.get('error', {}) if isinstance(detalle, dict) else {}
+    if nombre.startswith('WhatsApp') and error.get('code') == 132001:
+        return (
+            'WhatsApp no puede enviar esta plantilla todavía. Revisa en Meta '
+            'que la plantilla del ticket esté aprobada y en el mismo idioma '
+            'configurado para el sistema.'
+        )
+
+    return f'{nombre} respondió con error {response.status_code}: {detalle}'

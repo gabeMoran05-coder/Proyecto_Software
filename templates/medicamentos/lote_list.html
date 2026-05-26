@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+﻿{% extends "base.html" %}
 {% block title %}{% if ocultos %}Lotes ocultos{% else %}Lotes{% endif %}{% endblock %}
 
 {% block content %}
@@ -20,13 +20,12 @@
                 <a class="btn btn-secondary" href="{% url 'lote_list' %}">Ver lotes activos</a>
             {% else %}
                 <a class="btn btn-secondary" href="{% url 'lote_ocultos' %}">Ver lotes ocultos</a>
-                <a class="btn btn-primary btn-plus" href="{% url 'lote_create' %}" title="Nuevo lote" aria-label="Nuevo lote">+</a>
             {% endif %}
         </div>
     </div>
 
     <div class="alert alert-info">
-        Criterio de caducidad: verde vigente si faltan mas de 90 dias; amarillo proximo a caducar si faltan 90 dias o menos; rojo caduco si la fecha de caducidad ya paso. Los lotes caducos no deben comercializarse y pueden ocultarse para retirarlos del inventario operativo sin borrarlos de la base de datos.
+        Criterio de caducidad: verde vigente fuera del rango configurado; amarillo próximo a caducar según los días definidos en cada medicamento; rojo caduco si la fecha de caducidad ya pasó. Los lotes caducos no deben comercializarse y pueden ocultarse para retirarlos del inventario operativo sin borrarlos de la base de datos.
     </div>
 
     <div class="filter-bar">
@@ -34,7 +33,7 @@
         <form method="get">
             <div class="filter-row">
                 <div class="form-group">
-                    <label for="numero">Numero de lote</label>
+                    <label for="numero">Número de lote</label>
                     <input id="numero" name="numero" type="text"
                         placeholder="Buscar..." value="{{ numero_filter|default:'' }}">
                 </div>
@@ -56,7 +55,7 @@
                     <select id="caducidad" name="caducidad">
                         <option value="">-- Todas --</option>
                         <option value="verde" {% if caducidad_filter == 'verde' %}selected{% endif %}>Verde - vigente</option>
-                        <option value="amarillo" {% if caducidad_filter == 'amarillo' %}selected{% endif %}>Amarillo - proximo</option>
+                        <option value="amarillo" {% if caducidad_filter == 'amarillo' %}selected{% endif %}>Amarillo - próximo</option>
                         <option value="rojo" {% if caducidad_filter == 'rojo' %}selected{% endif %}>Rojo - caduco</option>
                     </select>
                 </div>
@@ -79,11 +78,11 @@
                     <th>ID</th>
                     <th>
                         {% if orden_filter == 'numero_asc' %}
-                            <a class="sort-link" href="?orden=numero_desc{{ filter_query_params }}">Numero de lote <span class="sort-arrow">↑</span></a>
+                            <a class="sort-link" href="?orden=numero_desc{{ filter_query_params }}">Número de lote <span class="sort-arrow">↑</span></a>
                         {% elif orden_filter == 'numero_desc' %}
-                            <a class="sort-link" href="?orden=numero_asc{{ filter_query_params }}">Numero de lote <span class="sort-arrow">↓</span></a>
+                            <a class="sort-link" href="?orden=numero_asc{{ filter_query_params }}">Número de lote <span class="sort-arrow">↓</span></a>
                         {% else %}
-                            <a class="sort-link" href="?orden=numero_asc{{ filter_query_params }}">Numero de lote</a>
+                            <a class="sort-link" href="?orden=numero_asc{{ filter_query_params }}">Número de lote</a>
                         {% endif %}
                     </th>
                     <th>
@@ -164,7 +163,7 @@
                     <td>
                         {% for med in lote.medicamento_set.all %}
                             <div><a class="link" href="{% url 'medicamento_detail' med.id_med %}">{{ med.nombre }}</a></div>
-                            <div class="text-muted small">{{ med.presentacion|default:"Sin presentacion" }}</div>
+                            <div class="text-muted small">{{ med.presentacion_completa|default:"Sin presentación" }}</div>
                         {% empty %}
                             <span class="text-muted">Sin medicamento</span>
                         {% endfor %}
@@ -183,7 +182,7 @@
                             {{ lote.estado_caducidad_display }}
                         </span>
                         {% if lote.fecha_caducidad %}
-                            <div class="text-muted small">{{ lote.dias_para_caducar }} dias</div>
+                            <div class="text-muted small">{{ lote.dias_para_caducar }} días</div>
                         {% endif %}
                     </td>
                     <td>

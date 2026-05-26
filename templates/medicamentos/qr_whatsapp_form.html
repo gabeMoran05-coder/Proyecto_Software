@@ -23,9 +23,9 @@
             <form method="post" class="form-grid">
                 {% csrf_token %}
                 <div class="form-group">
-                    <label for="telefono-local">Numero de WhatsApp</label>
+                    <label for="telefono-local">Número de WhatsApp</label>
                     <div class="phone-row">
-                        <select id="pais-codigo" name="pais_codigo" aria-label="Pais">
+                        <select id="pais-codigo" name="pais_codigo" aria-label="País">
                             {% for country in country_codes %}
                                 <option value="{{ country.code }}" data-placeholder="{{ country.placeholder }}" {% if country_code == country.code %}selected{% endif %}>
                                     {{ country.flag }} +{{ country.code }}
@@ -42,7 +42,7 @@
                             autocomplete="tel-national"
                             required>
                     </div>
-                    <p class="text-muted">Elige el pais y escribe el numero con espacios, por ejemplo: 312 198 1722.</p>
+                    <p class="text-muted">Elige el país y escribe el número con espacios, por ejemplo: 312 198 1722.</p>
                 </div>
                 <div class="form-actions">
                     <button class="btn btn-primary" type="submit">Enviar paquete</button>

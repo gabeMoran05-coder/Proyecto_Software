@@ -32,10 +32,32 @@
         </table>
     </div>
 
-    <form method="post" class="form-actions">
+    <form method="post">
         {% csrf_token %}
-        <a class="btn btn-secondary" href="{% url 'lote_detail' lote.id_lote %}">Cancelar</a>
-        <button type="submit" class="btn btn-danger">Ocultar y retirar del inventario</button>
+        <div class="detail-section mt-2">
+            <h3>Motivo de ocultamiento</h3>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label for="motivo_oculto">Motivo</label>
+                    <select id="motivo_oculto" name="motivo_oculto" required>
+                        {% for value, label in motivos_ocultar %}
+                            <option value="{{ value }}">{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="detalle_oculto">Detalle</label>
+                    <textarea id="detalle_oculto" name="detalle_oculto" rows="3" placeholder="Describe por que se oculta este lote"></textarea>
+                </div>
+            </div>
+            <div class="alert alert-warning">
+                Si eliges defectuoso o dañino, se abrirá trazabilidad para contactar clientes afectados.
+            </div>
+        </div>
+        <div class="form-actions">
+            <a class="btn btn-secondary" href="{% url 'lote_detail' lote.id_lote %}">Cancelar</a>
+            <button type="submit" class="btn btn-danger">Ocultar y retirar del inventario</button>
+        </div>
     </form>
 </div>
 {% endblock %}

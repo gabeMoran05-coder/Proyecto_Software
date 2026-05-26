@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% block title %}Clientes{% endblock %}
+
+{% block content %}
+<div class="card mt-2">
+
+    <div class="page-header">
+        <div>
+            <h1>Clientes</h1>
+            <p class="page-subtitle">Registro de clientes de la farmacia</p>
+        </div>
+        <a class="btn btn-primary btn-plus" href="{% url 'cliente_create' %}" title="Nuevo cliente" aria-label="Nuevo cliente">+</a>
+    </div>
+
+    <div class="filter-bar">
+        <h4>Búsqueda</h4>
+        <form method="get">
+            <div class="filter-row">
+                <div class="form-group" style="flex:2;">
+                    <label for="nombre">Nombre del cliente</label>
+                    <input id="nombre" name="nombre" type="text"
+                        placeholder="Buscar por nombre..." value="{{ nombre_filter|default:'' }}">
+                </div>
+                <div class="btn-group" style="align-self:flex-end;">
+                    <button type="submit" class="btn btn-primary">Buscar</button>
+                    <a href="{% url 'cliente_list' %}" class="btn btn-secondary">Limpiar</a>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <p class="text-muted" style="margin-bottom:0.85rem;">
+        Mostrando {{ page_obj.start_index }}-{{ page_obj.end_index }} de {{ paginator.count }} clientes
+    </p>
+
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>
+                        {% if orden_filter == 'id_asc' %}
+                            <a class="sort-link" href="?orden=id_desc{{ filter_query_params }}">ID <span class="sort-arrow">↑</span></a>
+                        {% elif orden_filter == 'id_desc' %}
+                            <a class="sort-link" href="?orden=id_asc{{ filter_query_params }}">ID <span class="sort-arrow">↓</span></a>
+                        {% else %}
+                            <a class="sort-link" href="?orden=id_asc{{ filter_query_params }}">ID</a>
+                        {% endif %}
+                    </th>
+                    <th>
+                        {% if orden_filter == 'nombre_asc' %}
+                            <a class="sort-link" href="?orden=nombre_desc{{ filter_query_params }}">Nombre completo <span class="sort-arrow">↑</span></a>
+                        {% elif orden_filter == 'nombre_desc' %}
+                            <a class="sort-link" href="?orden=nombre_asc{{ filter_query_params }}">Nombre completo <span class="sort-arrow">↓</span></a>
+                        {% else %}
+                            <a class="sort-link" href="?orden=nombre_asc{{ filter_query_params }}">Nombre completo</a>
+                        {% endif %}
+                    </th>
+                    <th>
+                        {% if orden_filter == 'telefono_asc' %}
+                            <a class="sort-link" href="?orden=telefono_desc{{ filter_query_params }}">Teléfono <span class="sort-arrow">↑</span></a>
+                        {% elif orden_filter == 'telefono_desc' %}
+                            <a class="sort-link" href="?orden=telefono_asc{{ filter_query_params }}">Teléfono <span class="sort-arrow">↓</span></a>
+                        {% else %}
+                            <a class="sort-link" href="?orden=telefono_asc{{ filter_query_params }}">Teléfono</a>
+                        {% endif %}
+                    </th>
+                    <th>
+                        {% if orden_filter == 'fecha_asc' %}
+                            <a class="sort-link" href="?orden=fecha_desc{{ filter_query_params }}">Fecha registro <span class="sort-arrow">↑</span></a>
+                        {% elif orden_filter == 'fecha_desc' %}
+                            <a class="sort-link" href="?orden=fecha_asc{{ filter_query_params }}">Fecha registro <span class="sort-arrow">↓</span></a>
+                        {% else %}
+                            <a class="sort-link" href="?orden=fecha_desc{{ filter_query_params }}">Fecha registro</a>
+                        {% endif %}
+                    </th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for cliente in clientes %}
+                <tr>
+                    <td class="text-mono">{{ cliente.id_cliente }}</td>
+                    <td>
+                        <a class="link" href="{% url 'cliente_detail' cliente.id_cliente %}">
+                            {{ cliente.nombre }}{% if cliente.ap_pat %} {{ cliente.ap_pat }}{% endif %}{% if cliente.ap_mat %} {{ cliente.ap_mat }}{% endif %}
+                        </a>
+                    </td>
+                    <td>{{ cliente.telefono|default:"-" }}</td>
+                    <td>{{ cliente.fecha_registro|date:'d/m/Y'|default:"-" }}</td>
+                    <td>
+                        <div class="btn-group">
+                            <a class="btn btn-secondary btn-sm" href="{% url 'cliente_detail' cliente.id_cliente %}">Ver</a>
+                            <a class="btn btn-secondary btn-sm" href="{% url 'cliente_update' cliente.id_cliente %}">Editar</a>
+                            <a class="btn btn-danger btn-sm" href="{% url 'cliente_delete' cliente.id_cliente %}">Eliminar</a>
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5">
+                        <div class="empty-state">
+                            <div class="empty-icon">ðŸ‘¤</div>
+                            <p>No hay clientes registrados.</p>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% include "components/pagination.html" %}
+
+</div>
+{% endblock %}

@@ -1,11 +1,11 @@
-{% extends "base.html" %}
-{% block title %}Codigos QR - Farmacia Inclusiva{% endblock %}
+﻿{% extends "base.html" %}
+{% block title %}Códigos QR - Farmacia Inclusiva{% endblock %}
 
 {% block content %}
 <div class="card mt-2">
     <div class="page-header">
         <div>
-            <h1>Codigos QR</h1>
+            <h1>Códigos QR</h1>
             <p class="page-subtitle">Tokens vinculados a medicamentos registrados</p>
         </div>
         <a class="btn btn-secondary" href="{% url 'medicamento_list' %}">Volver a medicamentos</a>
@@ -59,7 +59,7 @@
                 <tr>
                     <td class="text-mono">#{{ qr.id_qr }}</td>
                     <td>
-                        <img src="{% url 'qr_image' qr.id_qr %}" alt="Codigo QR {{ qr.id_qr }}"
+                        <img src="{% url 'qr_image' qr.id_qr %}" alt="Código QR {{ qr.id_qr }}"
                              style="width:84px;height:84px;border:1px solid var(--border);border-radius:10px;background:#fff;padding:0.35rem;">
                     </td>
                     <td>
@@ -94,7 +94,7 @@
                     <td colspan="8">
                         <div class="empty-state">
                             <div class="empty-icon">QR</div>
-                            <p>No hay codigos QR registrados.</p>
+                            <p>No hay códigos QR registrados.</p>
                         </div>
                     </td>
                 </tr>

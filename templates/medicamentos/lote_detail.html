@@ -1,4 +1,4 @@
-{% extends 'base.html' %}
+﻿{% extends 'base.html' %}
 
 {% block title %}Detalle del lote - {{ lote.numero_lote }}{% endblock %}
 
@@ -6,10 +6,11 @@
 <div class="card mt-4">
     <div class="page-header">
         <div>
-            <h1>Informacion del lote</h1>
+            <h1>Información del lote</h1>
             <p class="page-subtitle">{{ lote.numero_lote }}</p>
         </div>
         <div class="btn-group">
+            <a href="{% url 'venta_trazabilidad' %}?lote={{ lote.id_lote }}" class="btn btn-primary">Trazabilidad</a>
             <a href="{% url 'lote_update' lote.id_lote %}" class="btn btn-secondary">Editar</a>
             {% if lote.oculto_por_caducidad %}
                 <form method="post" action="{% url 'lote_restaurar' lote.id_lote %}">
@@ -28,17 +29,23 @@
             <h3>Datos del lote</h3>
             <table class="detail-table">
                 <tr><td>ID interno</td><td class="text-mono">{{ lote.id_lote }}</td></tr>
-                <tr><td>Numero de lote</td><td class="text-mono fw-600">{{ lote.numero_lote }}</td></tr>
+                <tr><td>Número de lote</td><td class="text-mono fw-600">{{ lote.numero_lote }}</td></tr>
                 <tr>
                     <td>Retiro por protocolo</td>
                     <td>
                         {% if lote.oculto_por_caducidad %}
                             <span class="badge badge-red">Oculto del inventario</span>
+                            {% if lote.motivo_oculto %}
+                                <div class="text-muted small">{{ lote.get_motivo_oculto_display }}{% if lote.fecha_oculto %} - {{ lote.fecha_oculto|date:'d/m/Y H:i' }}{% endif %}</div>
+                            {% endif %}
                         {% else %}
                             <span class="badge badge-green">Visible</span>
                         {% endif %}
                     </td>
                 </tr>
+                {% if lote.detalle_oculto %}
+                    <tr><td>Detalle ocultamiento</td><td>{{ lote.detalle_oculto }}</td></tr>
+                {% endif %}
                 <tr>
                     <td>Proveedor</td>
                     <td>
@@ -74,12 +81,115 @@
                             {{ lote.estado_caducidad_display }}
                         </span>
                         {% if lote.fecha_caducidad %}
-                            <span class="text-muted small">({{ lote.dias_para_caducar }} dias)</span>
+                            <span class="text-muted small">({{ lote.dias_para_caducar }} días)</span>
                         {% endif %}
                     </td>
                 </tr>
                 <tr><td>Fecha fabricacion</td><td>{{ lote.fecha_fabricacion|date:"d/m/Y"|default:"No registrada" }}</td></tr>
                 <tr><td>Fecha ingreso</td><td>{{ lote.fecha_ingreso|date:"d/m/Y"|default:"No registrada" }}</td></tr>
+            </table>
+        </div>
+    </div>
+
+    {% if current_usuario_role != 'cajero' %}
+    <div class="detail-section mt-2">
+        <h3>Ajustes y conteo físico</h3>
+        <div class="inventory-actions">
+            <form method="post" action="{% url 'lote_ajuste_inventario' lote.id_lote %}" class="inventory-adjust-card">
+                {% csrf_token %}
+                <div class="inventory-action-head">
+                    <strong>Ajuste manual</strong>
+                    <span>Aumenta o disminuye stock con motivo registrado en Kardex.</span>
+                </div>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Accion</label>
+                        <select name="tipo_ajuste" data-stock-action>
+                            <option value="salida">Disminuir stock</option>
+                            <option value="entrada">Aumentar stock</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Cantidad</label>
+                        <input type="number" name="cantidad" min="1" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Motivo</label>
+                        <select name="motivo" data-stock-reason>
+                            {% for value, label in motivos_ajuste %}
+                                <option value="{{ value }}" data-action="{% if value == 'compra' or value == 'devolucion' %}entrada{% elif value == 'correccion' %}ambos{% else %}salida{% endif %}">{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Notas</label>
+                        <input type="text" name="notas" placeholder="Opcional">
+                    </div>
+                </div>
+                <button class="btn btn-primary btn-sm" type="submit">Guardar ajuste</button>
+            </form>
+            <form method="post" action="{% url 'lote_conteo_fisico' lote.id_lote %}" class="inventory-count-card">
+                {% csrf_token %}
+                <div class="inventory-action-head">
+                    <strong>Conteo físico</strong>
+                    <span>Escribe el stock real contado; el sistema ajusta la diferencia.</span>
+                </div>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Stock contado</label>
+                        <input type="number" name="stock_contado" min="0" value="{{ lote.stock_actual }}" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Notas</label>
+                        <input type="text" name="notas" placeholder="Conteo de anaquel, bodega...">
+                    </div>
+                </div>
+                <button class="btn btn-secondary btn-sm" type="submit">Guardar conteo físico</button>
+            </form>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="detail-section mt-2">
+        <h3>Kardex del lote</h3>
+        <div class="table-wrap">
+            <table class="kardex-table">
+                <thead><tr><th>Fecha</th><th>Movimiento</th><th>Cant.</th><th>Stock</th><th>Referencia</th><th>Responsable</th></tr></thead>
+                <tbody>
+                    {% for mov in movimientos %}
+                        <tr>
+                            <td>{{ mov.fecha|date:'d/m/Y H:i' }}</td>
+                            <td>
+                                <strong>{{ mov.get_tipo_display }}</strong>
+                                <small>{{ mov.get_motivo_display }}</small>
+                                {% if mov.id_medicamento %}
+                                    <small>{{ mov.id_medicamento.nombre }}</small>
+                                {% endif %}
+                            </td>
+                            <td class="text-mono fw-600 {% if mov.cantidad_kardex < 0 %}kardex-negative{% elif mov.cantidad_kardex > 0 %}kardex-positive{% endif %}">
+                                {% if mov.cantidad_kardex > 0 %}+{% endif %}{{ mov.cantidad_kardex }}
+                            </td>
+                            <td class="kardex-stock">
+                                <span>{{ mov.stock_antes }}</span>
+                                <b>→</b>
+                                <span>{{ mov.stock_despues_kardex }}</span>
+                            </td>
+                            <td>
+                                {{ mov.referencia|default:'-' }}
+                                {% if mov.notas %}<small>{{ mov.notas }}</small>{% endif %}
+                            </td>
+                            <td>
+                                {% if mov.id_usuario %}
+                                    {{ mov.id_usuario.nombre_completo }}
+                                {% else %}
+                                    Sistema
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr><td colspan="6"><div class="empty-state"><p>Sin movimientos registrados.</p></div></td></tr>
+                    {% endfor %}
+                </tbody>
             </table>
         </div>
     </div>
@@ -96,7 +206,7 @@
                         <option value="">-- Seleccione medicamento --</option>
                         {% for med in medicamentos_catalogo %}
                             <option value="{{ med.id_med }}">
-                                {{ med.nombre }}{% if med.presentacion %} - {{ med.presentacion }}{% endif %}{% if med.concentracion %} - {{ med.concentracion }}{% endif %}
+                                {{ med.nombre }}{% if med.presentacion_completa %} - {{ med.presentacion_completa }}{% endif %}{% if med.concentracion %} - {{ med.concentracion }}{% endif %}
                             </option>
                         {% endfor %}
                     </select>
@@ -111,8 +221,8 @@
                     <thead>
                         <tr>
                             <th>Medicamento</th>
-                            <th>Presentacion</th>
-                            <th>Concentracion</th>
+                            <th>Presentación</th>
+                            <th>Concentración</th>
                             <th>Receta</th>
                             <th>Estado</th>
                             <th>Acciones</th>
@@ -122,7 +232,7 @@
                         {% for med in medicamentos %}
                         <tr>
                             <td><a class="link" href="{% url 'medicamento_detail' med.id_med %}">{{ med.nombre }}</a></td>
-                            <td>{{ med.presentacion|default:"-" }}</td>
+                            <td>{{ med.presentacion_completa|default:"-" }}</td>
                             <td>{{ med.concentracion|default:"-" }}</td>
                             <td>
                                 {% if med.requiere_receta %}
@@ -146,9 +256,91 @@
             </div>
         {% else %}
             <div class="empty-state" style="padding:1.5rem;">
-                <p>Este lote aun no tiene medicamentos asociados.</p>
+                <p>Este lote aún no tiene medicamentos asociados.</p>
             </div>
         {% endif %}
     </div>
 </div>
+<style>
+.inventory-actions {
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.inventory-actions form {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1rem;
+}
+.inventory-action-head {
+    margin-bottom: 0.85rem;
+}
+.inventory-action-head strong {
+    color: var(--primary);
+    display: block;
+    font-size: 0.95rem;
+    margin-bottom: 0.25rem;
+}
+.inventory-action-head span {
+    color: var(--muted);
+    display: block;
+    font-size: 0.82rem;
+    line-height: 1.4;
+}
+.kardex-table td {
+    vertical-align: top;
+}
+.kardex-table td strong,
+.kardex-table td small {
+    display: block;
+}
+.kardex-table td small {
+    color: var(--muted);
+    margin-top: 0.18rem;
+}
+.kardex-stock {
+    white-space: nowrap;
+}
+.kardex-stock b {
+    color: var(--primary);
+    margin: 0 0.25rem;
+}
+.kardex-negative {
+    color: var(--danger);
+}
+.kardex-positive {
+    color: #0f7a44;
+}
+@media (max-width: 900px) {
+    .inventory-actions {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        var action = document.querySelector('[data-stock-action]');
+        var reason = document.querySelector('[data-stock-reason]');
+        if (!action || !reason) return;
+
+        function syncReasons() {
+            var selectedAction = action.value;
+            var firstVisible = null;
+            Array.prototype.forEach.call(reason.options, function (option) {
+                var optionAction = option.getAttribute('data-action') || 'ambos';
+                var visible = optionAction === 'ambos' || optionAction === selectedAction;
+                option.hidden = !visible;
+                option.disabled = !visible;
+                if (visible && !firstVisible) firstVisible = option;
+            });
+            if (reason.selectedOptions[0] && reason.selectedOptions[0].disabled && firstVisible) {
+                reason.value = firstVisible.value;
+            }
+        }
+
+        action.addEventListener('change', syncReasons);
+        syncReasons();
+    });
+</script>
 {% endblock %}
