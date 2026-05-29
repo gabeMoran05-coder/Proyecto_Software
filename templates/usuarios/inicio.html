@@ -1,0 +1,733 @@
+﻿{% extends "base.html" %}
+{% block title %}Inicio{% endblock %}
+
+{% block content %}
+{% if current_usuario_role == 'cajero' and not current_usuario_is_admin %}
+<div class="cashier-home">
+    <section class="cashier-hero">
+        <div>
+            <p class="cashier-date">{{ hoy|date:"d/m/Y" }}</p>
+            <h1>Hola, {{ current_usuario.nombre }}</h1>
+            <p class="page-subtitle">Tu punto de trabajo para vender, consultar productos y revisar los tickets del día.</p>
+        </div>
+        <a class="cashier-sale-button" href="{% url 'venta_create' %}">Nueva venta</a>
+    </section>
+
+    <section class="cashier-summary">
+        <article>
+            <span>Ventas hechas</span>
+            <strong>{{ total_ventas_hoy }}</strong>
+            <small>Operaciones de hoy</small>
+        </article>
+        <article>
+            <span>Total cobrado</span>
+            <strong>${{ ingresos_hoy|floatformat:2 }}</strong>
+            <small>Ingresos registrados</small>
+        </article>
+        <article>
+            <span>Productos</span>
+            <strong>{{ productos_hoy }}</strong>
+            <small>Unidades vendidas</small>
+        </article>
+    </section>
+
+    <section class="cashier-grid">
+        <article class="cashier-panel cashier-shortcuts">
+            <h2>Acciones rápidas</h2>
+            <div>
+                <a href="{% url 'venta_create' %}">
+                    <strong>Nueva venta</strong>
+                    <span>Registrar una compra</span>
+                </a>
+                <a href="{% url 'venta_list' %}">
+                    <strong>Ventas del día</strong>
+                    <span>Consultar tickets y detalles</span>
+                </a>
+                <a href="{% url 'medicamento_list' %}">
+                    <strong>Buscar medicamento</strong>
+                    <span>Precio, receta y existencia</span>
+                </a>
+            </div>
+        </article>
+
+        <article class="cashier-panel">
+            <div class="cashier-panel-head">
+                <h2>Últimas ventas</h2>
+                <a href="{% url 'venta_list' %}">Ver todas</a>
+            </div>
+            <div class="cashier-sales">
+                {% for venta in ventas_recientes_hoy %}
+                    <a href="{% url 'venta_detail' venta.id_ventas %}">
+                        <span>
+                            <strong>Venta #{{ venta.id_ventas }}</strong>
+                            <small>{{ venta.fecha_venta|date:"H:i" }} · {{ venta.id_metPag.nombre_metodo }}</small>
+                        </span>
+                        <b>${{ venta.total_venta|floatformat:2 }}</b>
+                    </a>
+                {% empty %}
+                    <p class="cashier-empty">Aún no hay ventas registradas hoy.</p>
+                {% endfor %}
+            </div>
+        </article>
+    </section>
+</div>
+{% else %}
+<div class="ops-shell">
+    <section class="ops-command">
+        <div>
+            <p class="ops-date">{{ hoy|date:"d/m/Y" }}</p>
+            <h1>Centro de operación</h1>
+            <p class="page-subtitle">Lo urgente, lo que se vendió hoy y lo que necesita atención antes de seguir.</p>
+        </div>
+        <div class="ops-command-actions">
+            {% if current_usuario_is_admin or current_usuario_role == 'cajero' %}
+                <a class="btn btn-primary" href="{% url 'venta_create' %}">Nueva venta</a>
+            {% endif %}
+            <a class="btn btn-secondary" href="{% url 'medicamento_list' %}">Inventario</a>
+            {% if current_usuario_is_admin or current_usuario_role == 'farmaceutico' %}
+                <a class="btn btn-secondary" href="{% url 'reportes_dashboard' %}">Reportes</a>
+            {% endif %}
+        </div>
+    </section>
+
+    <section class="ops-strip">
+        <article>
+            <span>Hoy</span>
+            <strong>{{ total_ventas_hoy }} venta(s)</strong>
+            <small>${{ ingresos_hoy|floatformat:2 }}</small>
+        </article>
+        <article>
+            <span>Salieron</span>
+            <strong>{{ productos_hoy }} unidad(es)</strong>
+            <small>Productos vendidos</small>
+        </article>
+        <article class="{% if bajo_stock_total %}attention{% endif %}">
+            <span>Reponer</span>
+            <strong>{{ bajo_stock_total }}</strong>
+            <small>Lotes bajo mínimo</small>
+        </article>
+        <article class="{% if caducidades_total %}danger{% endif %}">
+            <span>Retirar/revisar</span>
+            <strong>{{ caducidades_total }}</strong>
+            <small>Caducidad</small>
+        </article>
+    </section>
+
+    <section class="ops-board">
+        <aside class="ops-priority">
+            <div class="ops-section-head">
+                <h2>Atender primero</h2>
+                <span>{{ tareas|length }} pendiente(s)</span>
+            </div>
+            <div class="ops-task-list">
+                {% for tarea in tareas %}
+                    {% if tarea.url %}
+                        <a class="ops-task is-{{ tarea.nivel }}" href="{{ tarea.url }}">
+                            <span class="ops-task-mark"></span>
+                            <span>
+                                <strong>{{ tarea.titulo }}</strong>
+                                <small>{{ tarea.detalle }}</small>
+                            </span>
+                        </a>
+                    {% else %}
+                        <div class="ops-task is-{{ tarea.nivel }}">
+                            <span class="ops-task-mark"></span>
+                            <span>
+                                <strong>{{ tarea.titulo }}</strong>
+                                <small>{{ tarea.detalle }}</small>
+                            </span>
+                        </div>
+                    {% endif %}
+                {% endfor %}
+            </div>
+        </aside>
+
+        <main class="ops-main">
+            <article class="ops-worklist">
+                <div class="ops-section-head">
+                    <h2>Inventario sensible</h2>
+                    <a href="{% url 'medicamento_list' %}">Ver medicamentos</a>
+                </div>
+                <div class="ops-list">
+                    {% for medicamento in medicamentos_bajo_stock %}
+                        <a class="ops-stock-row" href="{% url 'lote_detail' medicamento.id_lote.id_lote %}">
+                            <i class="ops-stock-dot" aria-hidden="true"></i>
+                            <span>
+                                <strong>{{ medicamento.nombre }}</strong>
+                                <small>Lote {{ medicamento.id_lote.numero_lote }} · {{ medicamento.presentacion_completa|default:"Sin presentación" }}</small>
+                                <em>
+                                    <span style="width:{% widthratio medicamento.id_lote.stock_actual medicamento.stock_minimo 100 %}%"></span>
+                                </em>
+                            </span>
+                            <b>{{ medicamento.id_lote.stock_actual }}/{{ medicamento.stock_minimo }}</b>
+                        </a>
+                    {% empty %}
+                        <p class="ops-empty">Sin lotes bajo mínimo.</p>
+                    {% endfor %}
+                </div>
+            </article>
+
+            <article class="ops-worklist">
+                <div class="ops-section-head">
+                    <h2>Caducidad cercana</h2>
+                    <a href="{% url 'lote_list' %}">Ver lotes</a>
+                </div>
+                <div class="ops-list">
+                    {% for lote in lotes_caducos %}
+                        <a class="ops-expiry-row danger" href="{% url 'lote_detail' lote.id_lote %}">
+                            <i class="ops-expiry-dot" aria-hidden="true"></i>
+                            <span>
+                                <strong>Lote {{ lote.numero_lote }}</strong>
+                                <small>Caduco desde {{ lote.fecha_caducidad|date:"d/m/Y" }}</small>
+                            </span>
+                            <b>{{ lote.stock_actual }} u.</b>
+                        </a>
+                    {% endfor %}
+                    {% for lote in lotes_proximos %}
+                        <a class="ops-expiry-row attention" href="{% url 'lote_detail' lote.id_lote %}">
+                            <i class="ops-expiry-dot" aria-hidden="true"></i>
+                            <span>
+                                <strong>Lote {{ lote.numero_lote }}</strong>
+                                <small>Vence {{ lote.fecha_caducidad|date:"d/m/Y" }}</small>
+                            </span>
+                            <b>{{ lote.stock_actual }} u.</b>
+                        </a>
+                    {% empty %}
+                        {% if not lotes_caducos %}
+                            <p class="ops-empty">Sin caducidades urgentes.</p>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+            </article>
+        </main>
+
+        <aside class="ops-side">
+            <article class="ops-status">
+                <div class="ops-section-head">
+                    <h2>Sistemas</h2>
+                    <span>{{ alertas_total }} alerta(s)</span>
+                </div>
+                <div class="ops-status-list">
+                    {% for nombre, activa in integraciones %}
+                        <div>
+                            <span>{{ nombre }}</span>
+                            <strong class="{% if activa %}ok{% else %}warn{% endif %}">
+                                {% if activa %}OK{% else %}Pendiente{% endif %}
+                            </strong>
+                        </div>
+                    {% endfor %}
+                </div>
+            </article>
+
+            <article class="ops-timeline">
+                <div class="ops-section-head">
+                    <h2>Actividad</h2>
+                    <a href="{% url 'usuario_actividad' %}">Ver todo</a>
+                </div>
+                {% for movimiento in movimientos_recientes %}
+                    <div class="ops-event">
+                        <strong>{{ movimiento.get_tipo_display }} - {{ movimiento.cantidad }}</strong>
+                        <span>{{ movimiento.id_medicamento.nombre|default:"Medicamento" }}</span>
+                        <small>{{ movimiento.fecha|date:"d/m/Y H:i" }}</small>
+                    </div>
+                {% empty %}
+                    <p class="ops-empty">Sin movimientos recientes.</p>
+                {% endfor %}
+            </article>
+        </aside>
+    </section>
+</div>
+{% endif %}
+
+<style>
+.cashier-home {
+    display: grid;
+    gap: 1rem;
+}
+.cashier-hero {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 1.25rem;
+    padding: 1.8rem;
+    min-height: 190px;
+    background:
+        linear-gradient(135deg, rgba(22, 112, 168, 0.12), rgba(58, 184, 149, 0.12)),
+        var(--surface);
+    border: 1px solid var(--border, #cfe3ef);
+    border-radius: 18px;
+}
+.cashier-date,
+.cashier-summary span,
+.cashier-panel h2 {
+    color: var(--primary, #1670a8);
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+.cashier-date {
+    margin: 0;
+    font-size: 0.78rem;
+}
+.cashier-hero h1 {
+    margin: 0.2rem 0 0.35rem;
+    font-size: clamp(2rem, 4vw, 3.2rem);
+}
+.cashier-sale-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 210px;
+    min-height: 74px;
+    padding: 1rem 1.4rem;
+    border-radius: 16px;
+    background: var(--primary, #1670a8);
+    color: #fff;
+    font-size: 1.25rem;
+    font-weight: 800;
+    text-decoration: none;
+    box-shadow: 0 16px 32px rgba(22, 112, 168, 0.22);
+}
+.cashier-summary {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.9rem;
+}
+.cashier-summary article,
+.cashier-panel {
+    background: var(--surface);
+    border: 1px solid var(--border, #cfe3ef);
+    border-radius: 16px;
+}
+.cashier-summary article {
+    padding: 1rem 1.1rem;
+}
+.cashier-summary strong {
+    display: block;
+    margin: 0.3rem 0 0.1rem;
+    color: var(--text, #082133);
+    font-size: 2rem;
+}
+.cashier-summary small,
+.cashier-shortcuts span,
+.cashier-sales small,
+.cashier-empty {
+    color: var(--muted);
+}
+.cashier-grid {
+    display: grid;
+    grid-template-columns: 0.9fr 1.1fr;
+    gap: 1rem;
+}
+.cashier-panel {
+    padding: 1.1rem;
+}
+.cashier-panel h2 {
+    margin: 0 0 0.9rem;
+    font-size: 1rem;
+}
+.cashier-panel-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 0.85rem;
+}
+.cashier-panel-head h2 {
+    margin: 0;
+}
+.cashier-panel-head a {
+    color: var(--primary, #1670a8);
+    font-weight: 700;
+    text-decoration: none;
+}
+.cashier-shortcuts div,
+.cashier-sales {
+    display: grid;
+    gap: 0.7rem;
+}
+.cashier-shortcuts a,
+.cashier-sales a {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.95rem;
+    background: var(--surface-2);
+    border: 1px solid var(--border, #cfe3ef);
+    border-radius: 12px;
+    color: inherit;
+    text-decoration: none;
+}
+.cashier-shortcuts strong,
+.cashier-shortcuts span,
+.cashier-sales strong,
+.cashier-sales small {
+    display: block;
+}
+.cashier-sales b {
+    color: var(--primary, #1670a8);
+    white-space: nowrap;
+}
+html[data-theme="dark"] .cashier-hero {
+    background:
+        linear-gradient(135deg, rgba(88, 188, 239, 0.12), rgba(58, 184, 149, 0.1)),
+        var(--surface);
+}
+html[data-theme="dark"] .cashier-shortcuts a,
+html[data-theme="dark"] .cashier-sales a {
+    background: rgba(88, 188, 239, 0.08);
+}
+@media (max-width: 820px) {
+    .cashier-hero,
+    .cashier-grid,
+    .cashier-summary {
+        grid-template-columns: 1fr;
+    }
+    .cashier-sale-button {
+        width: 100%;
+    }
+}
+
+.ops-shell {
+    display: grid;
+    gap: 1rem;
+}
+.ops-command {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1.35rem 1.5rem;
+    background: var(--surface);
+    border: 1px solid var(--border, #cfe3ef);
+    border-radius: 14px;
+}
+.ops-command h1 {
+    margin: 0.2rem 0 0.25rem;
+}
+.ops-date,
+.ops-section-head h2,
+.ops-strip span {
+    color: var(--primary, #1670a8);
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+.ops-date {
+    margin: 0;
+    font-size: 0.78rem;
+}
+.ops-command-actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+.ops-strip {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    border: 1px solid var(--border, #cfe3ef);
+    border-radius: 14px;
+    overflow: hidden;
+    background: var(--surface);
+}
+.ops-strip article {
+    min-height: 92px;
+    padding: 0.9rem 1rem;
+    border-right: 1px solid var(--border, #cfe3ef);
+}
+.ops-strip article:last-child {
+    border-right: 0;
+}
+.ops-strip strong {
+    display: block;
+    margin: 0.35rem 0 0.15rem;
+    color: var(--text, #082133);
+    font-size: 1.45rem;
+}
+.ops-strip small,
+.ops-task small,
+.ops-list small,
+.ops-event span,
+.ops-event small,
+.ops-empty {
+    color: var(--muted);
+}
+.ops-strip article.attention strong,
+.ops-list a.attention b {
+    color: #b77900;
+}
+.ops-strip article.danger strong,
+.ops-list a.danger b {
+    color: #c0392b;
+}
+.ops-board {
+    display: grid;
+    grid-template-columns: 310px minmax(0, 1fr) 320px;
+    gap: 1rem;
+    align-items: start;
+}
+.ops-priority,
+.ops-worklist,
+.ops-status,
+.ops-timeline {
+    min-width: 0;
+    background: var(--surface);
+    border: 1px solid var(--border, #cfe3ef);
+    border-radius: 14px;
+    padding: 1rem;
+}
+.ops-main {
+    display: grid;
+    gap: 1rem;
+}
+.ops-side {
+    display: grid;
+    gap: 1rem;
+}
+.ops-section-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 0.85rem;
+}
+.ops-section-head h2 {
+    margin: 0;
+    font-size: 0.96rem;
+}
+.ops-section-head a,
+.ops-section-head span {
+    color: var(--primary, #1670a8);
+    font-weight: 700;
+    text-decoration: none;
+}
+.ops-task-list,
+.ops-list,
+.ops-status-list {
+    display: grid;
+    gap: 0.55rem;
+}
+.ops-task,
+.ops-status-list div {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.8rem;
+    color: inherit;
+    text-decoration: none;
+}
+.ops-task {
+    justify-content: flex-start;
+    padding: 0.85rem;
+    border-radius: 12px;
+    background: var(--surface-2);
+    border: 1px solid var(--border, #cfe3ef);
+}
+.ops-task-mark {
+    width: 10px;
+    min-width: 10px;
+    height: 42px;
+    border-radius: 999px;
+    background: var(--primary, #1670a8);
+}
+.ops-task.is-warning .ops-task-mark {
+    background: #b77900;
+}
+.ops-task.is-danger .ops-task-mark {
+    background: #c0392b;
+}
+.ops-task.is-success .ops-task-mark {
+    background: #0f6b3c;
+}
+.ops-task strong,
+.ops-task small,
+.ops-list strong,
+.ops-list small {
+    display: block;
+}
+.ops-list a {
+    align-items: center;
+    background: transparent;
+    border: 1px solid transparent;
+    border-bottom-color: var(--border, #cfe3ef);
+    color: inherit;
+    display: grid;
+    gap: 0.75rem;
+    grid-template-columns: 10px minmax(0, 1fr) auto;
+    padding: 0.78rem 0.35rem;
+    text-decoration: none;
+    transition: background 0.16s ease, border-color 0.16s ease, transform 0.16s ease;
+}
+.ops-list a:last-child {
+    border-bottom: 0;
+}
+.ops-list a:hover {
+    background: var(--surface-2);
+    border-color: var(--border, #cfe3ef);
+    border-radius: 10px;
+    transform: translateX(2px);
+}
+.ops-stock-dot {
+    background: var(--warning);
+    border-radius: 999px;
+    height: 38px;
+    width: 6px;
+}
+.ops-list a span {
+    min-width: 0;
+}
+.ops-list a em {
+    background: var(--surface-2);
+    border-radius: 999px;
+    display: block;
+    height: 6px;
+    margin-top: 0.55rem;
+    overflow: hidden;
+    width: 100%;
+}
+.ops-list a em span {
+    background: linear-gradient(90deg, var(--danger), var(--warning));
+    border-radius: inherit;
+    display: block;
+    height: 100%;
+    max-width: 100%;
+    min-width: 6px;
+}
+.ops-list b {
+    min-width: 70px;
+    padding: 0.38rem 0.62rem;
+    border-radius: 999px;
+    background: rgba(240, 168, 58, 0.16);
+    color: var(--warning);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.9rem;
+    font-weight: 800;
+    text-align: center;
+}
+.ops-expiry-row em {
+    display: none;
+}
+.ops-expiry-row b {
+    background: rgba(240, 168, 58, 0.14);
+    color: var(--warning);
+}
+.ops-expiry-row.danger b {
+    background: rgba(228, 90, 79, 0.14);
+    color: var(--danger);
+}
+.ops-expiry-dot {
+    background: var(--warning);
+    border-radius: 999px;
+    height: 34px;
+    width: 6px;
+}
+.ops-expiry-row.danger .ops-expiry-dot {
+    background: var(--danger);
+}
+.ops-expiry-row strong {
+    color: var(--text);
+}
+.ops-expiry-row.danger strong {
+    color: var(--danger);
+}
+.ops-expiry-row.attention strong {
+    color: var(--warning);
+}
+.ops-expiry-row small {
+    color: var(--muted);
+}
+.ops-status-list div {
+    padding: 0.7rem 0;
+    border-bottom: 1px solid var(--border, #cfe3ef);
+}
+.ops-status-list div:last-child {
+    border-bottom: 0;
+}
+.ops-status-list strong {
+    border-radius: 999px;
+    padding: 0.22rem 0.55rem;
+    font-size: 0.8rem;
+}
+.ops-status-list strong.ok {
+    background: #d8f3e4;
+    color: #0f6b3c;
+}
+.ops-status-list strong.warn {
+    background: #fff0d3;
+    color: #9a5b00;
+}
+html[data-theme="dark"] .ops-status-list strong.ok {
+    background: rgba(44, 194, 107, 0.2);
+    color: #8fe0b1;
+}
+html[data-theme="dark"] .ops-status-list strong.warn {
+    background: rgba(240, 168, 58, 0.22);
+    color: #ffd47d;
+}
+.ops-event {
+    position: relative;
+    padding: 0 0 0.9rem 1.05rem;
+    border-left: 2px solid var(--border, #cfe3ef);
+}
+.ops-event::before {
+    content: "";
+    position: absolute;
+    left: -6px;
+    top: 0.25rem;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--primary, #1670a8);
+}
+.ops-event strong,
+.ops-event span,
+.ops-event small {
+    display: block;
+}
+html[data-theme="dark"] .ops-task,
+html[data-theme="dark"] .ops-list a:hover,
+html[data-theme="dark"] .ops-list a em {
+    background: rgba(88, 188, 239, 0.08);
+}
+html[data-theme="dark"] .ops-list b {
+    background: rgba(240, 168, 58, 0.18);
+    color: #ffd47d;
+}
+html[data-theme="dark"] .ops-expiry-row.danger b {
+    background: rgba(228, 90, 79, 0.18);
+    color: #ff9a93;
+}
+@media (max-width: 1180px) {
+    .ops-board {
+        grid-template-columns: 1fr 1fr;
+    }
+    .ops-priority {
+        grid-column: 1 / -1;
+    }
+}
+@media (max-width: 820px) {
+    .ops-command,
+    .ops-board {
+        display: grid;
+        grid-template-columns: 1fr;
+    }
+    .ops-command-actions {
+        justify-content: flex-start;
+    }
+    .ops-strip {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+@media (max-width: 520px) {
+    .ops-strip {
+        grid-template-columns: 1fr;
+    }
+    .ops-strip article {
+        border-right: 0;
+        border-bottom: 1px solid var(--border, #cfe3ef);
+    }
+}
+</style>
+{% endblock %}

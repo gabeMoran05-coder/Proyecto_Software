@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+﻿{% extends "base.html" %}
 {% block title %}Ventas - Farmacia Inclusiva{% endblock %}
 
 {% block content %}
@@ -17,14 +17,14 @@
         </div>
     </div>
 
-    <form class="ventas-filters" method="get">
+    <form class="ventas-filters" method="get" data-date-range-form data-today="{{ fecha_maxima }}" data-today-display="{{ fecha_maxima_display }}">
         <div class="filter-field">
             <label>Desde</label>
-            <input type="date" name="fecha_desde" value="{{ fecha_desde }}">
+            <input type="date" name="fecha_desde" value="{{ fecha_desde }}" max="{{ fecha_maxima }}" data-date-from>
         </div>
         <div class="filter-field">
             <label>Hasta</label>
-            <input type="date" name="fecha_hasta" value="{{ fecha_hasta }}">
+            <input type="date" name="fecha_hasta" value="{{ fecha_hasta }}" max="{{ fecha_maxima }}" data-date-to>
         </div>
         {% if current_usuario_is_admin %}
         <div class="filter-field">
@@ -56,11 +56,47 @@
         </div>
     </form>
 
+    <div id="date-error-modal" class="modal-overlay{% if date_error_message %} active{% endif %}" aria-hidden="{% if date_error_message %}false{% else %}true{% endif %}">
+        <div class="modal-content">
+            <div class="modal-icon">!</div>
+            <h3>Error en el rango de fechas</h3>
+            <p id="date-error-message">{{ date_error_message|default:'Rango de fechas inválido: la fecha "Hasta" debe ser igual o posterior a "Desde".' }}</p>
+            <button class="btn btn-primary btn-sm" id="close-date-error" type="button">Entendido</button>
+        </div>
+    </div>
+
     <details class="seller-summary">
         <summary>
             <span>Resumen por vendedor</span>
-            <strong>{{ ventas|length }} venta(s)</strong>
+            <strong>{{ total_ventas_filtradas }} venta(s)</strong>
         </summary>
+        <div class="seller-kpis">
+            <article>
+                <span>Ventas filtradas</span>
+                <strong>{{ total_ventas_filtradas }}</strong>
+                <small>operaciones encontradas</small>
+            </article>
+            <article>
+                <span>Ingresos filtrados</span>
+                <strong>${{ ingresos_filtrados|floatformat:2 }}</strong>
+                <small>suma de ventas mostradas</small>
+            </article>
+            <article>
+                <span>Vendedores</span>
+                <strong>{{ vendedores_filtrados }}</strong>
+                <small>con ventas en el periodo</small>
+            </article>
+            <article>
+                <span>Destacado</span>
+                {% if vendedor_destacado %}
+                    <strong>{{ vendedor_destacado.vendedor.nombre_completo }}</strong>
+                    <small>${{ vendedor_destacado.total|floatformat:2 }} · {{ vendedor_destacado.cantidad }} venta(s)</small>
+                {% else %}
+                    <strong>-</strong>
+                    <small>sin ventas</small>
+                {% endif %}
+            </article>
+        </div>
         <div class="seller-summary-grid">
             {% for group in vendedor_groups %}
             <details class="seller-card">
@@ -88,7 +124,7 @@
 
     <div class="group-summary">
         <strong>{% if current_usuario_role == 'cajero' %}Mis ventas{% else %}Todas las ventas{% endif %}</strong>
-        <span>{{ ventas|length }} venta(s){% if current_usuario_role == 'cajero' %} propias{% endif %}</span>
+        <span>{{ total_ventas_filtradas }} venta(s){% if current_usuario_role == 'cajero' %} propias{% endif %}</span>
     </div>
 
     <div class="table-wrap">
@@ -218,6 +254,10 @@
     gap: 0.75rem;
     margin: 1rem 0 1.25rem;
 }
+.filter-error {
+    grid-column: 1 / -1;
+    margin: 0;
+}
 .filter-field label {
     display: block;
     color: var(--muted);
@@ -254,8 +294,41 @@
     gap: 0.65rem;
     padding: 0 1rem 1rem;
 }
+.seller-kpis {
+    display: grid;
+    gap: 0.65rem;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    padding: 0 1rem 1rem;
+}
+.seller-kpis article {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.8rem;
+}
+.seller-kpis span {
+    color: var(--muted);
+    display: block;
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.3rem;
+    text-transform: uppercase;
+}
+.seller-kpis strong {
+    color: var(--primary);
+    display: block;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 1.05rem;
+    line-height: 1.2;
+}
+.seller-kpis small {
+    color: var(--muted);
+    display: block;
+    margin-top: 0.25rem;
+}
 .seller-card {
-    background: #fff;
+    background: var(--surface);
     border: 1px solid var(--border);
     border-radius: 8px;
 }
@@ -304,6 +377,9 @@
     font-size: 1.05rem;
 }
 @media (max-width: 720px) {
+    .seller-kpis {
+        grid-template-columns: 1fr;
+    }
     .filter-actions,
     .group-summary,
     .seller-summary > summary,
@@ -316,4 +392,47 @@
     }
 }
 </style>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    var form = document.querySelector('[data-date-range-form]');
+    if (!form) return;
+
+    var from = form.querySelector('[data-date-from]');
+    var to = form.querySelector('[data-date-to]');
+    var today = form.dataset.today;
+    var todayDisplay = form.dataset.todayDisplay || today;
+    var modal = document.getElementById('date-error-modal');
+    var modalMessage = document.getElementById('date-error-message');
+    var modalClose = document.getElementById('close-date-error');
+
+    function showDateError(message) {
+        if (!modal || !modalMessage) return;
+        modalMessage.textContent = message;
+        modal.classList.add('active');
+        modal.setAttribute('aria-hidden', 'false');
+    }
+
+    form.addEventListener('submit', function (event) {
+        var message = '';
+        if (from.value && to.value && from.value > to.value) {
+            message = 'Rango de fechas inválido: la fecha "Hasta" debe ser igual o posterior a "Desde".';
+        } else if ((from.value && from.value > today) || (to.value && to.value > today)) {
+            message = 'No se pueden buscar ventas con fechas posteriores a hoy (' + todayDisplay + ').';
+        }
+
+        if (!message) return;
+        event.preventDefault();
+        showDateError(message);
+    });
+
+    if (modalClose) {
+        modalClose.addEventListener('click', function () {
+            if (modal) {
+                modal.classList.remove('active');
+                modal.setAttribute('aria-hidden', 'true');
+            }
+        });
+    }
+});
+</script>
 {% endblock %}

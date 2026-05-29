@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.urls import reverse
 
 from apps.medicamentos.whatsapp import (
@@ -12,6 +13,62 @@ from apps.medicamentos.whatsapp import (
     normalizar_telefono_con_pais,
     telefono_form_context,
 )
+
+
+def enviar_aviso_producto_defectuoso(request, detalle):
+    _validar_configuracion()
+
+    venta = detalle.id_ventas
+    cliente = venta.id_cliente
+    if not cliente or not cliente.telefono:
+        raise WhatsAppIntegrationError('La venta no tiene cliente con teléfono registrado.')
+
+    telefono = normalizar_telefono_con_pais('52', cliente.telefono)
+    medicamento = detalle.id_medicamento
+    lote = medicamento.id_lote
+    lote_numero = lote.numero_lote if lote else 'Sin lote'
+    razon = _razon_contacto_lote(lote)
+
+    _enviar_plantilla(
+        telefono=telefono,
+        template_name=settings.WHATSAPP_RECALL_TEMPLATE_NAME,
+        language_code=settings.WHATSAPP_RECALL_TEMPLATE_LANGUAGE,
+        body_params=[
+            cliente.nombre_completo(),
+            medicamento.nombre,
+            lote_numero,
+            venta.id_ventas,
+            razon,
+        ],
+    )
+    return telefono
+
+
+def texto_aviso_producto_defectuoso(request, detalle):
+    venta = detalle.id_ventas
+    cliente = venta.id_cliente
+    medicamento = detalle.id_medicamento
+    lote = medicamento.id_lote
+    lote_numero = lote.numero_lote if lote else 'Sin lote'
+    razon = _razon_contacto_lote(lote)
+    return (
+        f'Hola {cliente.nombre_completo() if cliente else "cliente"}, te contactamos de Farmacia Inclusiva por un aviso importante sobre un producto adquirido.\n\n'
+        f'Medicamento: {medicamento.nombre}\n'
+        f'Lote: {lote_numero}\n'
+        f'Venta: #{venta.id_ventas}\n'
+        f'Razón del contacto: {razon}\n\n'
+        'Por precaución, no consumas el producto y comunícate con la farmacia para recibir indicaciones.'
+    )
+
+
+def _razon_contacto_lote(lote):
+    if not lote:
+        return 'Revisión preventiva del producto'
+    if lote.motivo_oculto:
+        return lote.get_motivo_oculto_display()
+    if not lote.activo or lote.oculto_por_caducidad:
+        return 'Producto retirado del inventario operativo'
+    return 'Revisión preventiva del producto'
 
 
 def enviar_ticket_por_whatsapp(request, venta, telefono):

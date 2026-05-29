@@ -1,108 +1,210 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Reporte farmacia</title>
+    <title>Reporte crudo</title>
     <style>
-        table { border-collapse: collapse; width: 100%; margin-bottom: 20px; }
-        th, td { border: 1px solid #c9d7c9; padding: 8px; text-align: left; }
-        th { background: #eaf4ed; }
-        h1, h2 { color: #1a6b3c; }
-        .muted { color: #5a7a5a; }
+        table { border-collapse: collapse; font-family: Arial, sans-serif; font-size: 11px; }
+        th, td { border: 1px solid #999; padding: 4px 6px; vertical-align: top; }
+        th { background: #d9eaf7; font-weight: 700; text-align: left; }
+        .section th { background: #b7d7ee; font-size: 13px; text-transform: uppercase; }
+        .meta th { background: #eaf3f8; width: 190px; }
+        .number { mso-number-format: "0"; }
+        .money { mso-number-format: "#,##0.00"; }
+        .percent { mso-number-format: "0.00"; }
+        .date { mso-number-format: "dd/mm/yyyy"; }
+        .blank td { border: 0; height: 12px; }
     </style>
 </head>
 <body>
-    <h1>Reporte general de farmacia</h1>
-    <p class="muted">Periodo: {{ fecha_desde|date:'d/m/Y' }} - {{ fecha_hasta|date:'d/m/Y' }}</p>
+<table>
+    <tr class="section"><th colspan="8">Metadatos del reporte</th></tr>
+    <tr class="meta"><th>Empresa</th><td colspan="7">{{ empresa_nombre }}</td></tr>
+    <tr class="meta"><th>RFC emisor</th><td colspan="7">{{ empresa_rfc }}</td></tr>
+    <tr class="meta"><th>Domicilio fiscal</th><td colspan="7">{{ empresa_domicilio }}</td></tr>
+    <tr class="meta"><th>Generado por</th><td colspan="7">{{ generado_por }}</td></tr>
+    <tr class="meta"><th>Fecha generación</th><td colspan="7">{{ fecha_generacion|date:'d/m/Y H:i' }}</td></tr>
+    <tr class="meta"><th>Desde</th><td class="date" colspan="7">{{ fecha_desde|date:'d/m/Y' }}</td></tr>
+    <tr class="meta"><th>Hasta</th><td class="date" colspan="7">{{ fecha_hasta|date:'d/m/Y' }}</td></tr>
 
-    <table>
-        <thead>
-            <tr>
-                <th>Indicador</th>
-                <th>Valor</th>
-            </tr>
-        </thead>
-        <tbody>
-            <tr><td>Ventas</td><td>{{ total_ventas }}</td></tr>
-            <tr><td>Ingresos</td><td>${{ ingresos|floatformat:2 }}</td></tr>
-            <tr><td>Productos vendidos</td><td>{{ productos_vendidos }}</td></tr>
-            <tr><td>Ticket promedio</td><td>${{ ticket_promedio|floatformat:2 }}</td></tr>
-            <tr><td>Compra recibida</td><td>${{ total_compra_recibida|floatformat:2 }}</td></tr>
-        </tbody>
-    </table>
+    {% if not export_section %}
+        <tr class="blank"><td colspan="8"></td></tr>
+        <tr class="section"><th colspan="8">Resumen</th></tr>
+        <tr>
+            <th>total_ventas</th>
+            <th>ingresos</th>
+            <th>productos_vendidos</th>
+            <th>ticket_promedio</th>
+            <th>costo_vendido</th>
+            <th>utilidad_estimada</th>
+            <th>margen_estimado_porcentaje</th>
+            <th>total_compra_recibida</th>
+        </tr>
+        <tr>
+            <td class="number">{{ total_ventas }}</td>
+            <td class="money">{{ ingresos|floatformat:2 }}</td>
+            <td class="number">{{ productos_vendidos }}</td>
+            <td class="money">{{ ticket_promedio|floatformat:2 }}</td>
+            <td class="money">{{ costo_vendido|floatformat:2 }}</td>
+            <td class="money">{{ utilidad_estimada|floatformat:2 }}</td>
+            <td class="percent">{{ margen_estimado|floatformat:2 }}</td>
+            <td class="money">{{ total_compra_recibida|floatformat:2 }}</td>
+        </tr>
+    {% endif %}
 
-    <h2>Top medicamentos</h2>
-    <table>
-        <thead>
-            <tr><th>Medicamento</th><th>Presentacion</th><th>Concentracion</th><th>Cantidad</th><th>Ingresos</th></tr>
-        </thead>
-        <tbody>
-            {% for item in top_medicamentos %}
-            <tr>
-                <td>{{ item.id_medicamento__nombre }}</td>
-                <td>{{ item.id_medicamento__presentacion|default:"-" }}</td>
-                <td>{{ item.id_medicamento__concentracion|default:"-" }}</td>
-                <td>{{ item.cantidad }}</td>
-                <td>${{ item.ingresos|floatformat:2 }}</td>
-            </tr>
-            {% empty %}
-            <tr><td colspan="5">Sin datos.</td></tr>
-            {% endfor %}
-        </tbody>
-    </table>
+    {% if not export_section or export_section == 'ventas' %}
+        <tr class="blank"><td colspan="8"></td></tr>
+        <tr class="section"><th colspan="8">Ventas resumen</th></tr>
+        <tr><th>total_ventas</th><th>ingresos</th><th>productos_vendidos</th><th>ticket_promedio</th><th>costo_vendido</th><th>utilidad_estimada</th><th>margen_estimado_porcentaje</th><th></th></tr>
+        <tr>
+            <td class="number">{{ total_ventas }}</td>
+            <td class="money">{{ ingresos|floatformat:2 }}</td>
+            <td class="number">{{ productos_vendidos }}</td>
+            <td class="money">{{ ticket_promedio|floatformat:2 }}</td>
+            <td class="money">{{ costo_vendido|floatformat:2 }}</td>
+            <td class="money">{{ utilidad_estimada|floatformat:2 }}</td>
+            <td class="percent">{{ margen_estimado|floatformat:2 }}</td>
+            <td></td>
+        </tr>
 
-    <h2>Top vendedores</h2>
-    <table>
-        <thead>
-            <tr><th>Vendedor</th><th>Ventas</th><th>Ingresos</th></tr>
-        </thead>
-        <tbody>
-            {% for item in top_vendedores %}
-            <tr>
-                <td>{{ item.id_usuario__nombre }} {{ item.id_usuario__ap_pat|default:"" }} {{ item.id_usuario__ap_mat|default:"" }}</td>
-                <td>{{ item.ventas }}</td>
-                <td>${{ item.ingresos|floatformat:2 }}</td>
-            </tr>
-            {% empty %}
-            <tr><td colspan="3">Sin datos.</td></tr>
-            {% endfor %}
-        </tbody>
-    </table>
+        <tr class="blank"><td colspan="8"></td></tr>
+        <tr class="section"><th colspan="8">Ventas por dia</th></tr>
+        <tr><th>dia</th><th>ventas</th><th>ingresos</th><th colspan="5"></th></tr>
+        {% for item in ventas_por_dia %}
+        <tr>
+            <td class="date">{{ item.dia|date:'d/m/Y' }}</td>
+            <td class="number">{{ item.ventas }}</td>
+            <td class="money">{{ item.ingresos|floatformat:2 }}</td>
+            <td colspan="5"></td>
+        </tr>
+        {% endfor %}
 
-    <h2>Metodos de pago</h2>
-    <table>
-        <thead>
-            <tr><th>Metodo</th><th>Ventas</th><th>Ingresos</th></tr>
-        </thead>
-        <tbody>
-            {% for item in metodos_pago %}
-            <tr>
-                <td>{{ item.id_metPag__nombre_metodo }}</td>
-                <td>{{ item.ventas }}</td>
-                <td>${{ item.ingresos|floatformat:2 }}</td>
-            </tr>
-            {% empty %}
-            <tr><td colspan="3">Sin datos.</td></tr>
-            {% endfor %}
-        </tbody>
-    </table>
+        <tr class="blank"><td colspan="8"></td></tr>
+        <tr class="section"><th colspan="8">Top vendedores</th></tr>
+        <tr><th>id_usuario</th><th>nombre</th><th>apellido_paterno</th><th>apellido_materno</th><th>ventas</th><th>ingresos</th><th colspan="2"></th></tr>
+        {% for item in top_vendedores %}
+        <tr>
+            <td class="number">{{ item.id_usuario__id_usuario }}</td>
+            <td>{{ item.id_usuario__nombre }}</td>
+            <td>{{ item.id_usuario__ap_pat|default:'' }}</td>
+            <td>{{ item.id_usuario__ap_mat|default:'' }}</td>
+            <td class="number">{{ item.ventas }}</td>
+            <td class="money">{{ item.ingresos|floatformat:2 }}</td>
+            <td colspan="2"></td>
+        </tr>
+        {% endfor %}
 
-    <h2>Ventas por dia</h2>
-    <table>
-        <thead>
-            <tr><th>Dia</th><th>Ventas</th><th>Ingresos</th></tr>
-        </thead>
-        <tbody>
-            {% for item in ventas_por_dia %}
-            <tr>
-                <td>{{ item.dia|date:'d/m/Y' }}</td>
-                <td>{{ item.ventas }}</td>
-                <td>${{ item.ingresos|floatformat:2 }}</td>
-            </tr>
-            {% empty %}
-            <tr><td colspan="3">Sin datos.</td></tr>
-            {% endfor %}
-        </tbody>
-    </table>
+        <tr class="blank"><td colspan="8"></td></tr>
+        <tr class="section"><th colspan="8">Métodos de pago</th></tr>
+        <tr><th>metodo_pago</th><th>ventas</th><th>ingresos</th><th>porcentaje</th><th colspan="4"></th></tr>
+        {% for item in metodos_pago %}
+        <tr>
+            <td>{{ item.id_metPag__nombre_metodo|default:'Sin metodo' }}</td>
+            <td class="number">{{ item.ventas }}</td>
+            <td class="money">{{ item.ingresos|floatformat:2 }}</td>
+            <td class="percent">{{ item.porcentaje|floatformat:2 }}</td>
+            <td colspan="4"></td>
+        </tr>
+        {% endfor %}
+    {% endif %}
+
+    {% if not export_section or export_section == 'clientes' %}
+        <tr class="blank"><td colspan="8"></td></tr>
+        <tr class="section"><th colspan="8">Clientes resumen</th></tr>
+        <tr><th>total_clientes_nuevos</th><th>clientes_con_compra_total</th><th>clientes_nuevos_con_compra_total</th><th>clientes_nuevos_sin_compra_total</th><th colspan="4"></th></tr>
+        <tr>
+            <td class="number">{{ total_clientes_nuevos }}</td>
+            <td class="number">{{ clientes_con_compra_total }}</td>
+            <td class="number">{{ clientes_nuevos_con_compra_total }}</td>
+            <td class="number">{{ clientes_nuevos_sin_compra_total }}</td>
+            <td colspan="4"></td>
+        </tr>
+
+        <tr class="blank"><td colspan="8"></td></tr>
+        <tr class="section"><th colspan="8">Clientes nuevos detalle</th></tr>
+        <tr><th>cliente_id</th><th>cliente</th><th>teléfono</th><th>fecha_registro</th><th>compras_periodo</th><th>ingresos_periodo</th><th colspan="2"></th></tr>
+        {% for cliente in clientes_nuevos_detalle %}
+        <tr>
+            <td class="number">{{ cliente.id_cliente }}</td>
+            <td>{{ cliente.nombre_completo }}</td>
+            <td>{{ cliente.telefono|default:'' }}</td>
+            <td class="date">{{ cliente.fecha_registro|date:'d/m/Y' }}</td>
+            <td class="number">{{ cliente.compras_periodo }}</td>
+            <td class="money">{{ cliente.ingresos_periodo|floatformat:2 }}</td>
+            <td colspan="2"></td>
+        </tr>
+        {% endfor %}
+    {% endif %}
+
+    {% if not export_section or export_section == 'medicamentos' %}
+        <tr class="blank"><td colspan="8"></td></tr>
+        <tr class="section"><th colspan="8">Medicamentos resumen</th></tr>
+        <tr><th>total_compra_recibida</th><th>productos_vendidos</th><th colspan="6"></th></tr>
+        <tr><td class="money">{{ total_compra_recibida|floatformat:2 }}</td><td class="number">{{ productos_vendidos }}</td><td colspan="6"></td></tr>
+
+        <tr class="blank"><td colspan="8"></td></tr>
+        <tr class="section"><th colspan="8">Top medicamentos</th></tr>
+        <tr><th>medicamento</th><th>presentacion</th><th>tamano_presentacion</th><th>concentracion</th><th>cantidad</th><th>ingresos</th><th>ventas</th><th></th></tr>
+        {% for item in top_medicamentos %}
+        <tr>
+            <td>{{ item.id_medicamento__nombre }}</td>
+            <td>{{ item.id_medicamento__presentacion|default:'' }}</td>
+            <td>{{ item.id_medicamento__tamano_presentacion|default:'' }}</td>
+            <td>{{ item.id_medicamento__concentracion|default:'' }}</td>
+            <td class="number">{{ item.cantidad }}</td>
+            <td class="money">{{ item.ingresos|floatformat:2 }}</td>
+            <td class="number">{{ item.ventas }}</td>
+            <td></td>
+        </tr>
+        {% endfor %}
+    {% endif %}
+
+    {% if not export_section or export_section == 'inventario' %}
+        <tr class="blank"><td colspan="8"></td></tr>
+        <tr class="section"><th colspan="8">Inventario resumen</th></tr>
+        <tr><th>lotes_activos_total</th><th>stock_total_unidades</th><th>lotes_sin_stock_total</th><th>lotes_bajo_stock_total</th><th>lotes_caducos_total</th><th>lotes_próximos_total</th><th>lotes_vigentes_total</th><th></th></tr>
+        <tr>
+            <td class="number">{{ lotes_activos_total }}</td>
+            <td class="number">{{ stock_total_unidades }}</td>
+            <td class="number">{{ lotes_sin_stock_total }}</td>
+            <td class="number">{{ lotes_bajo_stock_total }}</td>
+            <td class="number">{{ lotes_caducos_total }}</td>
+            <td class="number">{{ lotes_proximos_total }}</td>
+            <td class="number">{{ lotes_vigentes_total }}</td>
+            <td></td>
+        </tr>
+
+        <tr class="blank"><td colspan="8"></td></tr>
+        <tr class="section"><th colspan="8">Lotes bajo stock</th></tr>
+        <tr><th>id_lote</th><th>numero_lote</th><th>proveedor</th><th>stock_actual</th><th>fecha_caducidad</th><th>medicamentos</th><th colspan="2"></th></tr>
+        {% for lote in lotes_bajo_stock %}
+        <tr>
+            <td class="number">{{ lote.id_lote }}</td>
+            <td>{{ lote.numero_lote }}</td>
+            <td>{{ lote.id_prov.nombre }}</td>
+            <td class="number">{{ lote.stock_actual }}</td>
+            <td class="date">{{ lote.fecha_caducidad|date:'d/m/Y' }}</td>
+            <td>{% for med in lote.medicamento_set.all %}{{ med.nombre }}{% if not forloop.last %}; {% endif %}{% endfor %}</td>
+            <td colspan="2"></td>
+        </tr>
+        {% endfor %}
+
+        <tr class="blank"><td colspan="8"></td></tr>
+        <tr class="section"><th colspan="8">Caducidad segun periodo</th></tr>
+        <tr><th>id_lote</th><th>numero_lote</th><th>proveedor</th><th>fecha_caducidad</th><th>estado_periodo</th><th>días_despues_cierre</th><th>medicamentos</th><th></th></tr>
+        {% for lote in lotes_caducidad_periodo %}
+        <tr>
+            <td class="number">{{ lote.id_lote }}</td>
+            <td>{{ lote.numero_lote }}</td>
+            <td>{{ lote.id_prov.nombre }}</td>
+            <td class="date">{{ lote.fecha_caducidad|date:'d/m/Y' }}</td>
+            <td>{{ lote.alerta_periodo_estado }}</td>
+            <td class="number">{{ lote.alerta_periodo_dias }}</td>
+            <td>{% for med in lote.medicamento_set.all %}{{ med.nombre }}{% if not forloop.last %}; {% endif %}{% endfor %}</td>
+            <td></td>
+        </tr>
+        {% endfor %}
+    {% endif %}
+</table>
 </body>
 </html>

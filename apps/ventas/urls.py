@@ -6,6 +6,12 @@ urlpatterns = [
     path('',                   views.venta_list,   name='venta_list'),
     path('nueva/',             views.venta_create, name='venta_create'),
     path('trazabilidad/',       views.venta_trazabilidad, name='venta_trazabilidad'),
+    path('trazabilidad/pdf/',   views.venta_trazabilidad_pdf, name='venta_trazabilidad_pdf'),
+    path(
+        'trazabilidad/<int:detalle_id>/whatsapp/',
+        views.venta_trazabilidad_whatsapp,
+        name='venta_trazabilidad_whatsapp',
+    ),
     path('clientes/rapido/',   views.venta_cliente_rapido, name='venta_cliente_rapido'),
     path('<int:pk>/ticket/',    views.venta_ticket, name='venta_ticket'),
     path(

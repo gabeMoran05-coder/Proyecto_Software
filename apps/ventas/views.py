@@ -12,6 +12,7 @@ from django.conf import settings
 from django.contrib import messages # pyright: ignore[reportMissingModuleSource]
 from django.http import HttpResponse, JsonResponse
 from django.db import transaction
+from django.db.models import Avg, Sum
 from django.shortcuts import get_object_or_404, redirect, render
 from django.core.paginator import Paginator
 from django.urls import reverse
@@ -22,16 +23,18 @@ from .models import MetodoPago, Venta, DetalleVenta
 from apps.clientes.models import Cliente
 from apps.usuarios.models import Usuario
 from apps.usuarios.security import get_current_usuario
-from apps.medicamentos.models import Lote, Medicamento, CodigoQR
+from apps.medicamentos.models import Lote, Medicamento, CodigoQR, MovimientoInventario
 from .whatsapp import (
     WhatsAppIntegrationError,
     construir_preview_ticket,
+    enviar_aviso_producto_defectuoso,
     enviar_ticket_por_whatsapp,
 )
 from apps.medicamentos.whatsapp import (
     normalizar_telefono_con_pais,
     telefono_form_context,
 )
+from apps.reportes.views import _SelectableReportPdf
 from apps.text_utils import first_upper, first_upper_or_none
 
 
@@ -102,13 +105,23 @@ def venta_list(request):
     usuario_filter = '' if es_cajero else request.GET.get('usuario', '').strip()
     orden_filter   = request.GET.get('orden', 'fecha_desc').strip()
 
+    hoy = timezone.localdate()
+    fecha_desde_date, fecha_hasta_date, date_error_message = _validar_rango_fechas(
+        fecha_desde,
+        fecha_hasta,
+        hoy,
+    )
+
     if es_cajero:
         ventas = ventas.filter(id_usuario=usuario_actual)
-    if fecha_desde and not fecha_hasta:
-        ventas = ventas.filter(fecha_venta__date=fecha_desde)
+    if not date_error_message:
+        if fecha_desde_date and not fecha_hasta_date:
+            ventas = ventas.filter(fecha_venta__date=fecha_desde_date)
+        else:
+            if fecha_desde_date: ventas = ventas.filter(fecha_venta__date__gte=fecha_desde_date)
+            if fecha_hasta_date: ventas = ventas.filter(fecha_venta__date__lte=fecha_hasta_date)
     else:
-        if fecha_desde: ventas = ventas.filter(fecha_venta__date__gte=fecha_desde)
-        if fecha_hasta: ventas = ventas.filter(fecha_venta__date__lte=fecha_hasta)
+        ventas = ventas.none()
     if metodo_filter:  ventas = ventas.filter(id_metPag__id_metPag=metodo_filter)
     if usuario_filter: ventas = ventas.filter(id_usuario__id_usuario=usuario_filter)
     ordenes = {
@@ -126,10 +139,13 @@ def venta_list(request):
         'total_desc': '-total_venta',
     }
     ventas = ventas.order_by(ordenes.get(orden_filter, '-fecha_venta'), '-id_ventas')
-    vendedor_groups = _agrupar_ventas_por_vendedor(ventas)
+    total_ventas_filtradas = ventas.count()
+    ingresos_filtrados = ventas.aggregate(total=Sum('total_venta'))['total'] or Decimal('0.00')
+    vendedor_groups = list(_agrupar_ventas_por_vendedor(ventas))
+    vendedores_filtrados = len(vendedor_groups)
+    vendedor_destacado = vendedor_groups[0] if vendedor_groups else None
 
     # Stats del día
-    hoy            = timezone.now().date()
     ventas_base_qs = Venta.objects.all()
     if es_cajero:
         ventas_base_qs = ventas_base_qs.filter(id_usuario=usuario_actual)
@@ -139,7 +155,6 @@ def venta_list(request):
         fecha_venta__year=hoy.year, fecha_venta__month=hoy.month
     )
 
-    from django.db.models import Avg
     ticket_promedio = ventas_base_qs.aggregate(avg=Avg('total_venta'))['avg'] or 0
 
     paginator = Paginator(ventas, 10)
@@ -162,6 +177,10 @@ def venta_list(request):
         'paginator':       paginator,
         'is_paginated':    paginator.num_pages > 1,
         'total_ventas':    ventas_base_qs.count(),
+        'total_ventas_filtradas': total_ventas_filtradas,
+        'ingresos_filtrados': ingresos_filtrados,
+        'vendedores_filtrados': vendedores_filtrados,
+        'vendedor_destacado': vendedor_destacado,
         'ingresos_hoy':    ingresos_hoy,
         'ventas_mes':      ventas_mes_qs.count(),
         'ticket_promedio': round(ticket_promedio, 2),
@@ -170,6 +189,9 @@ def venta_list(request):
         'usuarios':        Usuario.objects.filter(rol=Usuario.ROL_CAJERO, activo=True).order_by('nombre', 'ap_pat'),
         'fecha_desde':     fecha_desde,
         'fecha_hasta':     fecha_hasta,
+        'date_error_message': date_error_message,
+        'fecha_maxima':    hoy.strftime('%Y-%m-%d'),
+        'fecha_maxima_display': _format_date_filter(hoy),
         'metodo_filter':   metodo_filter,
         'usuario_filter':  usuario_filter,
         'orden_filter':    orden_filter,
@@ -196,7 +218,40 @@ def _agrupar_ventas_por_vendedor(ventas):
         grupos[vendedor.id_usuario]['ventas'].append(venta)
         grupos[vendedor.id_usuario]['total'] += venta.total_venta or Decimal('0.00')
         grupos[vendedor.id_usuario]['cantidad'] += 1
-    return grupos.values()
+    return sorted(grupos.values(), key=lambda group: group['total'], reverse=True)
+
+
+def _parse_date_filter(value):
+    if not value:
+        return None
+    try:
+        return datetime.strptime(value, '%Y-%m-%d').date()
+    except ValueError:
+        return None
+
+
+def _validar_rango_fechas(fecha_desde, fecha_hasta, hoy=None):
+    hoy = hoy or timezone.localdate()
+    fecha_desde_date = _parse_date_filter(fecha_desde)
+    fecha_hasta_date = _parse_date_filter(fecha_hasta)
+
+    if fecha_desde and not fecha_desde_date:
+        return fecha_desde_date, fecha_hasta_date, 'La fecha inicial no tiene un formato valido.'
+    if fecha_hasta and not fecha_hasta_date:
+        return fecha_desde_date, fecha_hasta_date, 'La fecha final no tiene un formato valido.'
+    if fecha_desde_date and fecha_hasta_date and fecha_desde_date > fecha_hasta_date:
+        return fecha_desde_date, fecha_hasta_date, 'Rango de fechas inválido: la fecha "Hasta" debe ser igual o posterior a "Desde".'
+    if (fecha_desde_date and fecha_desde_date > hoy) or (fecha_hasta_date and fecha_hasta_date > hoy):
+        return (
+            fecha_desde_date,
+            fecha_hasta_date,
+            f'No se pueden buscar ventas con fechas posteriores a hoy ({_format_date_filter(hoy)}).',
+        )
+    return fecha_desde_date, fecha_hasta_date, ''
+
+
+def _format_date_filter(value):
+    return value.strftime('%d/%m/%Y')
 
 
 def venta_detail(request, pk):
@@ -216,18 +271,38 @@ def venta_detail(request, pk):
 
 
 def venta_trazabilidad(request):
+    return render(request, 'ventas/trazabilidad.html', _trazabilidad_context(request))
+
+
+def venta_trazabilidad_pdf(request):
+    context = _trazabilidad_context(request)
+    pdf_buffer = _build_trazabilidad_pdf(request, context)
+    response = HttpResponse(pdf_buffer.getvalue(), content_type='application/pdf')
+    response['Content-Disposition'] = (
+        f"attachment; filename=\"trazabilidad-{timezone.localdate().strftime('%Y%m%d')}.pdf\""
+    )
+    return response
+
+
+def _trazabilidad_context(request):
     medicamento_id = request.GET.get('medicamento', '').strip()
     lote_id = request.GET.get('lote', '').strip()
     fecha_desde = request.GET.get('fecha_desde', '').strip()
     fecha_hasta = request.GET.get('fecha_hasta', '').strip()
     tipo_cliente = request.GET.get('tipo_cliente', '').strip()
     busqueda_activa = any([medicamento_id, lote_id, fecha_desde, fecha_hasta, tipo_cliente])
+    hoy = timezone.localdate()
+    fecha_desde_date, fecha_hasta_date, date_error_message = _validar_rango_fechas(
+        fecha_desde,
+        fecha_hasta,
+        hoy,
+    )
 
     detalles = DetalleVenta.objects.none()
     medicamento_seleccionado = None
     lote_seleccionado = None
 
-    if busqueda_activa:
+    if busqueda_activa and not date_error_message:
         detalles = DetalleVenta.objects.select_related(
             'id_ventas',
             'id_ventas__id_cliente',
@@ -250,10 +325,10 @@ def venta_trazabilidad(request):
                 id_medicamento__requiere_receta=medicamento_seleccionado.requiere_receta,
             )
 
-        if fecha_desde:
-            detalles = detalles.filter(id_ventas__fecha_venta__date__gte=fecha_desde)
-        if fecha_hasta:
-            detalles = detalles.filter(id_ventas__fecha_venta__date__lte=fecha_hasta)
+        if fecha_desde_date:
+            detalles = detalles.filter(id_ventas__fecha_venta__date__gte=fecha_desde_date)
+        if fecha_hasta_date:
+            detalles = detalles.filter(id_ventas__fecha_venta__date__lte=fecha_hasta_date)
         if tipo_cliente == 'registrados':
             detalles = detalles.filter(id_ventas__id_cliente__isnull=False)
         elif tipo_cliente == 'publico':
@@ -271,7 +346,7 @@ def venta_trazabilidad(request):
     ventas_publico_general = sum(1 for detalle in detalles_lista if not detalle.id_ventas.id_cliente_id)
     unidades_afectadas = sum(detalle.cantidad or 0 for detalle in detalles_lista)
 
-    return render(request, 'ventas/trazabilidad.html', {
+    return {
         'detalles': detalles_lista,
         'medicamentos': _medicamentos_catalogo_trazabilidad(),
         'lotes': _lotes_catalogo_trazabilidad(),
@@ -279,6 +354,9 @@ def venta_trazabilidad(request):
         'lote_id': lote_id,
         'fecha_desde': fecha_desde,
         'fecha_hasta': fecha_hasta,
+        'date_error_message': date_error_message,
+        'fecha_maxima': hoy.strftime('%Y-%m-%d'),
+        'fecha_maxima_display': _format_date_filter(hoy),
         'tipo_cliente': tipo_cliente,
         'busqueda_activa': busqueda_activa,
         'medicamento_seleccionado': medicamento_seleccionado,
@@ -287,7 +365,134 @@ def venta_trazabilidad(request):
         'clientes_contactables_total': len(clientes_contactables),
         'ventas_publico_general_total': ventas_publico_general,
         'unidades_afectadas_total': unidades_afectadas,
-    })
+    }
+
+
+def _build_trazabilidad_pdf(request, context):
+    pdf = _SelectableReportPdf()
+    usuario = get_current_usuario(request)
+    generado_por = usuario.nombre_completo() if usuario else 'Sistema'
+    periodo = _trazabilidad_periodo_display(context)
+    criterio = _trazabilidad_criterio_display(context)
+    tipo_cliente = {
+        'registrados': 'Clientes registrados',
+        'publico': 'Publico general',
+    }.get(context.get('tipo_cliente'), 'Todos')
+
+    pdf.text(pdf.margin, pdf.y - 8, 'Reporte de trazabilidad', size=20, bold=True, color=(0.02, 0.12, 0.18))
+    pdf.text(pdf.margin, pdf.y - 26, 'Rastreo de ventas y clientes afectados por medicamento o lote', size=9, color=(0.25, 0.35, 0.42))
+    pdf.y -= 44
+
+    pdf.two_column_facts([
+        ('Empresa', 'Farmacia Inclusiva'),
+        ('Reporte elaborado por', generado_por),
+        ('Fecha de emision', timezone.localtime(timezone.now()).strftime('%d/%m/%Y %H:%M')),
+        ('Periodo', periodo),
+        ('Busqueda activa', criterio),
+        ('Tipo de cliente', tipo_cliente),
+        ('Registros encontrados', str(len(context['detalles']))),
+        ('Formato', 'PDF con texto seleccionable'),
+    ])
+
+    lote = context.get('lote_seleccionado')
+    if lote and getattr(lote, 'oculto_por_caducidad', False):
+        motivo = lote.get_motivo_oculto_display() if lote.motivo_oculto else 'Sin motivo registrado'
+        detalle = lote.detalle_oculto or 'Sin detalle adicional.'
+        pdf.note(f'Lote oculto del inventario operativo. Motivo: {motivo}. Detalle: {detalle}')
+
+    pdf.section('Resumen')
+    pdf.kpi_grid([
+        ('Ventas afectadas', str(context['ventas_afectadas_total']), 'Folios distintos'),
+        ('Clientes rastreables', str(context['clientes_contactables_total']), 'Con registro en sistema'),
+        ('Publico general', str(context['ventas_publico_general_total']), 'Lineas sin cliente'),
+        ('Unidades', str(context['unidades_afectadas_total']), 'Vendidas en resultados'),
+    ])
+
+    rows = [_trazabilidad_pdf_row(detalle) for detalle in context['detalles']]
+    pdf.table(
+        'Compradores encontrados',
+        ['Venta', 'Fecha', 'Cliente', 'Teléfono', 'Medicamento', 'Lote', 'Cant.', 'Estado'],
+        rows,
+        [42, 70, 100, 70, 105, 70, 35, 48],
+    )
+    pdf.note(
+        'Este documento fue generado por el sistema de Farmacia Inclusiva. '
+        'Cuando el motivo sea defectuoso o danino, se recomienda contactar a los clientes registrados antes de cerrar el seguimiento.'
+    )
+    return pdf.to_buffer()
+
+
+def _trazabilidad_pdf_row(detalle):
+    venta = detalle.id_ventas
+    cliente = venta.id_cliente
+    medicamento = detalle.id_medicamento
+    lote = medicamento.id_lote
+    fecha = timezone.localtime(venta.fecha_venta).strftime('%d/%m/%Y %H:%M') if venta.fecha_venta else '-'
+    cliente_nombre = cliente.nombre_completo() if cliente else 'Publico general'
+    telefono = cliente.telefono if cliente and cliente.telefono else '-'
+    estado = 'Contactable' if cliente and cliente.telefono else 'No rastreable'
+    return [
+        f'#{venta.id_ventas}',
+        fecha,
+        cliente_nombre,
+        telefono,
+        _medicamento_pdf_nombre(medicamento),
+        lote.numero_lote if lote else '-',
+        str(detalle.cantidad or 0),
+        estado,
+    ]
+
+
+def _medicamento_pdf_nombre(medicamento):
+    partes = [medicamento.nombre]
+    if medicamento.presentacion_completa:
+        partes.append(medicamento.presentacion_completa)
+    if medicamento.concentracion:
+        partes.append(medicamento.concentracion)
+    return ' - '.join(str(parte) for parte in partes if parte)
+
+
+def _trazabilidad_periodo_display(context):
+    desde = context.get('fecha_desde') or 'Inicio'
+    hasta = context.get('fecha_hasta') or context.get('fecha_maxima_display') or 'Hoy'
+    return f'{desde} - {hasta}'
+
+
+def _trazabilidad_criterio_display(context):
+    lote = context.get('lote_seleccionado')
+    medicamento = context.get('medicamento_seleccionado')
+    if lote:
+        return f'Lote {lote.numero_lote}'
+    if medicamento:
+        return _medicamento_pdf_nombre(medicamento)
+    return 'Filtros generales'
+
+
+def venta_trazabilidad_whatsapp(request, detalle_id):
+    if request.method != 'POST':
+        return redirect('venta_trazabilidad')
+
+    detalle = get_object_or_404(
+        DetalleVenta.objects.select_related(
+            'id_ventas',
+            'id_ventas__id_cliente',
+            'id_medicamento',
+            'id_medicamento__id_lote',
+        ),
+        pk=detalle_id,
+    )
+    next_url = request.POST.get('next') or reverse('venta_trazabilidad')
+
+    try:
+        telefono = enviar_aviso_producto_defectuoso(request, detalle)
+        messages.success(
+            request,
+            f'Aviso de producto defectuoso enviado por WhatsApp a {telefono}.',
+        )
+    except WhatsAppIntegrationError as exc:
+        messages.error(request, str(exc))
+
+    return redirect(next_url)
 
 
 def venta_ticket(request, pk):
@@ -522,8 +727,20 @@ def venta_create(request):
                         subtotal        = subtotal,
                     )
                     lote              = med.id_lote
+                    stock_antes = lote.stock_actual or 0
                     lote.stock_actual = max((lote.stock_actual or 0) - cantidad, 0)
                     lote.save()
+                    MovimientoInventario.objects.create(
+                        id_lote=lote,
+                        id_medicamento=med,
+                        id_usuario=venta.id_usuario,
+                        tipo=MovimientoInventario.TIPO_VENTA,
+                        motivo='venta',
+                        cantidad=-cantidad,
+                        stock_antes=stock_antes,
+                        stock_despues=lote.stock_actual,
+                        referencia=f'Venta #{venta.id_ventas}',
+                    )
                     _actualizar_colorimetria(med, lote.stock_actual)
 
                 messages.success(request, f'Venta #{venta.id_ventas} registrada correctamente.')
@@ -586,8 +803,20 @@ def venta_delete(request, pk):
         with transaction.atomic():
             for det in venta.detalleventa_set.select_related('id_medicamento__id_lote').all():
                 lote               = det.id_medicamento.id_lote
+                stock_antes = lote.stock_actual or 0
                 lote.stock_actual += det.cantidad or 0
                 lote.save()
+                MovimientoInventario.objects.create(
+                    id_lote=lote,
+                    id_medicamento=det.id_medicamento,
+                    id_usuario=venta.id_usuario,
+                    tipo=MovimientoInventario.TIPO_CANCELACION,
+                    motivo='cancelacion',
+                    cantidad=det.cantidad or 0,
+                    stock_antes=stock_antes,
+                    stock_despues=lote.stock_actual,
+                    referencia=f'Cancelacion venta #{venta.id_ventas}',
+                )
                 _actualizar_colorimetria(det.id_medicamento, lote.stock_actual)
             venta.delete()
         messages.success(request, 'Venta cancelada y stock restaurado.')
@@ -778,9 +1007,9 @@ def _ticket_png(request, venta, detalles):
 
     note_h = 86
     draw.rounded_rectangle((margin, y, width - margin, y + note_h), radius=9, fill=soft, outline=border, width=1)
-    text(margin + 12, y + 14, f'QR del ticket: {_clip(_ticket_public_url(request, venta), 80)}', ink, font_small)
-    text(margin + 12, y + 38, 'Este QR abre el resumen de la compra y muestra los QR individuales', ink, font_small)
-    text(margin + 12, y + 60, 'de cada medicamento adquirido.', ink, font_small)
+    text(margin + 12, y + 14, 'Ticket digital', ink, font_small)
+    text(margin + 12, y + 38, 'Escanea el QR superior para consultar el resumen', ink, font_small)
+    text(margin + 12, y + 60, 'de la compra cuando lo necesites.', ink, font_small)
     y += note_h + 38
 
     final_height = min(height, y)
