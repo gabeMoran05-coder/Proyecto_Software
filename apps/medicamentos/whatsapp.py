@@ -17,6 +17,9 @@ COUNTRY_CODES = [
     {'code': '34', 'name': 'Espana', 'flag': 'ES', 'placeholder': '612 345 678'},
 ]
 
+WHATSAPP_REQUEST_TIMEOUT = 20
+OPENAI_TTS_TIMEOUT = 25
+
 
 def enviar_paquete_qr_por_whatsapp(request, qr, telefono):
     _validar_configuracion()
@@ -91,6 +94,8 @@ def _validar_configuracion():
 def _absolute_url(request, path):
     if path.startswith(('http://', 'https://')):
         return path
+    if settings.QR_PUBLIC_BASE_URL:
+        return settings.QR_PUBLIC_BASE_URL + path
     if settings.SITE_PUBLIC_BASE_URL:
         return settings.SITE_PUBLIC_BASE_URL + path
     return request.build_absolute_uri(path)
@@ -104,33 +109,39 @@ def _generar_qr_png(target_url):
 
 
 def _generar_audio_ia(texto):
-    response = requests.post(
-        'https://api.openai.com/v1/audio/speech',
-        headers={
-            'Authorization': f'Bearer {settings.OPENAI_API_KEY}',
-            'Content-Type': 'application/json',
-        },
-        json={
-            'model': settings.OPENAI_TTS_MODEL,
-            'voice': settings.OPENAI_TTS_VOICE,
-            'input': texto,
-            'instructions': 'Habla en espanol de Mexico, con tono claro, amable y profesional para un paciente.',
-        },
-        timeout=60,
-    )
+    try:
+        response = requests.post(
+            'https://api.openai.com/v1/audio/speech',
+            headers={
+                'Authorization': f'Bearer {settings.OPENAI_API_KEY}',
+                'Content-Type': 'application/json',
+            },
+            json={
+                'model': settings.OPENAI_TTS_MODEL,
+                'voice': settings.OPENAI_TTS_VOICE,
+                'input': texto,
+                'instructions': 'Habla en espanol de Mexico, con tono claro, amable y profesional para un paciente.',
+            },
+            timeout=OPENAI_TTS_TIMEOUT,
+        )
+    except requests.RequestException as exc:
+        raise WhatsAppIntegrationError(f'No se pudo conectar con OpenAI TTS: {exc}') from exc
     if response.status_code >= 400:
         raise WhatsAppIntegrationError(_api_error('OpenAI TTS', response))
     return response.content
 
 
 def _subir_media(contenido, mime_type, filename):
-    response = requests.post(
-        _graph_url('media'),
-        headers={'Authorization': f'Bearer {settings.WHATSAPP_ACCESS_TOKEN}'},
-        data={'messaging_product': 'whatsapp', 'type': mime_type},
-        files={'file': (filename, contenido, mime_type)},
-        timeout=60,
-    )
+    try:
+        response = requests.post(
+            _graph_url('media'),
+            headers={'Authorization': f'Bearer {settings.WHATSAPP_ACCESS_TOKEN}'},
+            data={'messaging_product': 'whatsapp', 'type': mime_type},
+            files={'file': (filename, contenido, mime_type)},
+            timeout=WHATSAPP_REQUEST_TIMEOUT,
+        )
+    except requests.RequestException as exc:
+        raise WhatsAppIntegrationError(f'No se pudo conectar con WhatsApp media: {exc}') from exc
     if response.status_code >= 400:
         raise WhatsAppIntegrationError(_api_error('WhatsApp media', response))
     return response.json()['id']
@@ -224,15 +235,18 @@ def _enviar_plantilla(
 
 
 def _enviar_mensaje(payload):
-    response = requests.post(
-        _graph_url('messages'),
-        headers={
-            'Authorization': f'Bearer {settings.WHATSAPP_ACCESS_TOKEN}',
-            'Content-Type': 'application/json',
-        },
-        json=payload,
-        timeout=60,
-    )
+    try:
+        response = requests.post(
+            _graph_url('messages'),
+            headers={
+                'Authorization': f'Bearer {settings.WHATSAPP_ACCESS_TOKEN}',
+                'Content-Type': 'application/json',
+            },
+            json=payload,
+            timeout=WHATSAPP_REQUEST_TIMEOUT,
+        )
+    except requests.RequestException as exc:
+        raise WhatsAppIntegrationError(f'No se pudo conectar con WhatsApp messages: {exc}') from exc
     if response.status_code >= 400:
         raise WhatsAppIntegrationError(_api_error('WhatsApp messages', response))
 

@@ -9,6 +9,7 @@ from django.conf import settings
 from django.contrib import messages
 from django.http import HttpResponse
 from django.core.paginator import Paginator
+from django.db.models.deletion import ProtectedError
 from django.db.models import Q, Sum
 from django.db.models.functions import TruncDate
 from django.shortcuts import get_object_or_404, redirect, render
@@ -230,7 +231,16 @@ def medicamento_alerta_caducidad(request, pk):
 def medicamento_delete(request, pk):
     med = get_object_or_404(Medicamento, pk=pk)
     if request.method == 'POST':
-        med.delete()
+        try:
+            med.delete()
+            messages.success(request, 'Medicamento eliminado correctamente.')
+        except ProtectedError:
+            messages.error(
+                request,
+                'No se puede eliminar este medicamento porque ya tiene ventas registradas. '
+                'El historial de ventas debe conservarse para trazabilidad.'
+            )
+            return redirect('medicamento_detail', pk=pk)
         return redirect('medicamento_list')
     return render(request, 'medicamentos/medicamento_confirm_delete.html', {'medicamento': med})
 
@@ -596,8 +606,12 @@ def qr_list(request):
     elif activo_filter == 'no':
         qr_codes = qr_codes.filter(activo=False)
 
+    qr_codes = list(qr_codes.order_by('-fecha_generacion'))
+    for qr in qr_codes:
+        qr.public_url_qr = _qr_public_absolute_url(request, qr.url_qr)
+
     return render(request, 'medicamentos/qr_list.html', {
-        'qr_codes':     qr_codes.order_by('-fecha_generacion'),
+        'qr_codes':     qr_codes,
         'medicamentos': Medicamento.objects.all().order_by('nombre'),
         'med_filter':   med_filter,
         'activo_filter': activo_filter,
@@ -667,7 +681,7 @@ def qr_enviar_whatsapp(request, pk):
 
 def qr_image(request, pk):
     qr = get_object_or_404(CodigoQR, pk=pk)
-    target_url = _public_absolute_url(
+    target_url = _qr_public_absolute_url(
         request,
         reverse('qr_scan', kwargs={'token': qr.token}),
     )
@@ -708,6 +722,14 @@ def _public_absolute_url(request, path):
         return path
     if settings.SITE_PUBLIC_BASE_URL:
         return settings.SITE_PUBLIC_BASE_URL + path
+    return request.build_absolute_uri(path)
+
+
+def _qr_public_absolute_url(request, path):
+    if path.startswith(('http://', 'https://')):
+        return path
+    if settings.QR_PUBLIC_BASE_URL:
+        return settings.QR_PUBLIC_BASE_URL + path
     return request.build_absolute_uri(path)
 
 

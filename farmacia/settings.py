@@ -138,6 +138,7 @@ LOGGING = {
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 SITE_PUBLIC_BASE_URL = os.environ.get('SITE_PUBLIC_BASE_URL', '').rstrip('/')
+QR_PUBLIC_BASE_URL = os.environ.get('QR_PUBLIC_BASE_URL', SITE_PUBLIC_BASE_URL).rstrip('/')
 
 EMAIL_BACKEND = os.environ.get(
     'EMAIL_BACKEND',

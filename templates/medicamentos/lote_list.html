@@ -15,6 +15,7 @@
                 {% endif %}
             </p>
         </div>
+        {% if current_usuario_role != 'cajero' %}
         <div class="btn-group">
             {% if ocultos %}
                 <a class="btn btn-secondary" href="{% url 'lote_list' %}">Ver lotes activos</a>
@@ -22,6 +23,7 @@
                 <a class="btn btn-secondary" href="{% url 'lote_ocultos' %}">Ver lotes ocultos</a>
             {% endif %}
         </div>
+        {% endif %}
     </div>
 
     <div class="alert alert-info">
@@ -195,6 +197,7 @@
                     <td>
                         <div class="btn-group">
                             <a class="btn btn-secondary btn-sm" href="{% url 'lote_detail' lote.id_lote %}">Ver</a>
+                            {% if current_usuario_role != 'cajero' %}
                             <a class="btn btn-secondary btn-sm" href="{% url 'lote_update' lote.id_lote %}">Editar</a>
                             {% if ocultos %}
                                 <form method="post" action="{% url 'lote_restaurar' lote.id_lote %}">
@@ -203,6 +206,7 @@
                                 </form>
                             {% else %}
                                 <a class="btn btn-danger btn-sm" href="{% url 'lote_ocultar' lote.id_lote %}">Ocultar</a>
+                            {% endif %}
                             {% endif %}
                         </div>
                     </td>

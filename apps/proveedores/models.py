@@ -1,5 +1,7 @@
 from django.db import models
 
+from apps.text_utils import first_upper, first_upper_or_none
+
 class Proveedor(models.Model):
     id_prov = models.AutoField(primary_key=True)
     nombre = models.CharField(max_length=100)
@@ -13,3 +15,9 @@ class Proveedor(models.Model):
 
     def __str__(self):
         return self.nombre
+
+    def save(self, *args, **kwargs):
+        self.nombre = first_upper(self.nombre)
+        self.correo = self.correo.strip().lower() if self.correo else None
+        self.direccion = first_upper_or_none(self.direccion)
+        super().save(*args, **kwargs)

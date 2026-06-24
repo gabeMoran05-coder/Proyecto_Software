@@ -4,10 +4,19 @@ from django.shortcuts import get_object_or_404, redirect, render
 
 from .models import Proveedor
 from apps.medicamentos.models import Medicamento
+from apps.text_utils import first_upper, first_upper_or_none
 
 
 def proveedor_list(request):
-    proveedores   = Proveedor.objects.filter(activo=True)
+    return _proveedor_list(request, ocultos=False)
+
+
+def proveedor_ocultos(request):
+    return _proveedor_list(request, ocultos=True)
+
+
+def _proveedor_list(request, ocultos=False):
+    proveedores = Proveedor.objects.filter(activo=not ocultos)
     nombre_filter = request.GET.get('nombre', '').strip()
     orden_filter = request.GET.get('orden', 'nombre_asc').strip()
 
@@ -50,6 +59,7 @@ def proveedor_list(request):
         'orden_filter': orden_filter,
         'query_params': query_params,
         'filter_query_params': filter_query_params,
+        'ocultos': ocultos,
     })
 
 
@@ -91,10 +101,10 @@ def proveedor_create(request):
                 'proveedor':  _mock(request.POST),
             })
         Proveedor.objects.create(
-            nombre    = request.POST.get('nombre', '').strip(),
+            nombre    = first_upper(request.POST.get('nombre')),
             telefono  = request.POST.get('telefono', '').strip() or None,
-            correo    = request.POST.get('correo', '').strip() or None,
-            direccion = request.POST.get('direccion', '').strip() or None,
+            correo    = (request.POST.get('correo', '').strip().lower() or None),
+            direccion = first_upper_or_none(request.POST.get('direccion')),
         )
         return redirect('proveedor_list')
 
@@ -111,10 +121,10 @@ def proveedor_update(request, pk):
                 'errors':    errors,
                 'proveedor': proveedor,
             })
-        proveedor.nombre    = request.POST.get('nombre', '').strip()
+        proveedor.nombre    = first_upper(request.POST.get('nombre'))
         proveedor.telefono  = request.POST.get('telefono', '').strip() or None
-        proveedor.correo    = request.POST.get('correo', '').strip() or None
-        proveedor.direccion = request.POST.get('direccion', '').strip() or None
+        proveedor.correo    = request.POST.get('correo', '').strip().lower() or None
+        proveedor.direccion = first_upper_or_none(request.POST.get('direccion'))
         proveedor.save()
         return redirect('proveedor_detail', pk=pk)
 
@@ -155,6 +165,22 @@ def proveedor_ocultar(request, pk):
         'proveedor': proveedor,
         'lotes_count': proveedor.lote_set.count(),
     })
+
+
+def proveedor_restaurar(request, pk):
+    proveedor = get_object_or_404(Proveedor, pk=pk)
+    if request.method == 'POST':
+        lotes_actualizados = proveedor.lote_set.update(
+            activo=True,
+            oculto_por_caducidad=False,
+        )
+        proveedor.activo = True
+        proveedor.save(update_fields=['activo'])
+        messages.success(
+            request,
+            f'Proveedor restaurado. Tambien se restauraron {lotes_actualizados} lote(s) relacionados.'
+        )
+    return redirect('proveedor_ocultos')
 
 
 # ── Helpers ──────────────────────────────────────────────────────────────────

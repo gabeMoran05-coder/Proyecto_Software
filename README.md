@@ -320,6 +320,10 @@ POSTGRES_PASSWORD=change-this-password
 POSTGRES_HOST=db
 POSTGRES_PORT=5432
 
+# Celery / Redis
+CELERY_BROKER_URL=redis://redis:6379/0
+CELERY_RESULT_BACKEND=redis://redis:6379/1
+
 # Configuración regional
 TIME_ZONE=America/Mexico_City
 LANGUAGE_CODE=es-mx
@@ -340,6 +344,9 @@ docker compose up -d
 
 # Ver logs en tiempo real
 docker compose logs -f web
+
+# Ver logs de tareas automáticas
+docker compose logs -f celery_worker celery_beat
 
 # Detener servicios
 docker compose down
@@ -404,6 +411,35 @@ Modelos registrados:
 - `Cliente` (app clientes)
 - `Usuario` (app usuarios)
 - `MetodoPago`, `Venta`, `DetalleVenta` (app ventas)
+
+---
+
+## Tareas automáticas con Celery
+
+El envío diario de alertas de caducidad ya no depende de Windows Task Scheduler. La programación vive dentro del proyecto con Celery Beat:
+
+- `redis`: cola de mensajes.
+- `celery_worker`: ejecuta las tareas.
+- `celery_beat`: programa las tareas.
+
+La alerta de caducidad se ejecuta todos los días a las `7:30 a.m.` usando la zona horaria configurada en `TIME_ZONE`.
+
+```bash
+# Levantar todos los servicios
+docker compose up --build -d
+
+# Revisar que Celery este corriendo
+docker compose ps
+
+# Ver ejecuciones y errores
+docker compose logs -f celery_worker celery_beat
+
+# Probar el envio manualmente
+docker compose exec web python manage.py enviar_alertas_caducidad --dry-run
+docker compose exec web python manage.py enviar_alertas_caducidad
+```
+
+Si antes se usaba Windows Task Scheduler, elimina o deshabilita esas tareas para evitar correos duplicados.
 
 ---
 

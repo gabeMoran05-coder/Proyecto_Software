@@ -6,7 +6,8 @@
     <h1>Confirmar eliminación</h1>
     <div class="alert alert-error mt-2">
         ¿Estás seguro de que deseas eliminar el medicamento <strong>{{ medicamento.nombre }}</strong>?
-        Esta acción no se puede deshacer.
+        Esta acción no se puede deshacer. Si el medicamento ya aparece en ventas, no se eliminará
+        para conservar la trazabilidad del historial.
     </div>
     <form method="post" class="form-actions mt-2">
         {% csrf_token %}

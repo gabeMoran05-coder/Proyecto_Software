@@ -70,7 +70,7 @@
                     <td>
                         <span class="qr-token">{{ qr.token }}</span>
                         <div class="mt-1">
-                            <a class="link" href="{{ qr.url_qr }}" target="_blank">Abrir ficha</a>
+                            <a class="link" href="{{ qr.public_url_qr }}" target="_blank" rel="noopener">Abrir ficha</a>
                         </div>
                     </td>
                     <td>{{ qr.fecha_generacion|date:"d/m/Y"|default:"-" }}</td>
