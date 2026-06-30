@@ -1,8 +1,9 @@
-﻿<header>
+{% load static %}
+<header>
     <div class="nav-inner">
         <a href="/" class="nav-brand">
-            <strong>Farmacia Inclusiva</strong>
-            <span>/ ITCO</span>
+            <img class="nav-logo" src="{% static 'img/logo.png' %}" alt="FarmaVoz">
+            <span class="nav-brand-text">FarmaVoz</span>
         </a>
 
         <div class="theme-switch" role="radiogroup" aria-label="Tema de color" hidden>
@@ -11,9 +12,9 @@
             <input id="theme-dark" name="theme-mode" type="radio" value="dark" data-theme-option="dark">
             <div class="theme-track" aria-hidden="true">
                 <span class="theme-thumb"></span>
-                <label class="theme-choice theme-choice-light" for="theme-light" title="Modo claro">☀</label>
+                <label class="theme-choice theme-choice-light" for="theme-light" title="Modo claro">?</label>
                 <label class="theme-choice theme-choice-auto" for="theme-auto" title="Automático">A</label>
-                <label class="theme-choice theme-choice-dark" for="theme-dark" title="Modo oscuro">☾</label>
+                <label class="theme-choice theme-choice-dark" for="theme-dark" title="Modo oscuro">?</label>
             </div>
         </div>
 
