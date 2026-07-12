@@ -10,6 +10,7 @@
             <p class="page-subtitle">{{ lote.numero_lote }}</p>
         </div>
         <div class="btn-group">
+            {% if current_usuario_role != 'cajero' %}
             <a href="{% url 'venta_trazabilidad' %}?lote={{ lote.id_lote }}" class="btn btn-primary">Trazabilidad</a>
             <a href="{% url 'lote_update' lote.id_lote %}" class="btn btn-secondary">Editar</a>
             {% if lote.oculto_por_caducidad %}
@@ -19,6 +20,7 @@
                 </form>
             {% else %}
                 <a href="{% url 'lote_ocultar' lote.id_lote %}" class="btn btn-danger">Ocultar</a>
+            {% endif %}
             {% endif %}
             <a href="{% url 'lote_list' %}" class="btn btn-secondary">&larr; Volver</a>
         </div>

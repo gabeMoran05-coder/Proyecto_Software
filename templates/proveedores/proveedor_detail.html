@@ -21,9 +21,9 @@
         <table class="detail-table">
             <tr><td>ID</td><td class="text-mono">{{ proveedor.id_prov }}</td></tr>
             <tr><td>Nombre</td><td class="fw-600">{{ proveedor.nombre }}</td></tr>
-            <tr><td>Telefono</td><td>{{ proveedor.telefono|default:"-" }}</td></tr>
+            <tr><td>Teléfono</td><td>{{ proveedor.telefono|default:"-" }}</td></tr>
             <tr><td>Correo</td><td>{{ proveedor.correo|default:"-" }}</td></tr>
-            <tr><td>Direccion</td><td>{{ proveedor.direccion|default:"-" }}</td></tr>
+            <tr><td>Dirección</td><td>{{ proveedor.direccion|default:"-" }}</td></tr>
         </table>
     </div>
 
@@ -41,7 +41,7 @@
                     <input id="medicamento" name="medicamento" type="text" placeholder="Buscar por nombre..." value="{{ medicamento_filter|default:'' }}">
                 </div>
                 <div class="form-group">
-                    <label for="presentacion">Presentacion</label>
+                    <label for="presentacion">Presentación</label>
                     <input id="presentacion" name="presentacion" type="text" placeholder="Ej. tabletas, capsulas..." value="{{ presentacion_filter|default:'' }}">
                 </div>
                 <div class="form-group">
@@ -67,7 +67,7 @@
                     <tr>
                         <th>Numero lote</th>
                         <th>Medicamento</th>
-                        <th>Presentacion</th>
+                        <th>Presentación</th>
                         <th>Estado</th>
                         <th>Stock</th>
                         <th>P. Venta</th>
@@ -91,7 +91,7 @@
                         </td>
                         <td>
                             {% for med in lote.medicamento_set.all %}
-                                <div>{{ med.presentacion|default:"-" }}</div>
+                                <div>{{ med.presentacion_completa|default:"-" }}</div>
                             {% empty %}
                                 <span class="text-muted">-</span>
                             {% endfor %}

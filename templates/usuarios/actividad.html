@@ -1,0 +1,279 @@
+{% extends "base.html" %}
+{% block title %}Actividad reciente{% endblock %}
+
+{% block content %}
+<div class="card mt-2 activity-page">
+    <div class="page-header">
+        <div>
+            <h1>Actividad reciente</h1>
+            <p class="page-subtitle">Historial operativo de inventario, Kardex y auditoría del sistema.</p>
+        </div>
+        <a class="btn btn-secondary" href="{% url 'inicio_dashboard' %}">Volver al inicio</a>
+    </div>
+
+    {% if date_error_message %}
+    <div class="alert alert-error">{{ date_error_message }}</div>
+    {% endif %}
+
+    <section class="activity-kpis" aria-label="Resumen de actividad">
+        <article>
+            <span>Eventos mostrados</span>
+            <strong>{{ total_eventos }}</strong>
+            <small>con los filtros actuales</small>
+        </article>
+        <article>
+            <span>Movimientos Kardex</span>
+            <strong>{{ total_movimientos }}</strong>
+            <small>entradas, salidas, ventas y ajustes</small>
+        </article>
+        <article>
+            <span>Auditoría</span>
+            <strong>{{ total_auditorias }}</strong>
+            <small>acciones administrativas registradas</small>
+        </article>
+    </section>
+
+    <form class="activity-filters" method="get">
+        <div class="filter-field">
+            <label>Desde</label>
+            <input type="date" name="fecha_desde" value="{{ fecha_desde }}" max="{{ fecha_maxima }}">
+        </div>
+        <div class="filter-field">
+            <label>Hasta</label>
+            <input type="date" name="fecha_hasta" value="{{ fecha_hasta }}" max="{{ fecha_maxima }}">
+        </div>
+        <div class="filter-field">
+            <label>Fuente</label>
+            <select name="fuente">
+                <option value="" {% if not fuente_filter %}selected{% endif %}>Todas</option>
+                <option value="inventario" {% if fuente_filter == 'inventario' %}selected{% endif %}>Inventario/Kardex</option>
+                <option value="auditoria" {% if fuente_filter == 'auditoria' %}selected{% endif %}>Auditoría</option>
+            </select>
+        </div>
+        <div class="filter-field">
+            <label>Movimiento</label>
+            <select name="movimiento">
+                <option value="" {% if not movimiento_filter %}selected{% endif %}>Todos</option>
+                {% for value, label in movimiento_tipos %}
+                    <option value="{{ value }}" {% if movimiento_filter == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="filter-field">
+            <label>Usuario</label>
+            <select name="usuario">
+                <option value="" {% if not usuario_filter %}selected{% endif %}>Todos</option>
+                {% for usuario in usuarios %}
+                    <option value="{{ usuario.id_usuario }}" {% if usuario_filter == usuario.id_usuario|stringformat:"s" %}selected{% endif %}>
+                        {{ usuario.nombre_completo }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="filter-field activity-search">
+            <label>Buscar</label>
+            <input type="search" name="q" value="{{ busqueda }}" placeholder="Lote, medicamento, referencia, motivo...">
+        </div>
+        <div class="filter-actions">
+            <button class="btn btn-primary" type="submit">Filtrar</button>
+            <a class="btn btn-secondary" href="{% url 'usuario_actividad' %}">Limpiar</a>
+        </div>
+    </form>
+
+    <div class="activity-list">
+        {% for evento in eventos %}
+            <article class="activity-row activity-row-{{ evento.nivel }}">
+                <div class="activity-marker">
+                    <span></span>
+                </div>
+                <div class="activity-main">
+                    <div class="activity-title">
+                        <div>
+                            <strong>{{ evento.titulo }}</strong>
+                            <span>{{ evento.subtitulo }}</span>
+                        </div>
+                        <time>{{ evento.fecha|date:"d/m/Y H:i" }}</time>
+                    </div>
+                    <p>{{ evento.detalle|default:"Sin detalle registrado." }}</p>
+                    <div class="activity-meta">
+                        <span>{{ evento.fuente }}</span>
+                        <span>{{ evento.referencia }}</span>
+                        {% if evento.stock %}<span>Stock {{ evento.stock }}</span>{% endif %}
+                        <span>{{ evento.usuario }}</span>
+                    </div>
+                </div>
+                <div class="activity-actions">
+                    {% if evento.url %}
+                        <a class="btn btn-secondary btn-sm" href="{{ evento.url }}">Abrir</a>
+                    {% else %}
+                        <span class="badge badge-gray">Sin enlace</span>
+                    {% endif %}
+                </div>
+            </article>
+        {% empty %}
+            <div class="empty-state">
+                <p>No hay actividades con los filtros actuales.</p>
+            </div>
+        {% endfor %}
+    </div>
+
+    {% include "components/pagination.html" %}
+</div>
+
+<style>
+.activity-page {
+    max-width: 1240px;
+    margin-left: auto;
+    margin-right: auto;
+}
+.activity-kpis {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.85rem;
+    margin-bottom: 1rem;
+}
+.activity-kpis article {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1rem;
+    background: var(--surface-2);
+}
+.activity-kpis span,
+.activity-kpis small {
+    display: block;
+    color: var(--muted);
+}
+.activity-kpis span {
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+.activity-kpis strong {
+    display: block;
+    margin: 0.35rem 0 0.1rem;
+    color: var(--primary);
+    font-size: 2rem;
+    line-height: 1;
+}
+.activity-filters {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(130px, 1fr));
+    gap: 0.85rem;
+    align-items: end;
+    margin-bottom: 1.25rem;
+    padding: 1rem;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--surface-2);
+}
+.activity-search {
+    grid-column: span 2;
+}
+.filter-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+}
+.filter-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+.activity-list {
+    display: grid;
+    gap: 0.7rem;
+}
+.activity-row {
+    display: grid;
+    grid-template-columns: 28px minmax(0, 1fr) auto;
+    gap: 0.85rem;
+    align-items: start;
+    padding: 1rem;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--surface);
+}
+.activity-marker {
+    display: flex;
+    justify-content: center;
+    padding-top: 0.25rem;
+}
+.activity-marker span {
+    width: 12px;
+    height: 12px;
+    border-radius: 999px;
+    background: var(--primary);
+    box-shadow: 0 0 0 5px var(--primary-light);
+}
+.activity-row-warning .activity-marker span {
+    background: var(--warning);
+    box-shadow: 0 0 0 5px var(--warning-light);
+}
+.activity-row-danger .activity-marker span {
+    background: var(--danger);
+    box-shadow: 0 0 0 5px var(--danger-light);
+}
+.activity-title {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+}
+.activity-title strong {
+    display: block;
+    font-size: 1rem;
+}
+.activity-title span,
+.activity-row p,
+.activity-title time {
+    color: var(--muted);
+}
+.activity-title time {
+    white-space: nowrap;
+    font-size: 0.86rem;
+    font-weight: 600;
+}
+.activity-row p {
+    margin: 0.35rem 0 0.65rem;
+}
+.activity-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+}
+.activity-meta span {
+    display: inline-flex;
+    align-items: center;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 0.18rem 0.55rem;
+    color: var(--muted);
+    background: var(--surface-2);
+    font-size: 0.78rem;
+    font-weight: 600;
+}
+.activity-actions {
+    display: flex;
+    justify-content: flex-end;
+}
+@media (max-width: 900px) {
+    .activity-kpis,
+    .activity-filters {
+        grid-template-columns: 1fr;
+    }
+    .activity-search {
+        grid-column: auto;
+    }
+    .activity-row {
+        grid-template-columns: 20px minmax(0, 1fr);
+    }
+    .activity-actions {
+        grid-column: 2;
+        justify-content: flex-start;
+    }
+    .activity-title {
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+}
+</style>
+{% endblock %}

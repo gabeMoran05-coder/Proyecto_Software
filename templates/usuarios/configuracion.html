@@ -1,0 +1,339 @@
+﻿{% extends "base.html" %}
+{% block title %}Configuración{% endblock %}
+
+{% block content %}
+<div class="card mt-2 settings-page">
+    <div class="page-header">
+        <div>
+            <h1>Configuración</h1>
+            <p class="page-subtitle">Automatizaciones de Gmail/correo, reportes y preferencias de cuenta</p>
+        </div>
+    </div>
+
+    <section class="settings-band">
+        <div>
+            <h2>Destinatarios</h2>
+            <p>Los correos se envían únicamente al email del administrador que inició sesión.</p>
+        </div>
+        <div class="settings-recipients">
+            {% if destinatario_email %}
+                <span>{{ destinatario_email }}</span>
+            {% else %}
+                <span class="is-empty">Tu usuario no tiene correo registrado</span>
+            {% endif %}
+        </div>
+    </section>
+
+    <form method="post" class="automation-form">
+        {% csrf_token %}
+        <div class="automation-tabs" role="tablist" aria-label="Reportes automatizados">
+            {% for tab in tabs %}
+                <button class="automation-tab{% if forloop.first %} active{% endif %}" type="button" data-automation-tab="{{ tab.key }}">{{ tab.label }}</button>
+            {% endfor %}
+        </div>
+
+        <div class="automation-list">
+            {% for tab in tabs %}
+                <section class="automation-tab-panel{% if forloop.first %} active{% endif %}" data-automation-panel="{{ tab.key }}">
+                    {% for automatizacion in tab.automatizaciones %}
+                        <div class="automation-row">
+                            <div class="automation-main">
+                                <label class="automation-toggle">
+                                    <input type="checkbox" name="automatizacion_{{ automatizacion.pk }}_activa" {% if automatizacion.activa %}checked{% endif %}>
+                                    <span></span>
+                                </label>
+                                <div>
+                                    <h2>{{ automatizacion.nombre }}</h2>
+                                    <p>{{ automatizacion.descripcion }}</p>
+                                    <small>
+                                        Último envío:
+                                        {% if automatizacion.ultimo_envio %}
+                                            {{ automatizacion.ultimo_envio|date:'d/m/Y' }}
+                                        {% else %}
+                                            aún no enviado
+                                        {% endif %}
+                                    </small>
+                                </div>
+                            </div>
+
+                            <div class="automation-controls">
+                                {% if automatizacion.tarea == 'reporte_semanal' %}
+                                    <label>
+                                        Día
+                                        <select name="automatizacion_{{ automatizacion.pk }}_dia_semana">
+                                            {% for value, label in dias_semana %}
+                                                <option value="{{ value }}" {% if automatizacion.dia_semana == value %}selected{% endif %}>{{ label }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </label>
+                                {% elif automatizacion.tarea == 'reporte_mensual' %}
+                                    <label>
+                                        Día del mes
+                                        <input type="number" min="1" max="31" name="automatizacion_{{ automatizacion.pk }}_dia_mes" value="{{ automatizacion.dia_mes }}">
+                                    </label>
+                                {% else %}
+                                    <label>
+                                        Frecuencia
+                                        <input type="text" value="Diario" readonly>
+                                    </label>
+                                {% endif %}
+
+                                <label>
+                                    Hora
+                                    <input type="time" name="automatizacion_{{ automatizacion.pk }}_hora" value="{{ automatizacion.hora_envio|time:'H:i' }}">
+                                </label>
+                            </div>
+                        </div>
+                    {% endfor %}
+
+                    {% if tab.key == 'inventario' %}
+                        <div class="automation-row inventory-expiry-row">
+                            <div class="automation-main">
+                                <div class="automation-icon" aria-hidden="true">!</div>
+                                <div>
+                                    <h2>Retiro automático por caducidad</h2>
+                                    <p>Define cuánto tiempo permanece visible un lote caduco para revisión física y a qué hora se oculta automáticamente.</p>
+                                    <small>Durante ese periodo seguirá apareciendo como caduco en notificaciones.</small>
+                                </div>
+                            </div>
+                            <div class="automation-controls">
+                                <label>
+                                    Días de revisión
+                                    <input type="number" min="0" max="30" name="caducidad_dias_revision" value="{{ configuracion_inventario.dias_revision_caducidad }}">
+                                </label>
+                                <label>
+                                    Hora de retiro
+                                    <input type="time" name="caducidad_hora_retiro" value="{{ configuracion_inventario.hora_retiro_caducidad|time:'H:i' }}">
+                                </label>
+                            </div>
+                        </div>
+                    {% endif %}
+                </section>
+            {% endfor %}
+        </div>
+
+        <div class="form-actions">
+            <button class="btn btn-primary" type="submit">Guardar configuración</button>
+            <a class="btn btn-secondary" href="{% url 'reportes_dashboard' %}">Volver a reportes</a>
+        </div>
+    </form>
+</div>
+
+<style>
+.settings-page {
+    left: 50%;
+    margin-left: auto;
+    margin-right: auto;
+    max-width: 1220px;
+    position: relative;
+    transform: translateX(-50%);
+    width: min(1220px, calc(100vw - 4rem));
+}
+@media (max-width: 1100px) {
+    .settings-page {
+        left: auto;
+        transform: none;
+        width: 100%;
+    }
+}
+.settings-band {
+    align-items: start;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: minmax(360px, 1fr) auto;
+    margin-bottom: 1.25rem;
+    padding: 1.15rem 1.25rem;
+}
+.settings-band h2,
+.automation-row h2 {
+    color: var(--primary);
+    font-size: 1rem;
+    margin: 0 0 0.3rem;
+}
+.settings-band p,
+.automation-row p,
+.automation-row small {
+    color: var(--muted);
+    font-size: 0.95rem;
+    line-height: 1.45;
+    margin: 0;
+}
+.settings-recipients {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+    justify-content: flex-end;
+}
+.settings-recipients span {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    color: var(--primary);
+    font-size: 0.86rem;
+    font-weight: 700;
+    padding: 0.35rem 0.65rem;
+}
+.settings-recipients .is-empty {
+    color: var(--danger);
+}
+.automation-list {
+    display: grid;
+    gap: 0.85rem;
+}
+.automation-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.55rem;
+    margin-bottom: 1rem;
+}
+.automation-tab {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--primary);
+    cursor: pointer;
+    font-family: inherit;
+    font-weight: 800;
+    padding: 0.68rem 1rem;
+}
+.automation-tab.active {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: #fff;
+}
+.automation-tab-panel {
+    display: none;
+    gap: 0.85rem;
+}
+.automation-tab-panel.active {
+    display: grid;
+}
+.automation-row {
+    align-items: center;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    display: grid;
+    gap: 1.25rem;
+    grid-template-columns: minmax(420px, 1fr) minmax(360px, auto);
+    padding: 1.25rem;
+}
+.automation-main {
+    align-items: center;
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: auto minmax(0, 1fr);
+}
+.automation-icon {
+    align-items: center;
+    background: var(--warning-light);
+    border: 1px solid rgba(212, 130, 10, 0.35);
+    border-radius: 999px;
+    color: var(--warning);
+    display: inline-flex;
+    font-weight: 900;
+    height: 42px;
+    justify-content: center;
+    width: 42px;
+}
+.inventory-expiry-row {
+    background: linear-gradient(180deg, var(--surface-2), rgba(255, 243, 224, 0.38));
+}
+.automation-toggle input {
+    position: absolute;
+    opacity: 0;
+}
+.automation-toggle span {
+    background: #cbd5e1;
+    border-radius: 999px;
+    cursor: pointer;
+    display: block;
+    height: 34px;
+    position: relative;
+    width: 60px;
+}
+.automation-toggle span::after {
+    background: #fff;
+    border-radius: 999px;
+    box-shadow: 0 2px 7px rgba(0,0,0,0.2);
+    content: "";
+    height: 28px;
+    left: 3px;
+    position: absolute;
+    top: 3px;
+    transition: transform 0.18s ease;
+    width: 28px;
+}
+.automation-toggle input:checked + span {
+    background: var(--primary);
+}
+.automation-toggle input:checked + span::after {
+    transform: translateX(26px);
+}
+.automation-controls {
+    align-items: end;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    justify-content: flex-end;
+}
+.automation-controls label {
+    color: var(--muted);
+    display: grid;
+    font-size: 0.78rem;
+    font-weight: 700;
+    gap: 0.25rem;
+}
+.automation-controls input,
+.automation-controls select {
+    min-width: 170px;
+}
+.form-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.65rem;
+    justify-content: flex-end;
+    margin-top: 1.5rem;
+}
+html[data-theme="dark"] .settings-recipients span {
+    background: var(--surface);
+}
+@media (min-width: 1200px) {
+    .settings-page {
+        padding: 1.8rem 2rem;
+    }
+}
+@media (max-width: 760px) {
+    .settings-band,
+    .automation-row {
+        grid-template-columns: 1fr;
+    }
+    .settings-recipients,
+    .automation-controls,
+    .form-actions {
+        justify-content: flex-start;
+    }
+}
+</style>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        var tabs = document.querySelectorAll('[data-automation-tab]');
+        var panels = document.querySelectorAll('[data-automation-panel]');
+
+        tabs.forEach(function (tab) {
+            tab.addEventListener('click', function () {
+                var key = tab.getAttribute('data-automation-tab');
+                tabs.forEach(function (item) {
+                    item.classList.toggle('active', item === tab);
+                });
+                panels.forEach(function (panel) {
+                    panel.classList.toggle('active', panel.getAttribute('data-automation-panel') === key);
+                });
+            });
+        });
+    });
+</script>
+{% endblock %}

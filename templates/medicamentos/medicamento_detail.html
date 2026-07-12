@@ -314,8 +314,8 @@
             <p class="page-subtitle">ID #{{ medicamento.id_med }} - Detalle del medicamento</p>
         </div>
         <div class="btn-group">
-            <a class="btn btn-primary" href="{% url 'venta_trazabilidad' %}?medicamento={{ medicamento.id_med }}">Trazabilidad</a>
             {% if current_usuario_role != 'cajero' %}
+            <a class="btn btn-primary" href="{% url 'venta_trazabilidad' %}?medicamento={{ medicamento.id_med }}">Trazabilidad</a>
                 <a class="btn btn-secondary" href="{% url 'medicamento_update' medicamento.id_med %}">Editar</a>
                 <a class="btn btn-danger" href="{% url 'medicamento_delete' medicamento.id_med %}">Eliminar</a>
             {% endif %}

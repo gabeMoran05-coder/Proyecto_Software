@@ -1,155 +1,374 @@
 import os
-import django
+import random
 import sys
+from datetime import date, datetime, timedelta
+from decimal import Decimal
+
+import django
+from django.urls import reverse
+from django.utils import timezone
+
 
 sys.path.insert(0, '/app')
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'farmacia.settings')
 django.setup()
 
-from datetime import date, datetime
-from apps.proveedores.models import Proveedor
 from apps.clientes.models import Cliente
+from apps.medicamentos.models import CodigoQR, Lote, Medicamento
+from apps.proveedores.models import Proveedor
 from apps.usuarios.models import Usuario
-from apps.ventas.models import MetodoPago, Venta, DetalleVenta
-from apps.medicamentos.models import Lote, Medicamento, CodigoQR
-import uuid
+from apps.ventas.models import DetalleVenta, MetodoPago, Venta
 
-print("Cargando datos de prueba...")
 
-# =====================
-# PROVEEDORES
-# =====================
-proveedores = [
-    Proveedor(nombre="Laboratorios Pisa", telefono="3331234567", correo="ventas@pisa.com.mx", direccion="Av. Patria 1501, Guadalajara, Jalisco"),
-    Proveedor(nombre="Distribuidora Nadro", telefono="5551234567", correo="contacto@nadro.com.mx", direccion="Av. Insurgentes Sur 800, CDMX"),
-    Proveedor(nombre="Grupo Farmacos", telefono="8181234567", correo="pedidos@grupofarmacos.com", direccion="Av. Gonzalitos 600, Monterrey, NL"),
-    Proveedor(nombre="Laboratorios Silanes", telefono="5559876543", correo="ventas@silanes.com.mx", direccion="Periferico Sur 7800, CDMX"),
-    Proveedor(nombre="Medix Farmaceutica", telefono="3339876543", correo="info@medix.com.mx", direccion="Av. López Mateos 2000, Guadalajara"),
+random.seed(23042026)
+
+NOMBRES = [
+    'Ana', 'Carlos', 'Marina', 'Arturo', 'Lucia', 'Roberto', 'Gabriel', 'Sofia',
+    'Valeria', 'Diego', 'Fernando', 'Daniela', 'Miguel', 'Andrea', 'Jorge',
+    'Camila', 'Luis', 'Paola', 'Ricardo', 'Elena',
 ]
-Proveedor.objects.bulk_create(proveedores)
-print("✓ Proveedores creados")
-
-# =====================
-# CLIENTES
-# =====================
-clientes = [
-    Cliente(nombre="María", ap_pat="González", ap_mat="López", fecha_registro=date(2024, 1, 15), telefono="3121234567"),
-    Cliente(nombre="José", ap_pat="Martínez", ap_mat="Pérez", fecha_registro=date(2024, 2, 20), telefono="3129876543"),
-    Cliente(nombre="Ana", ap_pat="Hernández", ap_mat="Ruiz", fecha_registro=date(2024, 3, 10), telefono="3123456789"),
-    Cliente(nombre="Carlos", ap_pat="Ramírez", ap_mat="Torres", fecha_registro=date(2024, 4, 5), telefono="3127654321"),
-    Cliente(nombre="Laura", ap_pat="Flores", ap_mat="Vega", fecha_registro=date(2024, 5, 18), telefono="3125551234"),
+APELLIDOS = [
+    'Garcia', 'Lopez', 'Hernandez', 'Martinez', 'Perez', 'Gonzalez', 'Ramirez',
+    'Torres', 'Flores', 'Vega', 'Sanchez', 'Mendoza', 'Rios', 'Nava', 'Cruz',
+    'Ruiz', 'Morales', 'Castillo', 'Ortega', 'Reyes',
 ]
-Cliente.objects.bulk_create(clientes)
-print("✓ Clientes creados")
-
-# =====================
-# USUARIOS
-# =====================
-usuarios_data = [
-    {"username": "jperez", "first_name": "Juan", "last_name": "Pérez", "rol": "farmaceutico", "telefono": "3121112233"},
-    {"username": "mlopez", "first_name": "Marina", "last_name": "López", "rol": "cajero", "telefono": "3122223344"},
-    {"username": "rsanchez", "first_name": "Roberto", "last_name": "Sánchez", "rol": "farmaceutico", "telefono": "3123334455"},
-    {"username": "lmendoza", "first_name": "Lucía", "last_name": "Mendoza", "rol": "administrador", "telefono": "3124445566"},
-    {"username": "agarcia", "first_name": "Arturo", "last_name": "García", "rol": "cajero", "telefono": "3125556677"},
+CIUDADES = [
+    'Colima', 'Guadalajara', 'Monterrey', 'Ciudad de Mexico', 'Zapopan',
+    'Manzanillo', 'Morelia', 'Queretaro', 'Puebla', 'Leon',
 ]
-usuarios_creados = []
-for u in usuarios_data:
-    usuario = Usuario(
-        username=u["username"],
-        first_name=u["first_name"],
-        last_name=u["last_name"],
-        rol=u["rol"],
-        telefono=u["telefono"],
-    )
-    usuario.set_password("Password123!")
-    usuario.save()
-    usuarios_creados.append(usuario)
-print("✓ Usuarios creados")
-
-# =====================
-# MÉTODOS DE PAGO
-# =====================
-metodos = [
-    MetodoPago(nombre_metodo="Efectivo", descripcion="Pago en efectivo en caja"),
-    MetodoPago(nombre_metodo="Tarjeta de débito", descripcion="Pago con tarjeta de débito"),
-    MetodoPago(nombre_metodo="Tarjeta de crédito", descripcion="Pago con tarjeta de crédito"),
-    MetodoPago(nombre_metodo="Transferencia", descripcion="Transferencia bancaria SPEI"),
-    MetodoPago(nombre_metodo="Vales de medicina", descripcion="Vales del seguro o empresa"),
+MEDICAMENTOS_BASE = [
+    ('Amoxicilina', 'Capsulas caja c/12', '500 mg', True, Decimal('82.00'), Decimal('125.00')),
+    ('Paracetamol', 'Tabletas caja c/20', '500 mg', False, Decimal('31.50'), Decimal('60.00')),
+    ('Ibuprofeno', 'Tabletas caja c/10', '400 mg', False, Decimal('42.00'), Decimal('79.00')),
+    ('Loratadina', 'Tabletas caja c/10', '10 mg', False, Decimal('37.00'), Decimal('69.00')),
+    ('Metformina', 'Tabletas caja c/30', '850 mg', True, Decimal('115.00'), Decimal('168.00')),
+    ('Omeprazol', 'Capsulas caja c/14', '20 mg', False, Decimal('32.00'), Decimal('59.00')),
+    ('Ambroxol', 'Frasco 120 ml', '30 mg/5 ml', False, Decimal('25.00'), Decimal('59.00')),
+    ('Naproxeno', 'Tabletas caja c/20', '250 mg', False, Decimal('33.00'), Decimal('59.00')),
+    ('Cetirizina', 'Tabletas caja c/10', '10 mg', False, Decimal('29.00'), Decimal('59.00')),
+    ('Diclofenaco', 'Tabletas caja c/20', '100 mg', False, Decimal('40.00'), Decimal('75.00')),
 ]
-MetodoPago.objects.bulk_create(metodos)
-print("✓ Métodos de pago creados")
-
-# =====================
-# LOTES
-# =====================
-proveedores_db = list(Proveedor.objects.all())
-lotes = [
-    Lote(id_prov=proveedores_db[0], numero_lote="PISA-2024-001", fecha_fabricacion=date(2024, 1, 1), fecha_caducidad=date(2026, 1, 1), fecha_ingreso=date(2024, 1, 20), stock_actual=100, activo=True, fecha_compra=date(2024, 1, 18), precio_compra=450.00, precio_venta=650.00),
-    Lote(id_prov=proveedores_db[1], numero_lote="NADRO-2024-015", fecha_fabricacion=date(2024, 2, 1), fecha_caducidad=date(2026, 2, 1), fecha_ingreso=date(2024, 2, 15), stock_actual=80, activo=True, fecha_compra=date(2024, 2, 12), precio_compra=300.00, precio_venta=420.00),
-    Lote(id_prov=proveedores_db[2], numero_lote="GF-2024-032", fecha_fabricacion=date(2024, 3, 1), fecha_caducidad=date(2025, 9, 1), fecha_ingreso=date(2024, 3, 10), stock_actual=50, activo=True, fecha_compra=date(2024, 3, 8), precio_compra=180.00, precio_venta=250.00),
-    Lote(id_prov=proveedores_db[3], numero_lote="SIL-2024-008", fecha_fabricacion=date(2024, 4, 1), fecha_caducidad=date(2026, 4, 1), fecha_ingreso=date(2024, 4, 5), stock_actual=120, activo=True, fecha_compra=date(2024, 4, 3), precio_compra=520.00, precio_venta=720.00),
-    Lote(id_prov=proveedores_db[4], numero_lote="MDX-2024-021", fecha_fabricacion=date(2024, 5, 1), fecha_caducidad=date(2026, 5, 1), fecha_ingreso=date(2024, 5, 20), stock_actual=60, activo=True, fecha_compra=date(2024, 5, 18), precio_compra=210.00, precio_venta=290.00),
+METODOS_BASE = [
+    ('Efectivo', 'Pago en caja con moneda nacional'),
+    ('Tarjeta de debito', 'Pago con terminal bancaria'),
+    ('Tarjeta de credito', 'Pago con tarjeta bancaria'),
+    ('Transferencia SPEI', 'Transferencia bancaria inmediata'),
+    ('Vales de despensa', 'Vales aceptados por la farmacia'),
 ]
-Lote.objects.bulk_create(lotes)
-print("✓ Lotes creados")
 
-# =====================
-# MEDICAMENTOS
-# =====================
-lotes_db = list(Lote.objects.all())
-medicamentos = [
-    Medicamento(id_lote=lotes_db[0], nombre="Amoxicilina 500mg", presentacion="Cápsulas c/12", concentracion="500mg", requiere_receta=True, fecha_registro=date(2024, 1, 20), estado_colorimetria="verde"),
-    Medicamento(id_lote=lotes_db[1], nombre="Paracetamol 500mg", presentacion="Tabletas c/20", concentracion="500mg", requiere_receta=False, fecha_registro=date(2024, 2, 15), estado_colorimetria="verde"),
-    Medicamento(id_lote=lotes_db[2], nombre="Ibuprofeno 400mg", presentacion="Tabletas c/10", concentracion="400mg", requiere_receta=False, fecha_registro=date(2024, 3, 10), estado_colorimetria="amarillo"),
-    Medicamento(id_lote=lotes_db[3], nombre="Metformina 850mg", presentacion="Tabletas c/30", concentracion="850mg", requiere_receta=True, fecha_registro=date(2024, 4, 5), estado_colorimetria="verde"),
-    Medicamento(id_lote=lotes_db[4], nombre="Loratadina 10mg", presentacion="Tabletas c/10", concentracion="10mg", requiere_receta=False, fecha_registro=date(2024, 5, 20), estado_colorimetria="verde"),
-]
-Medicamento.objects.bulk_create(medicamentos)
-print("✓ Medicamentos creados")
 
-# =====================
-# CÓDIGOS QR
-# =====================
-medicamentos_db = list(Medicamento.objects.all())
-qrs = [
-    CodigoQR(id_medicamento=medicamentos_db[0], token=uuid.uuid4().hex[:64], url_qr="https://farmacia.com/qr/amoxicilina", fecha_generacion=date(2024, 1, 21), contador_escaneos=5, activo=True),
-    CodigoQR(id_medicamento=medicamentos_db[1], token=uuid.uuid4().hex[:64], url_qr="https://farmacia.com/qr/paracetamol", fecha_generacion=date(2024, 2, 16), contador_escaneos=12, activo=True),
-    CodigoQR(id_medicamento=medicamentos_db[2], token=uuid.uuid4().hex[:64], url_qr="https://farmacia.com/qr/ibuprofeno", fecha_generacion=date(2024, 3, 11), contador_escaneos=3, activo=True),
-    CodigoQR(id_medicamento=medicamentos_db[3], token=uuid.uuid4().hex[:64], url_qr="https://farmacia.com/qr/metformina", fecha_generacion=date(2024, 4, 6), contador_escaneos=8, activo=True),
-    CodigoQR(id_medicamento=medicamentos_db[4], token=uuid.uuid4().hex[:64], url_qr="https://farmacia.com/qr/loratadina", fecha_generacion=date(2024, 5, 21), contador_escaneos=2, activo=True),
-]
-CodigoQR.objects.bulk_create(qrs)
-print("✓ Códigos QR creados")
+def main():
+    if os.environ.get('ALLOW_DEMO_SEED', '').strip().lower() not in {'1', 'true', 'yes', 'on'}:
+        raise RuntimeError(
+            'Seed demo bloqueado. Define ALLOW_DEMO_SEED=true solo en desarrollo '
+            'para cargar datos de demostracion.'
+        )
 
-# =====================
-# VENTAS
-# =====================
-clientes_db = list(Cliente.objects.all())
-metodos_db = list(MetodoPago.objects.all())
-ventas = [
-    Venta(id_usuario=usuarios_creados[0], id_metPag=metodos_db[0], id_cliente=clientes_db[0], fecha_venta=datetime(2024, 6, 1, 10, 30), total_venta=650.00),
-    Venta(id_usuario=usuarios_creados[1], id_metPag=metodos_db[1], id_cliente=clientes_db[1], fecha_venta=datetime(2024, 6, 2, 11, 15), total_venta=420.00),
-    Venta(id_usuario=usuarios_creados[0], id_metPag=metodos_db[2], id_cliente=clientes_db[2], fecha_venta=datetime(2024, 6, 3, 12, 0), total_venta=500.00),
-    Venta(id_usuario=usuarios_creados[2], id_metPag=metodos_db[0], id_cliente=clientes_db[3], fecha_venta=datetime(2024, 6, 4, 9, 45), total_venta=290.00),
-    Venta(id_usuario=usuarios_creados[1], id_metPag=metodos_db[3], id_cliente=clientes_db[4], fecha_venta=datetime(2024, 6, 5, 14, 20), total_venta=970.00),
-]
-Venta.objects.bulk_create(ventas)
-print("✓ Ventas creadas")
+    print('Reiniciando base de datos de prueba...')
+    limpiar_datos()
 
-# =====================
-# DETALLE VENTAS
-# =====================
-ventas_db = list(Venta.objects.all())
-detalles = [
-    DetalleVenta(id_ventas=ventas_db[0], id_medicamento=medicamentos_db[0], cantidad=1, precio_unitario=650.00, subtotal=650.00),
-    DetalleVenta(id_ventas=ventas_db[1], id_medicamento=medicamentos_db[1], cantidad=1, precio_unitario=420.00, subtotal=420.00),
-    DetalleVenta(id_ventas=ventas_db[2], id_medicamento=medicamentos_db[1], cantidad=1, precio_unitario=420.00, subtotal=420.00),
-    DetalleVenta(id_ventas=ventas_db[2], id_medicamento=medicamentos_db[2], cantidad=1, precio_unitario=250.00, subtotal=250.00),
-    DetalleVenta(id_ventas=ventas_db[3], id_medicamento=medicamentos_db[4], cantidad=1, precio_unitario=290.00, subtotal=290.00),
-    DetalleVenta(id_ventas=ventas_db[4], id_medicamento=medicamentos_db[0], cantidad=1, precio_unitario=650.00, subtotal=650.00),
-    DetalleVenta(id_ventas=ventas_db[4], id_medicamento=medicamentos_db[3], cantidad=1, precio_unitario=320.00, subtotal=320.00),
-]
-DetalleVenta.objects.bulk_create(detalles)
-print("✓ Detalles de venta creados")
+    proveedores = crear_proveedores()
+    clientes = crear_clientes()
+    usuarios = crear_usuarios()
+    metodos = crear_metodos_pago()
+    lotes, medicamentos = crear_lotes_y_medicamentos(proveedores)
+    crear_qr(medicamentos)
+    crear_ventas(usuarios, clientes, metodos, medicamentos)
 
-print("\n✅ Todos los datos cargados correctamente")
+    print('\nDatos cargados:')
+    print(f'- Proveedores: {Proveedor.objects.count()}')
+    print(f'- Clientes: {Cliente.objects.count()}')
+    print(f'- Usuarios: {Usuario.objects.count()}')
+    print(f'- Metodos de pago: {MetodoPago.objects.count()}')
+    print(f'- Lotes: {Lote.objects.count()}')
+    print(f'- Medicamentos: {Medicamento.objects.count()}')
+    print(f'- Codigos QR: {CodigoQR.objects.count()}')
+    print(f'- Ventas: {Venta.objects.count()}')
+    print(f'- Detalles de venta: {DetalleVenta.objects.count()}')
+    print('\nListo. Usuario admin demo: lucia / Password123!')
+
+
+def limpiar_datos():
+    DetalleVenta.objects.all().delete()
+    Venta.objects.all().delete()
+    CodigoQR.objects.all().delete()
+    Medicamento.objects.all().delete()
+    Lote.objects.all().delete()
+    MetodoPago.objects.all().delete()
+    Cliente.objects.all().delete()
+    Usuario.objects.all().delete()
+    Proveedor.objects.all().delete()
+    print('- Datos anteriores eliminados.')
+
+
+def crear_proveedores():
+    proveedores_reales = [
+        ('Laboratorios Pisa', '3331234567', 'ventas@pisa.com.mx', 'Av. Espana 1840, Guadalajara, Jalisco'),
+        ('Nadro S.A.P.I.', '5551234567', 'contacto@nadro.com.mx', 'Av. Insurgentes Sur 863, Ciudad de Mexico'),
+        ('Farmacos Nacionales', '8181234567', 'pedidos@farmacosnacionales.mx', 'Av. Gonzalitos 600, Monterrey, Nuevo Leon'),
+        ('Laboratorios Silanes', '5559876543', 'atencion@silanes.com.mx', 'Periferico Sur 3395, Ciudad de Mexico'),
+        ('Medix Farmaceutica', '3339876543', 'servicio@medix.com.mx', 'Av. Lopez Mateos Sur 2077, Zapopan, Jalisco'),
+    ]
+    proveedores = []
+    for nombre, telefono, correo, direccion in proveedores_reales:
+        proveedores.append(Proveedor.objects.create(
+            nombre=nombre,
+            telefono=telefono,
+            correo=correo,
+            direccion=direccion,
+            activo=True,
+        ))
+    print(f'- Proveedores creados: {len(proveedores)}')
+    return proveedores
+
+
+def crear_clientes():
+    clientes_reales = [
+        ('Maria Fernanda', 'Gonzalez', 'Lopez', '3121456780'),
+        ('Jose Antonio', 'Martinez', 'Perez', '3121456781'),
+        ('Ana Lucia', 'Hernandez', 'Ruiz', '3121456782'),
+        ('Carlos Alberto', 'Ramirez', 'Torres', '3121456783'),
+        ('Laura Isabel', 'Flores', 'Vega', '3121456784'),
+        ('Miguel Angel', 'Sanchez', 'Cruz', '3121456785'),
+        ('Sofia Elena', 'Mendoza', 'Rios', '3121456786'),
+        ('Diego Armando', 'Garcia', 'Nava', '3121456787'),
+        ('Paola Andrea', 'Castillo', 'Morales', '3121456788'),
+        ('Ricardo Javier', 'Ortega', 'Reyes', '3121456789'),
+        ('Valeria', 'Navarro', 'Campos', '3122456780'),
+        ('Fernando', 'Cervantes', 'Aguilar', '3122456781'),
+        ('Daniela', 'Pineda', 'Salazar', '3122456782'),
+        ('Jorge Luis', 'Vargas', 'Mora', '3122456783'),
+        ('Camila', 'Contreras', 'Leon', '3122456784'),
+        ('Luis Enrique', 'Dominguez', 'Santos', '3122456785'),
+        ('Elena', 'Rangel', 'Figueroa', '3122456786'),
+        ('Roberto', 'Cortes', 'Mejia', '3122456787'),
+        ('Mariana', 'Arias', 'Nunez', '3122456788'),
+        ('Arturo', 'Delgado', 'Soto', '3122456789'),
+        ('Gabriela', 'Fuentes', 'Padilla', '3123456780'),
+        ('Hector', 'Luna', 'Valdez', '3123456781'),
+        ('Monica', 'Bravo', 'Herrera', '3123456782'),
+        ('Raul', 'Cabrera', 'Ibarra', '3123456783'),
+        ('Patricia', 'Espinoza', 'Orozco', '3123456784'),
+        ('Alejandro', 'Medina', 'Carrillo', '3123456785'),
+        ('Claudia', 'Robles', 'Silva', '3123456786'),
+        ('Oscar', 'Acosta', 'Bautista', '3123456787'),
+        ('Natalia', 'Molina', 'Juarez', '3123456788'),
+        ('Eduardo', 'Quintero', 'Velasco', '3123456789'),
+        ('Beatriz', 'Serrano', 'Zamora', '3124456780'),
+        ('Ivan', 'Miranda', 'Rosales', '3124456781'),
+        ('Carolina', 'Montes', 'Escobar', '3124456782'),
+        ('Emmanuel', 'Saucedo', 'Galindo', '3124456783'),
+        ('Adriana', 'Villanueva', 'Pacheco', '3124456784'),
+        ('Sebastian', 'Palacios', 'Macias', '3124456785'),
+        ('Diana', 'Esquivel', 'Benitez', '3124456786'),
+        ('Francisco', 'Sepulveda', 'Cano', '3124456787'),
+        ('Lorena', 'Corona', 'Solorio', '3124456788'),
+        ('Andres', 'Cisneros', 'Tapia', '3124456789'),
+        ('Veronica', 'Barrera', 'Mendez', '3125456780'),
+        ('Rafael', 'Gallardo', 'Ponce', '3125456781'),
+        ('Teresa', 'Zuniga', 'Arellano', '3125456782'),
+        ('Omar', 'Valencia', 'Cordero', '3125456783'),
+        ('Silvia', 'Camacho', 'Beltran', '3125456784'),
+        ('Pablo', 'Trejo', 'Castaneda', '3125456785'),
+        ('Rosa Maria', 'Alvarez', 'Farias', '3125456786'),
+        ('Julian', 'Maldonado', 'Miramontes', '3125456787'),
+        ('Karla', 'Salinas', 'Franco', '3125456788'),
+        ('Manuel', 'Cuevas', 'Arce', '3125456789'),
+    ]
+    clientes = []
+    for index, (nombre, ap_pat, ap_mat, telefono) in enumerate(clientes_reales):
+        clientes.append(Cliente.objects.create(
+            nombre=nombre,
+            ap_pat=ap_pat,
+            ap_mat=ap_mat,
+            fecha_registro=date(2023 + (index % 4), (index % 12) + 1, min((index * 2) + 1, 28)),
+            telefono=telefono,
+        ))
+    print(f'- Clientes creados: {len(clientes)}')
+    return clientes
+
+
+def crear_usuarios():
+    usuarios = []
+    usuarios_data = [
+        ('user', 'User', 'Administrador', 'Demo', Usuario.ROL_ADMINISTRADOR, 'Administrador general', '12345'),
+        ('admin01', 'Lucia', 'Mendoza', 'Rios', Usuario.ROL_ADMINISTRADOR, 'Administrador', 'Password123!'),
+        ('admin02', 'Natalia', 'Molina', 'Juarez', Usuario.ROL_ADMINISTRADOR, 'Administrador', 'Password123!'),
+        ('admin03', 'Eduardo', 'Quintero', 'Velasco', Usuario.ROL_ADMINISTRADOR, 'Administrador', 'Password123!'),
+        ('almacen01', 'Adriana', 'Alvarez', 'Mora', Usuario.ROL_ALMACEN, 'Almacen', 'Password123!'),
+        ('almacen02', 'Raul', 'Cabrera', 'Ibarra', Usuario.ROL_ALMACEN, 'Almacen', 'Password123!'),
+        ('almacen03', 'Patricia', 'Espinoza', 'Orozco', Usuario.ROL_ALMACEN, 'Almacen', 'Password123!'),
+        ('almacen04', 'Alejandro', 'Medina', 'Carrillo', Usuario.ROL_ALMACEN, 'Almacen', 'Password123!'),
+        ('almacen05', 'Claudia', 'Robles', 'Silva', Usuario.ROL_ALMACEN, 'Almacen', 'Password123!'),
+        ('almacen06', 'Oscar', 'Acosta', 'Bautista', Usuario.ROL_ALMACEN, 'Almacen', 'Password123!'),
+        ('marina', 'Marina', 'Lopez', 'Diaz', Usuario.ROL_CAJERO, 'Cajero vendedor', 'Password123!'),
+        ('arturo', 'Arturo', 'Garcia', 'Nava', Usuario.ROL_CAJERO, 'Cajero vendedor', 'Password123!'),
+        ('cajero03', 'Daniela', 'Pineda', 'Salazar', Usuario.ROL_CAJERO, 'Cajero vendedor', 'Password123!'),
+        ('cajero04', 'Carlos', 'Ramirez', 'Torres', Usuario.ROL_CAJERO, 'Cajero vendedor', 'Password123!'),
+        ('cajero05', 'Sofia', 'Mendoza', 'Rios', Usuario.ROL_CAJERO, 'Cajero vendedor', 'Password123!'),
+        ('cajero06', 'Miguel', 'Sanchez', 'Cruz', Usuario.ROL_CAJERO, 'Cajero vendedor', 'Password123!'),
+        ('cajero07', 'Laura', 'Flores', 'Vega', Usuario.ROL_CAJERO, 'Cajero vendedor', 'Password123!'),
+        ('cajero08', 'Diego', 'Castillo', 'Morales', Usuario.ROL_CAJERO, 'Cajero vendedor', 'Password123!'),
+        ('cajero09', 'Paola', 'Ortega', 'Reyes', Usuario.ROL_CAJERO, 'Cajero vendedor', 'Password123!'),
+        ('cajero10', 'Ricardo', 'Navarro', 'Campos', Usuario.ROL_CAJERO, 'Cajero vendedor', 'Password123!'),
+        ('cajero11', 'Valeria', 'Cervantes', 'Aguilar', Usuario.ROL_CAJERO, 'Cajero vendedor', 'Password123!'),
+        ('cajero12', 'Fernando', 'Vargas', 'Mora', Usuario.ROL_CAJERO, 'Cajero vendedor', 'Password123!'),
+        ('cajero13', 'Camila', 'Contreras', 'Leon', Usuario.ROL_CAJERO, 'Cajero vendedor', 'Password123!'),
+        ('cajero14', 'Luis', 'Dominguez', 'Santos', Usuario.ROL_CAJERO, 'Cajero vendedor', 'Password123!'),
+        ('cajero15', 'Elena', 'Rangel', 'Figueroa', Usuario.ROL_CAJERO, 'Cajero vendedor', 'Password123!'),
+        ('cajero16', 'Roberto', 'Cortes', 'Mejia', Usuario.ROL_CAJERO, 'Cajero vendedor', 'Password123!'),
+        ('cajero17', 'Mariana', 'Arias', 'Nunez', Usuario.ROL_CAJERO, 'Cajero vendedor', 'Password123!'),
+        ('cajero18', 'Gabriela', 'Fuentes', 'Padilla', Usuario.ROL_CAJERO, 'Cajero vendedor', 'Password123!'),
+        ('cajero19', 'Hector', 'Luna', 'Valdez', Usuario.ROL_CAJERO, 'Cajero vendedor', 'Password123!'),
+        ('cajero20', 'Monica', 'Bravo', 'Herrera', Usuario.ROL_CAJERO, 'Cajero vendedor', 'Password123!'),
+    ]
+
+    for index, (username, nombre, ap_pat, ap_mat, rol, puesto, password) in enumerate(usuarios_data):
+        usuario = Usuario(
+            usuario=username,
+            nombre=nombre,
+            ap_pat=ap_pat,
+            ap_mat=ap_mat,
+            rol=rol,
+            telefono=f'31260{index:05d}'[:10],
+            puesto=puesto,
+            fecha_creacion=date(2024, (index % 12) + 1, min((index * 2) + 1, 28)),
+            fecha_contratacion=date(2024, (index % 12) + 1, min((index * 2) + 3, 28)),
+            ultima_conexion=timezone.make_aware(datetime(2026, (index % 12) + 1, min((index * 2) + 1, 28), 9, 30)),
+            activo=True,
+        )
+        usuario.set_password(password)
+        usuario.save()
+        usuarios.append(usuario)
+    print(f'- Usuarios creados: {len(usuarios)}')
+    return usuarios
+
+
+def crear_metodos_pago():
+    metodos = []
+    for nombre, descripcion in METODOS_BASE:
+        metodos.append(MetodoPago.objects.create(nombre_metodo=nombre, descripcion=descripcion))
+    print(f'- Metodos de pago creados: {len(metodos)}')
+    return metodos
+
+
+def crear_lotes_y_medicamentos(proveedores):
+    lotes = []
+    medicamentos = []
+    fecha_base = date(2023, 1, 1)
+
+    for i in range(1, 101):
+        base = MEDICAMENTOS_BASE[(i - 1) % len(MEDICAMENTOS_BASE)]
+        nombre_base, presentacion, concentracion, receta, compra_base, venta_base = base
+        proveedor = proveedores[(i * 7) % len(proveedores)]
+
+        fabricacion = fecha_base + timedelta(days=i * 17)
+        if i % 17 == 0:
+            caducidad = date(2025, ((i - 1) % 12) + 1, min((i % 26) + 1, 28))
+        elif i % 11 == 0:
+            caducidad = timezone.localdate() + timedelta(days=(i % 75) + 5)
+        else:
+            caducidad = date(2026 + (i % 4), ((i - 1) % 12) + 1, min((i % 26) + 1, 28))
+
+        stock = 0 if i % 19 == 0 else 45 + ((i * 13) % 180)
+        activo = stock > 0 and caducidad >= timezone.localdate()
+        oculto = i % 23 == 0
+        lote = Lote.objects.create(
+            id_prov=proveedor,
+            numero_lote=f'DEMO-{i:03d}-{proveedor.id_prov:03d}',
+            fecha_fabricacion=fabricacion,
+            fecha_caducidad=caducidad,
+            fecha_ingreso=timezone.make_aware(datetime(2023 + (i % 4), ((i - 1) % 12) + 1, min((i % 25) + 1, 28), 8, 0)),
+            stock_actual=stock,
+            activo=activo,
+            fecha_compra=fabricacion + timedelta(days=10),
+            precio_compra=compra_base + Decimal(i % 9),
+            precio_venta=venta_base + Decimal((i % 6) * 5),
+            oculto_por_caducidad=oculto,
+        )
+        lotes.append(lote)
+
+        nombre = f'{nombre_base} {concentracion}'
+        medicamento = Medicamento.objects.create(
+            id_lote=lote,
+            nombre=nombre,
+            presentacion=presentacion,
+            concentracion=concentracion,
+            requiere_receta=receta,
+            fecha_registro=lote.fecha_ingreso,
+            estado_colorimetria=lote.estado_stock,
+        )
+        medicamentos.append(medicamento)
+
+    print('- Lotes creados: 100')
+    print('- Medicamentos creados: 100')
+    return lotes, medicamentos
+
+
+def crear_qr(medicamentos):
+    for i, medicamento in enumerate(medicamentos, start=1):
+        token = f'DEMOQR{i:03d}{medicamento.id_med:04d}'
+        CodigoQR.objects.create(
+            id_medicamento=medicamento,
+            token=token,
+            url_qr=reverse('qr_scan', kwargs={'token': token}),
+            fecha_generacion=date(2023 + (i % 4), ((i - 1) % 12) + 1, min((i % 25) + 1, 28)),
+            fecha_regeneracion=None,
+            contador_escaneos=(i * 7) % 180,
+            activo=True,
+        )
+    print('- Codigos QR creados: 100')
+
+
+def crear_ventas(usuarios, clientes, metodos, medicamentos):
+    cajeros = [u for u in usuarios if u.rol == Usuario.ROL_CAJERO]
+    medicamentos_vendibles = [
+        med for med in medicamentos
+        if med.id_lote and med.id_lote.activo and not med.id_lote.oculto_por_caducidad and med.id_lote.stock_actual > 5
+    ]
+    fechas = []
+    for i in range(100):
+        anio = 2022 + (i % 5)
+        mes = (i % 12) + 1
+        dia = min(((i * 3) % 26) + 1, 28)
+        fechas.append(timezone.make_aware(datetime(anio, mes, dia, 9 + (i % 9), (i * 7) % 60)))
+
+    for i in range(1, 101):
+        venta = Venta.objects.create(
+            id_usuario=cajeros[i % len(cajeros)],
+            id_metPag=metodos[i % len(metodos)],
+            id_cliente=clientes[i % len(clientes)] if i % 7 else None,
+            fecha_venta=fechas[i - 1],
+            total_venta=Decimal('0.00'),
+        )
+
+        total = Decimal('0.00')
+        cantidad_lineas = 2 + (i % 4)
+        usados = set()
+        for j in range(cantidad_lineas):
+            med = medicamentos_vendibles[(i * 5 + j * 11) % len(medicamentos_vendibles)]
+            if med.id_med in usados:
+                continue
+            usados.add(med.id_med)
+            cantidad = 1 + ((i + j) % 4)
+            precio = med.id_lote.precio_venta or Decimal('0.00')
+            subtotal = precio * cantidad
+            DetalleVenta.objects.create(
+                id_ventas=venta,
+                id_medicamento=med,
+                cantidad=cantidad,
+                precio_unitario=precio,
+                subtotal=subtotal,
+            )
+            total += subtotal
+            med.id_lote.stock_actual = max(0, med.id_lote.stock_actual - cantidad)
+            med.id_lote.save(update_fields=['stock_actual'])
+
+        venta.total_venta = total
+        venta.save(update_fields=['total_venta'])
+
+    print('- Ventas creadas: 100')
+
+
+if __name__ == '__main__':
+    main()

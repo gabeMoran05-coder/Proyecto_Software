@@ -1,12 +1,27 @@
+{% load static %}
 <header>
     <div class="nav-inner">
         <a href="/" class="nav-brand">
-            <strong>Farmacia Inclusiva</strong>
-            <span>/ ITCO</span>
+            <img class="nav-logo" src="{% static 'img/logo.png' %}" alt="FarmaVoz">
+            <span class="nav-brand-text">FarmaVoz</span>
         </a>
+
+        <div class="theme-switch" role="radiogroup" aria-label="Tema de color" hidden>
+            <input id="theme-light" name="theme-mode" type="radio" value="light" data-theme-option="light">
+            <input id="theme-auto" name="theme-mode" type="radio" value="auto" data-theme-option="auto">
+            <input id="theme-dark" name="theme-mode" type="radio" value="dark" data-theme-option="dark">
+            <div class="theme-track" aria-hidden="true">
+                <span class="theme-thumb"></span>
+                <label class="theme-choice theme-choice-light" for="theme-light" title="Modo claro">?</label>
+                <label class="theme-choice theme-choice-auto" for="theme-auto" title="Automático">A</label>
+                <label class="theme-choice theme-choice-dark" for="theme-dark" title="Modo oscuro">?</label>
+            </div>
+        </div>
 
         {% if current_usuario %}
         <nav class="nav-links">
+            <a class="nav-link {% if request.path == '/inicio/' %}active{% endif %}" href="{% url 'inicio_dashboard' %}">Inicio</a>
+
             {% if current_usuario_is_admin or current_usuario_role == 'almacen' or current_usuario_role == 'farmaceutico' or current_usuario_role == 'cajero' %}
                 <a class="nav-link {% if request.path|slice:':14' == '/medicamentos/' and request.path|slice:':21' != '/medicamentos/lotes/' %}active{% endif %}" href="{% url 'medicamento_list' %}">Medicamentos</a>
             {% endif %}
@@ -22,17 +37,148 @@
             {% endif %}
 
             {% if current_usuario_is_admin or current_usuario_role == 'cajero' %}
-                <a class="nav-link {% if request.path|slice:':8' == '/ventas/' %}active{% endif %}" href="{% url 'venta_list' %}">Ventas</a>
+                <a class="nav-link {% if request.path|slice:':8' == '/ventas/' and request.path != '/ventas/trazabilidad/' %}active{% endif %}" href="{% url 'venta_list' %}">Ventas</a>
+            {% endif %}
+
+            {% if current_usuario_is_admin or current_usuario_role == 'farmaceutico' or current_usuario_role == 'almacen' %}
+                <a class="nav-link {% if request.path == '/ventas/trazabilidad/' %}active{% endif %}" href="{% url 'venta_trazabilidad' %}">Trazabilidad</a>
             {% endif %}
 
             {% if current_usuario_is_admin or current_usuario_role == 'farmaceutico' %}
                 <a class="nav-link {% if request.path|slice:':10' == '/reportes/' %}active{% endif %}" href="{% url 'reportes_dashboard' %}">Reportes</a>
             {% endif %}
 
-            <span class="nav-user">
-                {{ current_usuario.nombre }} · {{ current_usuario.get_rol_display }}
-            </span>
-            <a class="nav-link" href="{% url 'usuario_logout' %}">Salir</a>
+            {% if current_usuario_is_admin or current_usuario_role == 'almacen' or current_usuario_role == 'farmaceutico' %}
+                <details class="nav-notifications">
+                    <summary class="nav-bell" title="Notificaciones del sistema" aria-label="Notificaciones del sistema">
+                        <span class="nav-bell-icon" aria-hidden="true">&#128276;</span>
+                        {% if notificaciones_total %}
+                            <span class="nav-bell-badge">{{ notificaciones_total }}</span>
+                        {% endif %}
+                    </summary>
+                    <div class="nav-notification-panel">
+                        <div class="nav-notification-head">
+                            <strong>Notificaciones del sistema</strong>
+                            {% if notificaciones_total %}
+                                <span>{{ notificaciones_total }} pendiente(s)</span>
+                                <span>{{ notificaciones_lotes_caducos_total }} caducos · {{ notificaciones_lotes_proximos_total }} próximos</span>
+                            {% else %}
+                                <span>Sin alertas</span>
+                            {% endif %}
+                        </div>
+                        {% if notificaciones_sistema or notificaciones_lotes_stock or notificaciones_lotes_caducidad %}
+                            <div class="nav-notification-list">
+                                {% for notificacion in notificaciones_sistema %}
+                                    <div class="nav-notification-item is-{{ notificacion.nivel }}">
+                                        {% if notificacion.url %}
+                                            <a class="nav-notification-content" href="{{ notificacion.url }}">
+                                        {% else %}
+                                            <span class="nav-notification-content">
+                                        {% endif %}
+                                            <span class="nav-notification-title">{{ notificacion.titulo }}</span>
+                                            <span class="nav-notification-meta">
+                                                {{ notificacion.categoria|default:"Sistema" }} · {{ notificacion.fecha_actualizacion|date:"d/m/Y H:i" }}
+                                            </span>
+                                            <span class="nav-notification-status">{{ notificacion.mensaje }}</span>
+                                        {% if notificacion.url %}
+                                            </a>
+                                        {% else %}
+                                            </span>
+                                        {% endif %}
+                                        <form method="post" action="{% url 'notificacion_sistema_descartar' notificacion.id_notificacion %}">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                                            <button class="notification-dismiss" type="submit" title="Borrar por 24 horas" aria-label="Borrar notificación">&times;</button>
+                                        </form>
+                                    </div>
+                                {% endfor %}
+                                {% for lote in notificaciones_lotes_stock %}
+                                    <div class="nav-notification-item {% if lote.stock_actual <= 0 %}is-danger{% else %}is-warning{% endif %}">
+                                        <a class="nav-notification-content" href="{% url 'lote_detail' lote.id_lote %}">
+                                        <span class="nav-notification-title">
+                                            {% with med=lote.medicamento_set.all|first %}
+                                                {% if med %}{{ med.nombre }}{% else %}Lote sin medicamento{% endif %}
+                                            {% endwith %}
+                                        </span>
+                                        <span class="nav-notification-meta">
+                                            Lote {{ lote.numero_lote }} · Stock {{ lote.stock_actual }} unidad(es)
+                                        </span>
+                                        <span class="nav-notification-status">
+                                            {% if lote.stock_actual <= 0 %}
+                                                Agotado
+                                            {% else %}
+                                                Bajo stock · {{ lote.stock_actual }} unidad(es)
+                                            {% endif %}
+                                        </span>
+                                        </a>
+                                        <form method="post" action="{% url 'lote_descartar_notificacion' lote.id_lote %}">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                                            <button class="notification-dismiss" type="submit" title="Borrar por 24 horas" aria-label="Borrar notificación">&times;</button>
+                                        </form>
+                                    </div>
+                                {% endfor %}
+                                {% for lote in notificaciones_lotes_caducidad %}
+                                    <div class="nav-notification-item is-{{ lote.estado_caducidad }}">
+                                        <a class="nav-notification-content" href="{% url 'lote_detail' lote.id_lote %}">
+                                        <span class="nav-notification-title">
+                                            {% with med=lote.medicamento_set.all|first %}
+                                                {% if med %}{{ med.nombre }}{% else %}Lote sin medicamento{% endif %}
+                                            {% endwith %}
+                                        </span>
+                                        <span class="nav-notification-meta">
+                                            Lote {{ lote.numero_lote }} · {{ lote.fecha_caducidad|date:"d/m/Y" }}
+                                        </span>
+                                        <span class="nav-notification-status">
+                                            {{ lote.estado_caducidad_display }}
+                                            {% if lote.dias_para_caducar is not None %}
+                                                · {{ lote.dias_para_caducar }} días
+                                            {% endif %}
+                                        </span>
+                                        </a>
+                                        <form method="post" action="{% url 'lote_descartar_notificacion' lote.id_lote %}">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                                            <button class="notification-dismiss" type="submit" title="Borrar por 24 horas" aria-label="Borrar notificación">&times;</button>
+                                        </form>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                            <a class="nav-notification-more nav-notification-all" href="{% url 'lote_notificaciones' %}" target="_blank" rel="noopener">Ver todas</a>
+                            <a class="nav-notification-more" href="{% url 'lote_list' %}?orden=stock_asc">Ver bajo stock y agotados</a>
+                            <a class="nav-notification-more" href="{% url 'lote_list' %}?orden=caducidad_asc&caducidad=rojo">Ver lotes caducos</a>
+                            <a class="nav-notification-more" href="{% url 'lote_list' %}?orden=caducidad_asc&caducidad=amarillo">Ver próximos a caducar</a>
+                        {% else %}
+                            <div class="nav-notification-empty">No hay medicamentos caducos ni próximos a caducar.</div>
+                        {% endif %}
+                    </div>
+                </details>
+            {% endif %}
+
+            <details class="nav-account">
+                <summary class="nav-account-button" title="Configuración de cuenta" aria-label="Configuración de cuenta">
+                    <span aria-hidden="true">&#9881;</span>
+                </summary>
+                <div class="nav-account-panel">
+                    <div class="nav-account-head">
+                        <strong>{{ current_usuario.nombre_completo }}</strong>
+                        <span>{{ current_usuario.get_rol_display }}</span>
+                    </div>
+                    <div class="nav-account-theme">
+                        <span>Modo noche</span>
+                        <button class="theme-switch-single" type="button" data-theme-cycle aria-label="Cambiar tema">
+                            <span class="theme-switch-thumb" aria-hidden="true"></span>
+                            <span class="theme-switch-choice theme-switch-dark" data-theme-option="dark" title="Modo oscuro">&#9790;</span>
+                            <span class="theme-switch-choice theme-switch-auto" data-theme-option="auto" title="Automático"></span>
+                            <span class="theme-switch-choice theme-switch-light" data-theme-option="light" title="Modo claro">&#9788;</span>
+                        </button>
+                    </div>
+                    {% if current_usuario_is_admin %}
+                        <a class="nav-account-link" href="{% url 'usuario_configuracion' %}">Automatizaciones de Gmail/correo</a>
+                    {% endif %}
+                    <a class="nav-account-link is-danger" href="{% url 'usuario_logout' %}">Salir</a>
+                </div>
+            </details>
         </nav>
         {% endif %}
     </div>

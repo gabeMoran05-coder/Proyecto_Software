@@ -6,6 +6,7 @@ from apps.medicamentos.models import Lote, Medicamento, MovimientoInventario
 from apps.medicamentos.tasks import retirar_lotes_caducos_task
 from apps.proveedores.models import Proveedor
 from apps.usuarios.models import NotificacionSistema, Usuario
+from apps.ventas.models import DetalleVenta, MetodoPago, Venta
 
 
 class InventarioTests(TestCase):
@@ -135,6 +136,28 @@ class InventarioTests(TestCase):
             {'dias_alerta_caducidad': '60'},
         )
         self.assertEqual(self.lote.estado_caducidad, Lote.CADUCIDAD_AMARILLO)
+
+    def test_no_elimina_medicamento_con_ventas_registradas(self):
+        metodo = MetodoPago.objects.create(nombre_metodo='Efectivo')
+        venta = Venta.objects.create(
+            id_usuario=self.usuario,
+            id_metPag=metodo,
+            fecha_venta=timezone.now(),
+            total_venta=10,
+        )
+        DetalleVenta.objects.create(
+            id_ventas=venta,
+            id_medicamento=self.medicamento,
+            cantidad=1,
+            precio_unitario=10,
+            subtotal=10,
+        )
+
+        response = self.client.post(reverse('medicamento_delete', args=[self.medicamento.pk]))
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response['Location'], reverse('medicamento_detail', args=[self.medicamento.pk]))
+        self.assertTrue(Medicamento.objects.filter(pk=self.medicamento.pk).exists())
 
     def test_lote_con_cero_dias_para_caducar_es_caduco(self):
         self.lote.fecha_caducidad = timezone.localdate()

@@ -1,9 +1,21 @@
 from django.urls import path
-from django.http import HttpResponse
-
-def placeholder(request):
-    return HttpResponse("Próximamente")
+from . import views
 
 urlpatterns = [
-    path('', placeholder, name='usuario_list'),
+    path('login/',             views.usuario_login,  name='usuario_login'),
+    path('logout/',            views.usuario_logout, name='usuario_logout'),
+    path('configuracion/',      views.configuracion_cuenta, name='usuario_configuracion'),
+    path('actividad/',          views.actividad_reciente, name='usuario_actividad'),
+    path(
+        'notificaciones/<int:pk>/descartar/',
+        views.notificacion_sistema_descartar,
+        name='notificacion_sistema_descartar',
+    ),
+    path('',                   views.usuario_list,   name='usuario_list'),
+    path('ocultos/',           views.usuario_ocultos, name='usuario_ocultos'),
+    path('nuevo/',             views.usuario_create, name='usuario_create'),
+    path('<int:pk>/',          views.usuario_detail, name='usuario_detail'),
+    path('<int:pk>/editar/',   views.usuario_update, name='usuario_update'),
+    path('<int:pk>/eliminar/', views.usuario_delete, name='usuario_delete'),
+    path('<int:pk>/restaurar/', views.usuario_restaurar, name='usuario_restaurar'),
 ]
