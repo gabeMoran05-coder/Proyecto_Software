@@ -1,0 +1,1172 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0f4c81">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Farmacia Martin">
+  <title>Farmacia Martin</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <style>
+    :root {
+      --azul: #0f4c81;
+      --verde: #16a34a;
+      --amarillo: #ca8a04;
+      --rojo: #dc2626;
+      --fondo: #eef3f8;
+      --linea: #d8e2ec;
+      --texto: #172033;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      min-height: 100vh;
+      margin: 0;
+      background: var(--fondo);
+      color: var(--texto);
+      font-family: "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+
+    .app-shell {
+      width: min(100%, 920px);
+      min-height: 100vh;
+      margin: 0 auto;
+      background: #f8fafc;
+      padding-bottom: 88px;
+      box-shadow: 0 0 0 1px rgba(15, 76, 129, .08);
+    }
+
+    .app-header {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      background: var(--azul);
+      color: #fff;
+      padding: max(14px, env(safe-area-inset-top)) 18px 16px;
+      border-bottom: 1px solid rgba(255,255,255,.18);
+    }
+
+    .brand-row, .summary-row, .section-head, .med-row, .bottom-nav, .lot-row {
+      display: flex;
+      align-items: center;
+    }
+
+    .brand-row { justify-content: space-between; gap: 12px; }
+    .brand-mark {
+      width: 42px;
+      height: 42px;
+      border-radius: 8px;
+      display: grid;
+      place-items: center;
+      background: rgba(255,255,255,.15);
+      font-size: 1.35rem;
+      flex: 0 0 auto;
+    }
+    .brand-title { margin: 0; font-size: 1.2rem; font-weight: 750; }
+    .brand-subtitle { margin: 0; font-size: .84rem; opacity: .78; }
+
+    .summary-row { margin-top: 14px; gap: 8px; overflow-x: auto; padding-bottom: 2px; }
+    .summary-pill {
+      min-width: 104px;
+      border: 1px solid rgba(255,255,255,.18);
+      border-radius: 8px;
+      padding: 8px 10px;
+      background: rgba(255,255,255,.12);
+    }
+    .summary-pill strong { display: block; font-size: 1.2rem; line-height: 1; }
+    .summary-pill span { font-size: .74rem; opacity: .78; }
+
+    main { padding: 16px; }
+    .panel {
+      background: #fff;
+      border: 1px solid var(--linea);
+      border-radius: 8px;
+      box-shadow: 0 1px 4px rgba(15, 40, 70, .07);
+      margin-bottom: 14px;
+    }
+    .panel-body { padding: 14px; }
+    .section-head { justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+    .section-head h2 { margin: 0; font-size: 1rem; font-weight: 720; }
+    .detail-title { margin: 0; font-size: clamp(1.45rem, 5vw, 2.2rem); font-weight: 800; }
+    .detail-subtitle { color: #64748b; margin: 4px 0 0; }
+
+    .btn-icon {
+      width: 42px;
+      height: 42px;
+      padding: 0;
+      display: inline-grid;
+      place-items: center;
+      border-radius: 8px;
+      flex: 0 0 auto;
+    }
+
+    .search-wrap { position: relative; }
+    .search-wrap i { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #64748b; }
+    .search-wrap input { padding-left: 38px; min-height: 44px; }
+
+    .screen { display: none; }
+    .screen.active { display: block; }
+    .med-list, .lot-list { display: grid; gap: 10px; }
+
+    .med-row, .lot-row {
+      width: 100%;
+      text-align: left;
+      border: 1px solid var(--linea);
+      background: #fff;
+      border-radius: 8px;
+      padding: 12px;
+      gap: 10px;
+    }
+    .med-row:active { background: #edf6ff; }
+    .med-title { margin: 0; font-size: .98rem; font-weight: 720; color: #162033; }
+    .med-meta, .lot-meta { margin: 2px 0 0; color: #64748b; font-size: .82rem; }
+    .med-stock { margin-left: auto; text-align: right; color: #334155; font-size: .78rem; }
+    .med-stock strong { display: block; font-size: 1rem; color: #111827; }
+
+    .status-dot { width: 12px; height: 12px; border-radius: 999px; display: inline-block; flex: 0 0 auto; }
+    .dot-verde { background: var(--verde); }
+    .dot-amarillo { background: var(--amarillo); }
+    .dot-rojo { background: var(--rojo); }
+    .dot-gris { background: #94a3b8; }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border-radius: 999px;
+      padding: 5px 9px;
+      font-size: .75rem;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .badge-verde { background: #dcfce7; color: #166534; }
+    .badge-amarillo { background: #fef3c7; color: #92400e; }
+    .badge-rojo { background: #fee2e2; color: #991b1b; }
+    .badge-gris { background: #e2e8f0; color: #475569; }
+
+    .empty-state { padding: 28px 16px; text-align: center; color: #64748b; }
+    .empty-state i { font-size: 2.3rem; color: var(--azul); display: block; margin-bottom: 8px; }
+    .empty-state h2 { color: var(--texto); font-size: 1.05rem; margin-bottom: 6px; }
+    .empty-state p { margin: 0 auto; max-width: 330px; font-size: .9rem; }
+
+    .detail-grid { display: grid; gap: 14px; }
+    .info-grid { display: grid; gap: 8px; }
+    .info-line {
+      display: flex;
+      justify-content: space-between;
+      gap: 14px;
+      padding: 9px 0;
+      border-bottom: 1px solid #edf2f7;
+      font-size: .92rem;
+    }
+    .info-line:last-child { border-bottom: 0; }
+    .info-line span { color: #64748b; }
+    .info-line strong { text-align: right; font-weight: 700; }
+
+    .lot-code { margin: 0; font-weight: 800; color: #172033; word-break: break-word; }
+    .lot-actions { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+    .danger-zone { border-color: #fecaca; }
+
+    .catalog-card {
+      max-width: 840px;
+      margin: 0 auto 14px;
+    }
+    .catalog-title {
+      margin: 0;
+      color: #082d4d;
+      font-size: clamp(1.85rem, 6vw, 2.45rem);
+      font-weight: 800;
+    }
+    .catalog-subtitle {
+      margin: 2px 0 24px;
+      color: #476a84;
+      font-size: 1.05rem;
+    }
+    .catalog-fieldset {
+      border: 1px solid #c8deef;
+      border-radius: 8px;
+      padding: 22px 20px 20px;
+      margin: 0 0 26px;
+    }
+    .catalog-fieldset legend {
+      float: none;
+      width: auto;
+      margin: 0;
+      padding: 0 10px;
+      color: #075b9e;
+      font-size: 1rem;
+      font-weight: 800;
+    }
+    .catalog-fieldset .form-label {
+      color: #385a72;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+    .catalog-fieldset .form-control,
+    .catalog-fieldset .form-select {
+      border-color: #c9ddeb;
+      border-radius: 8px;
+      min-height: 48px;
+      font-size: 1rem;
+    }
+    .recipe-check {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      min-height: 48px;
+    }
+    .recipe-check .form-check-input {
+      width: 48px;
+      height: 48px;
+      margin: 0;
+      border: 2px solid #c9ddeb;
+      border-radius: 12px;
+    }
+    .recipe-check .form-check-label {
+      color: #07182b;
+      font-weight: 800;
+    }
+    .catalog-actions {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .catalog-actions .btn {
+      min-width: 112px;
+      min-height: 46px;
+      border-radius: 8px;
+      font-weight: 700;
+    }
+
+    .lot-form-card {
+      max-width: 1060px;
+      margin: 0 auto 14px;
+    }
+    .lot-page-title {
+      margin: 0;
+      color: #082d4d;
+      font-size: clamp(1.8rem, 6vw, 2.4rem);
+      font-weight: 800;
+    }
+    .lot-page-subtitle {
+      margin: 2px 0 22px;
+      color: #476a84;
+      font-size: 1.05rem;
+    }
+    .lot-assignment {
+      border-left: 4px solid #1473c9;
+      border-radius: 8px;
+      background: #e9f2ff;
+      color: #16466f;
+      font-weight: 700;
+      padding: 14px 18px;
+      margin-bottom: 24px;
+    }
+    .lot-fieldset {
+      border: 1px solid #c8deef;
+      border-radius: 8px;
+      padding: 22px 20px 20px;
+      margin: 0 0 24px;
+    }
+    .lot-fieldset legend {
+      float: none;
+      width: auto;
+      margin: 0;
+      padding: 0 10px;
+      color: #075b9e;
+      font-size: 1rem;
+      font-weight: 800;
+    }
+    .lot-fieldset .form-label {
+      color: #385a72;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+    .lot-fieldset .form-control,
+    .lot-fieldset .form-select {
+      border-color: #c9ddeb;
+      border-radius: 8px;
+      min-height: 48px;
+      font-size: 1rem;
+    }
+
+    .reader-shell { min-height: calc(100vh - 70px); background: #f7f8fb; padding: 24px 14px 90px; }
+    .reader-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; max-width: 720px; margin: 0 auto 22px; }
+    .reader-kicker { margin: 0 0 8px; color: #64748b; font-size: .78rem; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
+    .reader-title { margin: 0; color: #111827; font-size: clamp(2.6rem, 12vw, 4.7rem); line-height: .96; font-weight: 850; }
+    .reader-card { max-width: 720px; margin: 0 auto 16px; border-radius: 8px; border: 2px solid #25c69a; background: #108b86; color: #fff; padding: 24px; box-shadow: 0 8px 20px rgba(10, 80, 80, .18); }
+    .reader-card-top { display: flex; justify-content: space-between; gap: 14px; font-weight: 800; margin-bottom: 8px; }
+    .reader-card h2 { margin: 0 0 8px; font-size: clamp(1.55rem, 6vw, 2rem); font-weight: 850; }
+    .reader-card p { margin: 0 0 8px; font-size: 1.05rem; font-weight: 750; }
+    .reader-message { max-width: 720px; margin: 0 auto 16px; border-radius: 8px; background: #fff; padding: 18px; color: #047857; font-weight: 800; box-shadow: 0 1px 4px rgba(15, 40, 70, .06); }
+    .reader-info { max-width: 720px; margin: 0 auto 16px; overflow: hidden; }
+    .reader-info .info-line { padding: 14px 18px; font-size: 1rem; }
+    .reader-actions { max-width: 720px; margin: 0 auto 16px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .reader-actions .btn { min-height: 58px; border-radius: 8px; font-weight: 800; }
+    .nfc-box { max-width: 720px; margin: 0 auto 16px; }
+    .nfc-box textarea { min-height: 82px; resize: vertical; font-size: .82rem; }
+    .qr-box { display: grid; place-items: center; min-height: 250px; background: #fff; border: 1px solid var(--linea); border-radius: 8px; padding: 18px; }
+    .qr-box img { width: min(240px, 78vw); height: min(240px, 78vw); image-rendering: pixelated; }
+    .wallet-list { max-width: 720px; margin: 0 auto; display: grid; gap: 10px; }
+    .wallet-card { border: 1px solid var(--linea); border-radius: 8px; background: #fff; padding: 12px; display: flex; justify-content: space-between; gap: 12px; align-items: center; }
+    @media (max-width: 540px) { .reader-actions { grid-template-columns: 1fr; } .reader-card { padding: 20px; } }
+
+
+
+
+    .bottom-nav {
+      position: fixed;
+      left: 50%;
+      bottom: 0;
+      z-index: 30;
+      transform: translateX(-50%);
+      width: min(100%, 920px);
+      height: calc(70px + env(safe-area-inset-bottom));
+      padding: 8px 12px env(safe-area-inset-bottom);
+      justify-content: space-around;
+      background: #fff;
+      border-top: 1px solid var(--linea);
+      box-shadow: 0 -2px 12px rgba(15, 40, 70, .08);
+    }
+    .nav-action {
+      width: 92px;
+      min-height: 54px;
+      border: 0;
+      background: transparent;
+      color: #64748b;
+      border-radius: 8px;
+      font-size: .72rem;
+      display: grid;
+      place-items: center;
+      gap: 2px;
+    }
+    .nav-action i { font-size: 1.25rem; }
+    .nav-action.active { color: var(--azul); background: #e8f1fa; font-weight: 700; }
+
+    @media (min-width: 760px) {
+      main { padding: 22px; }
+      .panel-body { padding: 18px; }
+      .detail-grid { grid-template-columns: .85fr 1.15fr; align-items: start; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="app-header">
+      <div class="brand-row">
+        <div class="d-flex align-items-center gap-3">
+          <div class="brand-mark"><i class="bi bi-capsule-pill"></i></div>
+          <div>
+            <h1 class="brand-title">Farmacia Martin</h1>
+            <p class="brand-subtitle">Medicamentos y lotes por separado</p>
+          </div>
+        </div>
+        <button class="btn btn-light btn-icon" type="button" onclick="openMedForm()" aria-label="Registrar medicamento">
+          <i class="bi bi-plus-lg"></i>
+        </button>
+      </div>
+      <div class="summary-row" aria-label="Resumen del inventario">
+        <div class="summary-pill"><strong id="totalCount">0</strong><span>Medicamentos</span></div>
+        <div class="summary-pill"><strong id="lotCount">0</strong><span>Lotes</span></div>
+        <div class="summary-pill"><strong id="okCount">0</strong><span>Vigentes</span></div>
+        <div class="summary-pill"><strong id="soonCount">0</strong><span>Por caducar</span></div>
+        <div class="summary-pill"><strong id="expiredCount">0</strong><span>Caducados</span></div>
+      </div>
+    </header>
+
+    <main>
+      <section id="screen-home" class="screen active">
+        <div class="panel">
+          <div class="panel-body">
+            <div class="section-head">
+              <h2>Medicamentos</h2>
+              <span class="status-badge badge-gris"><span class="status-dot dot-gris"></span>Sin lotes hasta agregarlos</span>
+            </div>
+            <div class="search-wrap">
+              <i class="bi bi-search"></i>
+              <input id="searchInput" class="form-control" type="search" placeholder="Buscar por nombre..." oninput="renderList()">
+            </div>
+          </div>
+        </div>
+
+        <div id="emptyState" class="panel empty-state">
+          <i class="bi bi-journal-medical"></i>
+          <h2>Sin medicamentos registrados</h2>
+          <p>Primero registra solo el medicamento. Despues abre su ficha y agrega lotes.</p>
+        </div>
+        <div id="medList" class="med-list"></div>
+      </section>
+
+      <section id="screen-med-form" class="screen">
+        <div class="panel catalog-card">
+          <div class="panel-body">
+            <div class="section-head">
+              <div>
+                <h2 id="medFormTitle" class="catalog-title">Medicamento</h2>
+                <p class="catalog-subtitle">Registrar medicamento en el catalogo</p>
+              </div>
+              <button class="btn btn-outline-secondary btn-icon" type="button" onclick="resetMedForm(); showScreen('home')" aria-label="Cerrar">
+                <i class="bi bi-x-lg"></i>
+              </button>
+            </div>
+            <form id="medForm">
+              <input type="hidden" id="medId">
+              <fieldset class="catalog-fieldset">
+                <legend>Datos del medicamento</legend>
+                <div class="row g-3">
+                  <div class="col-12">
+                    <label class="form-label" for="nombre">Nombre *</label>
+                    <input id="nombre" class="form-control" required placeholder="Ej: Paracetamol 500 mg">
+                  </div>
+                  <div class="col-12 col-md-6">
+                    <label class="form-label" for="presentacion">Presentacion</label>
+                    <select id="presentacion" class="form-select" required>
+                      <option value="">-- Seleccione presentacion --</option>
+                      <option>Tabletas</option>
+                      <option>Capsulas</option>
+                      <option>Jarabe</option>
+                      <option>Suspension</option>
+                      <option>Gotas</option>
+                      <option>Crema</option>
+                      <option>Pomada</option>
+                      <option>Inyectable</option>
+                      <option>Solucion</option>
+                      <option>Otro</option>
+                    </select>
+                  </div>
+                  <div class="col-12 col-md-6">
+                    <label class="form-label" for="tamanoPresentacion">Tamaño de presentacion</label>
+                    <input id="tamanoPresentacion" class="form-control" placeholder="Ej: 120 ml, caja c/12">
+                  </div>
+                  <div class="col-12 col-md-6">
+                    <label class="form-label" for="componentes">Componentes activos y concentracion</label>
+                    <input id="componentes" class="form-control" required placeholder="Ej: Paracetamol 500 mg, Ambroxol 15 mg/5 ml">
+                  </div>
+                  <div class="col-12 col-md-6">
+                    <label class="form-label d-block" for="receta">Requiere receta</label>
+                    <div class="recipe-check">
+                      <input id="receta" class="form-check-input" type="checkbox">
+                      <label class="form-check-label" for="receta">Confirmar receta</label>
+                    </div>
+                  </div>
+                  <div class="col-12 col-md-6">
+                    <label class="form-label" for="fechaRegistro">Fecha de registro</label>
+                    <input id="fechaRegistro" class="form-control" disabled value="Se asigna automaticamente al guardar">
+                  </div>
+                </div>
+              </fieldset>
+              <div class="catalog-actions">
+                <button class="btn btn-outline-secondary" type="button" onclick="resetMedForm(); showScreen('home')">Cancelar</button>
+                <button class="btn btn-primary" type="submit">Guardar</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </section>
+
+      <section id="screen-detail" class="screen">
+        <div id="detailPanel"></div>
+      </section>
+
+      <section id="screen-reader" class="screen">
+        <div id="readerPanel"></div>
+      </section>
+
+      <section id="screen-wallet" class="screen">
+        <div class="reader-shell">
+          <div class="reader-top">
+            <div>
+              <p class="reader-kicker">Wallet local</p>
+              <h2 class="reader-title">Mi wallet</h2>
+            </div>
+            <button class="btn btn-light btn-icon" type="button" onclick="showScreen('home')" aria-label="Inicio"><i class="bi bi-house-door"></i></button>
+          </div>
+          <div id="walletList" class="wallet-list"></div>
+        </div>
+      </section>
+
+    </main>
+
+    <nav class="bottom-nav" aria-label="Navegacion principal">
+      <button id="nav-home" class="nav-action active" type="button" onclick="showScreen('home')"><i class="bi bi-house-door"></i><span>Inicio</span></button>
+      <button id="nav-med-form" class="nav-action" type="button" onclick="openMedForm()"><i class="bi bi-plus-square"></i><span>Medicamento</span></button>
+      <button class="nav-action" type="button" onclick="exportData()"><i class="bi bi-share"></i><span>Compartir</span></button>
+    </nav>
+  </div>
+
+  <script>
+    const STORAGE_KEY = 'farmacia_martin_medicamentos_v2';
+    const OLD_STORAGE_KEY = 'farmacia_martin_medicamentos_v1';
+    const WALLET_KEY = 'farmacia_martin_wallet_por_telefono_v2';
+    let medicamentos = loadMedicamentos();
+    let selectedMedId = null;
+
+    function loadMedicamentos() {
+      try {
+        const current = JSON.parse(localStorage.getItem(STORAGE_KEY));
+        if (Array.isArray(current)) return current;
+        const old = JSON.parse(localStorage.getItem(OLD_STORAGE_KEY));
+        if (!Array.isArray(old)) return [];
+        return old.map(med => ({
+          id: med.id || createId(),
+          nombre: med.nombre || '',
+          presentacion: med.presentacion || '',
+          concentracion: med.concentracion || med.componentes || '',
+          componentes: med.componentes || med.concentracion || '',
+          tamano_presentacion: med.tamano_presentacion || '',
+          fecha_registro: med.fecha_registro || new Date().toISOString(),
+          receta: Boolean(med.receta),
+          lotes: med.lote || med.caducidad || med.stock ? [{
+            id: createId(),
+            codigo: med.lote || nextLotCode(1),
+            stock: Number(med.stock || 0),
+            caducidad: med.caducidad || ''
+          }] : []
+        }));
+      } catch (error) {
+        return [];
+      }
+    }
+
+
+
+    function seedMedicamentosMartin() {
+      const ejemplos = [
+        {
+          id: 'martin-med-paracetamol',
+          nombre: 'Paracetamol 500 mg',
+          presentacion: 'Tabletas',
+          tamano_presentacion: 'Caja c/10',
+          componentes: 'Paracetamol 500 mg',
+          concentracion: 'Paracetamol 500 mg',
+          fecha_registro: '2026-08-31T00:00:00.000Z',
+          receta: false,
+          lotes: [
+            {
+              id: 'martin-lote-paracetamol-00001',
+              codigo: 'MARTIN-MARTINEZ-00001',
+              proveedor: 'Farmacia Guadalajara',
+              stock: 2,
+              caducidad: '2028-06-15',
+              fabricacion: '',
+              fecha_compra: '2026-08-31',
+              estado: 'activo'
+            }
+          ]
+        },
+        {
+          id: 'martin-med-ambroxol',
+          nombre: 'Ambroxol 30 mg/5 ml',
+          presentacion: 'Jarabe',
+          tamano_presentacion: 'Frasco 120 ml',
+          componentes: 'Ambroxol 30 mg/5 ml',
+          concentracion: 'Ambroxol 30 mg/5 ml',
+          fecha_registro: '2026-08-31T00:00:00.000Z',
+          receta: false,
+          lotes: [
+            {
+              id: 'martin-lote-ambroxol-00002',
+              codigo: 'MARTIN-MARTINEZ-00002',
+              proveedor: 'Distribuidora Martinez',
+              stock: 1,
+              caducidad: '2029-07-16',
+              fabricacion: '',
+              fecha_compra: '2026-08-31',
+              estado: 'activo'
+            }
+          ]
+        },
+        {
+          id: 'martin-med-ibuprofeno',
+          nombre: 'Ibuprofeno 400 mg',
+          presentacion: 'Capsulas',
+          tamano_presentacion: 'Caja c/20',
+          componentes: 'Ibuprofeno 400 mg',
+          concentracion: 'Ibuprofeno 400 mg',
+          fecha_registro: '2026-08-31T00:00:00.000Z',
+          receta: false,
+          lotes: [
+            {
+              id: 'martin-lote-ibuprofeno-00003',
+              codigo: 'MARTIN-MARTINEZ-00003',
+              proveedor: 'Compra personal',
+              stock: 3,
+              caducidad: '2027-12-20',
+              fabricacion: '',
+              fecha_compra: '2026-08-31',
+              estado: 'activo'
+            }
+          ]
+        }
+      ];
+
+      let changed = false;
+      ejemplos.forEach(ejemplo => {
+        const exists = medicamentos.some(med => med.id === ejemplo.id || med.nombre.toLowerCase() === ejemplo.nombre.toLowerCase());
+        if (!exists) {
+          medicamentos.push(ejemplo);
+          changed = true;
+        }
+      });
+      if (changed) {
+        medicamentos.sort((a, b) => a.nombre.localeCompare(b.nombre));
+        saveMedicamentos();
+      }
+    }
+
+    function saveMedicamentos() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(medicamentos));
+    }
+
+    function createId() {
+      if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
+      return 'martin-' + Date.now() + '-' + Math.random().toString(16).slice(2);
+    }
+
+    function showScreen(name) {
+      document.querySelectorAll('.screen').forEach(screen => screen.classList.remove('active'));
+      document.getElementById('screen-' + name).classList.add('active');
+      document.querySelectorAll('.nav-action').forEach(item => item.classList.remove('active'));
+      const nav = document.getElementById('nav-' + name);
+      if (nav) nav.classList.add('active');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function daysUntil(dateText) {
+      if (!dateText) return null;
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const target = new Date(dateText + 'T00:00:00');
+      return Math.ceil((target - today) / 86400000);
+    }
+
+    function lotStatus(lote) {
+      const days = daysUntil(lote.caducidad);
+      if (days === null) return { key: 'gris', label: 'Sin caducidad', days };
+      if (days < 0) return { key: 'rojo', label: 'Caducado', days };
+      if (days <= 30) return { key: 'amarillo', label: 'Proximo a caducar', days };
+      return { key: 'verde', label: 'Vigente', days };
+    }
+
+    function medStatus(med) {
+      const lotes = med.lotes || [];
+      if (lotes.length === 0) return { key: 'gris', label: 'Sin lotes', days: null };
+      return lotes.map(lotStatus).sort((a, b) => statusRank(a.key) - statusRank(b.key))[0];
+    }
+
+    function statusRank(key) {
+      return { rojo: 0, amarillo: 1, verde: 2, gris: 3 }[key] ?? 3;
+    }
+
+
+
+    function medComponentes(med) {
+      return med.componentes || med.concentracion || 'Sin componentes';
+    }
+
+    function medTamano(med) {
+      return med.tamano_presentacion || 'Sin tamaño';
+    }
+
+    function formatDateTime(value) {
+      if (!value) return 'Sin fecha';
+      return new Date(value).toLocaleDateString('es-MX');
+    }
+
+    function formatDate(dateText) {
+      if (!dateText) return 'Sin fecha';
+      const [year, month, day] = dateText.split('-');
+      return day + '/' + month + '/' + year;
+    }
+
+    function totalStock(med) {
+      return (med.lotes || []).reduce((sum, lote) => sum + Number(lote.stock || 0), 0);
+    }
+
+    function renderSummary() {
+      const allLots = medicamentos.flatMap(med => med.lotes || []);
+      const totals = allLots.reduce((acc, lote) => {
+        acc[lotStatus(lote).key] += 1;
+        return acc;
+      }, { verde: 0, amarillo: 0, rojo: 0, gris: 0 });
+      document.getElementById('totalCount').textContent = medicamentos.length;
+      document.getElementById('lotCount').textContent = allLots.length;
+      document.getElementById('okCount').textContent = totals.verde;
+      document.getElementById('soonCount').textContent = totals.amarillo;
+      document.getElementById('expiredCount').textContent = totals.rojo;
+    }
+
+    function renderList() {
+      renderSummary();
+      const query = document.getElementById('searchInput').value.trim().toLowerCase();
+      const list = document.getElementById('medList');
+      const empty = document.getElementById('emptyState');
+      const visible = medicamentos.filter(med => med.nombre.toLowerCase().includes(query));
+      empty.style.display = medicamentos.length === 0 ? 'block' : 'none';
+      list.innerHTML = '';
+
+      if (medicamentos.length > 0 && visible.length === 0) {
+        list.innerHTML = '<div class="panel empty-state"><i class="bi bi-search"></i><h2>Sin resultados</h2><p>No hay medicamentos con ese nombre.</p></div>';
+        return;
+      }
+
+      visible.forEach(med => {
+        const status = medStatus(med);
+        const item = document.createElement('button');
+        item.className = 'med-row';
+        item.type = 'button';
+        item.onclick = () => showDetail(med.id);
+        item.innerHTML = `
+          <span class="status-dot dot-${status.key}" aria-hidden="true"></span>
+          <span>
+            <p class="med-title">${escapeHtml(med.nombre)}</p>
+            <p class="med-meta">${escapeHtml(med.presentacion)} | ${escapeHtml(medTamano(med))}</p>
+          </span>
+          <span class="med-stock"><strong>${totalStock(med)}</strong>${(med.lotes || []).length} lotes</span>
+        `;
+        list.appendChild(item);
+      });
+    }
+
+    function openMedForm(id) {
+      resetMedForm();
+      if (id) {
+        const med = medicamentos.find(item => item.id === id);
+        if (!med) return;
+        document.getElementById('medFormTitle').textContent = 'Editar medicamento';
+        document.getElementById('medId').value = med.id;
+        document.getElementById('nombre').value = med.nombre;
+        document.getElementById('presentacion').value = med.presentacion;
+        document.getElementById('tamanoPresentacion').value = med.tamano_presentacion || '';
+        document.getElementById('componentes').value = medComponentes(med);
+        document.getElementById('receta').checked = Boolean(med.receta);
+      }
+      showScreen('med-form');
+    }
+
+    document.getElementById('medForm').addEventListener('submit', event => {
+      event.preventDefault();
+      const id = document.getElementById('medId').value || createId();
+      const previous = medicamentos.find(item => item.id === id);
+      const med = {
+        id,
+        nombre: document.getElementById('nombre').value.trim(),
+        presentacion: document.getElementById('presentacion').value.trim(),
+        tamano_presentacion: document.getElementById('tamanoPresentacion').value.trim(),
+        componentes: document.getElementById('componentes').value.trim(),
+        concentracion: document.getElementById('componentes').value.trim(),
+        fecha_registro: previous ? previous.fecha_registro || new Date().toISOString() : new Date().toISOString(),
+        receta: document.getElementById('receta').checked,
+        lotes: previous ? previous.lotes || [] : []
+      };
+      medicamentos = medicamentos.filter(item => item.id !== id).concat(med).sort((a, b) => a.nombre.localeCompare(b.nombre));
+      saveMedicamentos();
+      resetMedForm();
+      renderList();
+      showDetail(id);
+    });
+
+    function resetMedForm() {
+      document.getElementById('medFormTitle').textContent = 'Medicamento';
+      document.getElementById('medForm').reset();
+      document.getElementById('medId').value = '';
+    }
+
+    function showDetail(id) {
+      const med = medicamentos.find(item => item.id === id);
+      if (!med) return;
+      selectedMedId = id;
+      const status = medStatus(med);
+      const lots = med.lotes || [];
+      document.getElementById('detailPanel').innerHTML = `
+        <div class="panel">
+          <div class="panel-body">
+            <div class="section-head">
+              <div>
+                <h2 class="detail-title">${escapeHtml(med.nombre)}</h2>
+                <p class="detail-subtitle">${escapeHtml(med.presentacion)} | ${escapeHtml(medTamano(med))}</p>
+              </div>
+              <button class="btn btn-outline-secondary btn-icon" type="button" onclick="showScreen('home')" aria-label="Volver"><i class="bi bi-arrow-left"></i></button>
+            </div>
+            <span class="status-badge badge-${status.key}"><span class="status-dot dot-${status.key}"></span>${status.label}</span>
+          </div>
+        </div>
+
+        <div class="detail-grid">
+          <div>
+            <div class="panel">
+              <div class="panel-body">
+                <div class="section-head"><h2>Informacion</h2></div>
+                <div class="info-grid">
+                  <div class="info-line"><span>Presentacion</span><strong>${escapeHtml(med.presentacion)}</strong></div>
+                  <div class="info-line"><span>Tamaño de presentacion</span><strong>${escapeHtml(medTamano(med))}</strong></div>
+                  <div class="info-line"><span>Componentes</span><strong>${escapeHtml(medComponentes(med))}</strong></div>
+                  <div class="info-line"><span>Fecha registro</span><strong>${formatDateTime(med.fecha_registro)}</strong></div>
+                  <div class="info-line"><span>Receta</span><strong>${med.receta ? 'Si requiere' : 'No requiere'}</strong></div>
+                  <div class="info-line"><span>Lotes</span><strong>${lots.length}</strong></div>
+                  <div class="info-line"><span>Stock total</span><strong>${totalStock(med)} piezas</strong></div>
+                </div>
+                <div class="d-grid gap-2 mt-3">
+                  <button class="btn btn-primary" type="button" onclick="openMedForm('${med.id}')"><i class="bi bi-pencil-square me-2"></i>Editar medicamento</button>
+                  <button class="btn btn-outline-primary" type="button" onclick="speakMed('${med.id}')"><i class="bi bi-volume-up me-2"></i>Escuchar informacion</button>
+                </div>
+              </div>
+            </div>
+            <div class="panel danger-zone">
+              <div class="panel-body d-grid">
+                <button class="btn btn-outline-danger" type="button" onclick="deleteMed('${med.id}')"><i class="bi bi-trash me-2"></i>Eliminar medicamento</button>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <div class="panel lot-form-card">
+              <div class="panel-body">
+                <h2 class="lot-page-title">Lote</h2>
+                <p class="lot-page-subtitle">Registrar lote de inventario</p>
+                <div class="lot-assignment">Este lote se asignara automaticamente a ${escapeHtml(med.nombre)} - ${escapeHtml(med.presentacion)} - ${escapeHtml(medComponentes(med))}.</div>
+                <form id="lotForm" onsubmit="saveLot(event)">
+                  <input type="hidden" id="lotId">
+                  <fieldset class="lot-fieldset">
+                    <legend>Datos del lote</legend>
+                    <div class="row g-3">
+                      <div class="col-12 col-md-6">
+                        <label class="form-label" for="lotCodigo">Numero del lote *</label>
+                        <input id="lotCodigo" class="form-control" required value="${nextLotCode(lots.length + 1)}" placeholder="Ej: MARTIN-MARTINEZ-00001">
+                      </div>
+                      <div class="col-12 col-md-6">
+                        <label class="form-label" for="lotProveedor">Proveedor *</label>
+                        <input id="lotProveedor" class="form-control" required placeholder="Ej: Farmacia Guadalajara, Dr. Martinez, Compra personal">
+                      </div>
+                      <div class="col-12 col-md-6">
+                        <label class="form-label" for="lotCaducidad">Fecha de vencimiento</label>
+                        <input id="lotCaducidad" class="form-control" type="date" required>
+                      </div>
+                      <div class="col-12 col-md-6">
+                        <label class="form-label" for="lotFabricacion">Fecha de fabricacion <span class="text-muted fw-normal">(opcional)</span></label>
+                        <input id="lotFabricacion" class="form-control" type="date">
+                      </div>
+                      <div class="col-12 col-md-6">
+                        <label class="form-label" for="lotStock">Stock</label>
+                        <input id="lotStock" class="form-control" type="number" min="0" value="0" required>
+                      </div>
+                      <div class="col-12 col-md-6">
+                        <label class="form-label" for="lotCompraFecha">Fecha de compra</label>
+                        <input id="lotCompraFecha" class="form-control" type="date">
+                      </div>
+                    </div>
+                  </fieldset>
+                  <div class="catalog-actions">
+                    <button class="btn btn-outline-secondary" type="button" onclick="showDetail('${med.id}')">Cancelar</button>
+                    <button class="btn btn-primary" type="submit">Guardar</button>
+                  </div>
+                </form>
+              </div>
+            </div>
+            <div class="panel">
+              <div class="panel-body">
+                <div class="section-head"><h2>Lotes registrados</h2></div>
+                <div class="lot-list">${renderLots(med)}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+      showScreen('detail');
+    }
+
+    function renderLots(med) {
+      const lots = med.lotes || [];
+      if (lots.length === 0) {
+        return '<div class="empty-state"><i class="bi bi-box"></i><h2>Sin lotes registrados</h2><p>Agrega el primer lote con formato MARTIN-MARTINEZ-00001.</p></div>';
+      }
+      return lots.map(lote => {
+        const status = lotStatus(lote);
+        const daysText = status.days === null ? 'Sin dias' : status.days < 0 ? 'Caducado' : status.days + ' dias';
+        return `
+          <div class="lot-row">
+            <span class="status-dot dot-${status.key}"></span>
+            <div>
+              <p class="lot-code">${escapeHtml(lote.codigo)}</p>
+              <p class="lot-meta">${escapeHtml(lote.proveedor || 'Sin proveedor')} | Caduca ${formatDate(lote.caducidad)} | ${daysText} | Stock ${Number(lote.stock || 0)}</p>
+            </div>
+            <div class="lot-actions">
+              <button class="btn btn-sm btn-outline-primary btn-icon" type="button" onclick="openLotCard('${med.id}', '${lote.id}')" aria-label="Abrir ficha"><i class="bi bi-eye"></i></button>
+              <button class="btn btn-sm btn-outline-dark btn-icon" type="button" onclick="copyLotLink('${med.id}', '${lote.id}')" aria-label="Copiar link NFC"><i class="bi bi-link-45deg"></i></button>
+              <button class="btn btn-sm btn-outline-danger btn-icon" type="button" onclick="deleteLot('${med.id}', '${lote.id}')" aria-label="Eliminar lote"><i class="bi bi-trash"></i></button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function saveLot(event) {
+      event.preventDefault();
+      const med = medicamentos.find(item => item.id === selectedMedId);
+      if (!med) return;
+      const lote = {
+        id: document.getElementById('lotId').value || createId(),
+        codigo: document.getElementById('lotCodigo').value.trim().toUpperCase(),
+        proveedor: document.getElementById('lotProveedor').value,
+        stock: Math.max(0, Number(document.getElementById('lotStock').value || 0)),
+        caducidad: document.getElementById('lotCaducidad').value,
+        fabricacion: document.getElementById('lotFabricacion').value,
+        fecha_compra: document.getElementById('lotCompraFecha').value,
+        estado: 'activo' 
+      };
+      med.lotes = (med.lotes || []).filter(item => item.id !== lote.id).concat(lote);
+      saveMedicamentos();
+      renderList();
+      openLotCard(med.id, lote.id);
+    }
+
+
+
+    function buildCardPayload(med, lote) {
+      return {
+        m: med.nombre,
+        p: med.presentacion,
+        t: medTamano(med),
+        c: medComponentes(med),
+        r: med.receta ? 'Si requiere' : 'No requiere',
+        l: lote.codigo,
+        pr: lote.proveedor || 'Sin proveedor',
+        s: Number(lote.stock || 0),
+        v: lote.caducidad,
+        f: lote.fabricacion || '',
+        fc: lote.fecha_compra || '',
+        id: lote.id
+      };
+    }
+
+    function encodePayload(payload) {
+      return btoa(unescape(encodeURIComponent(JSON.stringify(payload)))).replaceAll('+', '-').replaceAll('/', '_').replaceAll('=', '');
+    }
+
+    function decodePayload(value) {
+      const padded = value.replaceAll('-', '+').replaceAll('_', '/') + '='.repeat((4 - value.length % 4) % 4);
+      return JSON.parse(decodeURIComponent(escape(atob(padded))));
+    }
+
+    function lotLink(med, lote) {
+      const url = new URL(window.location.href);
+      url.search = '?card=' + encodePayload(buildCardPayload(med, lote));
+      url.hash = '';
+      return url.toString();
+    }
+
+    function openLotCard(medId, lotId) {
+      const med = medicamentos.find(item => item.id === medId);
+      if (!med) return;
+      const lote = (med.lotes || []).find(item => item.id === lotId);
+      if (!lote) return;
+      renderReader(buildCardPayload(med, lote), lotLink(med, lote));
+    }
+
+    async function copyLotLink(medId, lotId) {
+      const med = medicamentos.find(item => item.id === medId);
+      const lote = med ? (med.lotes || []).find(item => item.id === lotId) : null;
+      if (!med || !lote) return;
+      await copyText(lotLink(med, lote));
+      alert('Link copiado para pegarlo en el NFC.');
+    }
+
+    function renderReader(data, link) {
+      const status = lotStatus({ caducidad: data.v });
+      const statusText = status.key === 'rojo' ? 'Este lote esta caducado.' : status.key === 'amarillo' ? 'Este lote esta proximo a caducar.' : 'Este lote esta vigente segun la fecha registrada.';
+      const qrSrc = '/martin/qr/?data=' + encodeURIComponent(link);
+      const serialized = JSON.stringify(data).replaceAll('&', '&amp;').replaceAll("'", '&#039;');
+      const safeLink = JSON.stringify(link).replaceAll('&', '&amp;').replaceAll("'", '&#039;');
+      document.getElementById('readerPanel').innerHTML = `
+        <div class="reader-shell">
+          <div class="reader-top">
+            <div>
+              <p class="reader-kicker">Farma Voz Community</p>
+              <h2 class="reader-title">${escapeHtml(data.m)}</h2>
+            </div>
+            <button class="btn btn-light btn-icon" type="button" onclick="showScreen('home')" aria-label="Inicio"><i class="bi bi-house-door"></i></button>
+          </div>
+          <div class="reader-card">
+            <div class="reader-card-top"><span>Lote ${escapeHtml(data.l)}</span><span>${escapeHtml(status.label)}</span></div>
+            <h2>${escapeHtml(data.m)}</h2>
+            <p>${escapeHtml(data.p)} - ${escapeHtml(data.t)}</p>
+            <p>Unidad #1 del lote para seguimiento personal</p>
+            <p>Caducidad: ${formatDate(data.v)}</p>
+          </div>
+          <div class="reader-message">${statusText}</div>
+          <div class="panel reader-info">
+            <div class="info-line"><span>Medicamento</span><strong>${escapeHtml(data.m)}</strong></div>
+            <div class="info-line"><span>Presentacion</span><strong>${escapeHtml(data.p)}</strong></div>
+            <div class="info-line"><span>Tamaño</span><strong>${escapeHtml(data.t)}</strong></div>
+            <div class="info-line"><span>Componentes</span><strong>${escapeHtml(data.c)}</strong></div>
+            <div class="info-line"><span>Lote</span><strong>${escapeHtml(data.l)}</strong></div>
+            <div class="info-line"><span>Proveedor</span><strong>${escapeHtml(data.pr)}</strong></div>
+            <div class="info-line"><span>Stock</span><strong>${escapeHtml(data.s)} piezas</strong></div>
+            <div class="info-line"><span>Caducidad</span><strong>${formatDate(data.v)}</strong></div>
+            <div class="info-line"><span>Receta</span><strong>${escapeHtml(data.r)}</strong></div>
+          </div>
+          <div class="reader-actions">
+            <button class="btn btn-dark" type="button" onclick='speakCard(${JSON.stringify(serialized)})'><i class="bi bi-volume-up me-2"></i>Leer en voz alta</button>
+            <button class="btn btn-light" type="button" onclick="window.speechSynthesis && window.speechSynthesis.cancel()"><i class="bi bi-stop-fill me-2"></i>Detener</button>
+            <button class="btn btn-success" type="button" onclick='saveToWallet(${JSON.stringify(serialized)}, ${safeLink})'><i class="bi bi-wallet2 me-2"></i>Guardar en wallet</button>
+            <button class="btn btn-outline-success" type="button" onclick="showWallet()"><i class="bi bi-wallet2 me-2"></i>Ver wallet</button>
+            <button class="btn btn-primary" type="button" onclick='copyText(${safeLink}).then(() => alert("Link copiado para NFC."))'><i class="bi bi-link-45deg me-2"></i>Copiar link NFC</button>
+          </div>
+          <div class="panel nfc-box">
+            <div class="panel-body">
+              <div class="section-head"><h2>Link para NFC</h2></div>
+              <textarea class="form-control" readonly>${escapeHtml(link)}</textarea>
+            </div>
+          </div>
+          <div class="panel nfc-box">
+            <div class="panel-body">
+              <div class="section-head"><h2>Generador QR</h2></div>
+              <div class="qr-box"><img src="${qrSrc}" alt="QR del lote"></div>
+            </div>
+          </div>
+        </div>
+      `;
+      showScreen('reader');
+    }
+
+    function speakCard(serialized) {
+      const data = JSON.parse(serialized);
+      if (!('speechSynthesis' in window)) return;
+      const status = lotStatus({ caducidad: data.v });
+      const text = `${data.m}. Presentacion ${data.p}. Tamaño ${data.t}. Componentes ${data.c}. Lote ${data.l}. Proveedor ${data.pr}. Stock ${data.s} piezas. Caducidad ${formatDate(data.v)}. Estado: ${status.label}. ${data.r}.`;
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = 'es-MX';
+      utterance.rate = 0.92;
+      window.speechSynthesis.speak(utterance);
+    }
+
+    function walletItems() {
+      try { return JSON.parse(localStorage.getItem(WALLET_KEY)) || []; }
+      catch (error) { return []; }
+    }
+
+    function saveToWallet(serialized, link) {
+      const data = JSON.parse(serialized);
+      const items = walletItems().filter(item => item.data.id !== data.id);
+      items.unshift({ data, link, savedAt: new Date().toISOString(), source: 'individual-scan' });
+      localStorage.setItem(WALLET_KEY, JSON.stringify(items));
+      alert('Ficha guardada en wallet.');
+      showWallet();
+    }
+
+    function showWallet() {
+      const items = walletItems().filter(item => item.source === 'individual-scan');
+      const list = document.getElementById('walletList');
+      if (!items.length) {
+        list.innerHTML = '<div class="panel empty-state"><i class="bi bi-wallet2"></i><h2>Wallet vacio</h2><p>Aqui solo aparecen las fichas individuales que decides guardar despues de escanear o abrir un link.</p></div>';
+      } else {
+        list.innerHTML = items.map(item => {
+          const serialized = JSON.stringify(item.data).replaceAll('&', '&amp;').replaceAll("'", '&#039;');
+          const safeLink = JSON.stringify(item.link).replaceAll('&', '&amp;').replaceAll("'", '&#039;');
+          return `
+            <div class="wallet-card">
+              <div>
+                <p class="med-title">${escapeHtml(item.data.m)}</p>
+                <p class="med-meta">${escapeHtml(item.data.l)} | ${formatDate(item.data.v)}</p>
+              </div>
+              <div class="d-flex gap-2">
+                <button class="btn btn-sm btn-outline-primary btn-icon" type="button" onclick='renderReader(${JSON.stringify(serialized)}, ${safeLink})' aria-label="Abrir ficha"><i class="bi bi-eye"></i></button>
+                <button class="btn btn-sm btn-outline-dark btn-icon" type="button" onclick='copyText(${safeLink}).then(() => alert("Link copiado para NFC."))' aria-label="Copiar link"><i class="bi bi-link-45deg"></i></button>
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+      showScreen('wallet');
+    }
+
+    async function copyText(text) {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(text);
+        return;
+      }
+      const input = document.createElement('textarea');
+      input.value = text;
+      document.body.appendChild(input);
+      input.select();
+      document.execCommand('copy');
+      input.remove();
+    }
+
+    function openCardFromUrl() {
+      const params = new URLSearchParams(location.search);
+      const encoded = params.get('card');
+      if (!encoded) return false;
+      try {
+        const data = decodePayload(encoded);
+        renderReader(data, location.href);
+        return true;
+      } catch (error) {
+        return false;
+      }
+    }
+
+    function deleteLot(medId, lotId) {
+      const med = medicamentos.find(item => item.id === medId);
+      if (!med || !confirm('Eliminar este lote?')) return;
+      med.lotes = (med.lotes || []).filter(item => item.id !== lotId);
+      saveMedicamentos();
+      renderList();
+      showDetail(medId);
+    }
+
+    function nextLotCode(number) {
+      return 'MARTIN-MARTINEZ-' + String(number).padStart(5, '0');
+    }
+
+    function deleteMed(id) {
+      if (!confirm('Eliminar este medicamento y todos sus lotes?')) return;
+      medicamentos = medicamentos.filter(item => item.id !== id);
+      saveMedicamentos();
+      renderList();
+      showScreen('home');
+    }
+
+    function speakMed(id) {
+      const med = medicamentos.find(item => item.id === id);
+      if (!med || !('speechSynthesis' in window)) return;
+      const status = medStatus(med);
+      const text = `${med.nombre}. ${med.presentacion}, ${medComponentes(med)}. Estado general: ${status.label}. Tiene ${(med.lotes || []).length} lotes y stock total de ${totalStock(med)} piezas. ${med.receta ? 'Requiere receta medica.' : 'No requiere receta medica.'}`;
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = 'es-MX';
+      utterance.rate = 0.92;
+      window.speechSynthesis.speak(utterance);
+    }
+
+    async function exportData() {
+      const text = medicamentos.length
+        ? medicamentos.map(med => `${med.nombre} - ${med.presentacion} - ${medComponentes(med)} - ${totalStock(med)} piezas - ${(med.lotes || []).length} lotes`).join('\n')
+        : 'Farmacia Martin: sin medicamentos registrados.';
+      if (navigator.share) {
+        await navigator.share({ title: 'Farmacia Martin', text });
+        return;
+      }
+      await navigator.clipboard.writeText(text);
+      alert('Resumen copiado al portapapeles.');
+    }
+
+    function escapeHtml(value) {
+      return String(value)
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#039;');
+    }
+
+    seedMedicamentosMartin();
+    saveMedicamentos();
+    renderList();
+    openCardFromUrl();
+  </script>
+</body>
+</html>
